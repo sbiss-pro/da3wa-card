@@ -14,7 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          host_id: string
+          id: string
+          location: string | null
+          location_url: string | null
+          name: string
+          slug: string
+          template_config: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_type?: string
+          host_id: string
+          id?: string
+          location?: string | null
+          location_url?: string | null
+          name: string
+          slug?: string
+          template_config?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          host_id?: string
+          id?: string
+          location?: string | null
+          location_url?: string | null
+          name?: string
+          slug?: string
+          template_config?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      guests: {
+        Row: {
+          checked_in_at: string | null
+          companions_count: number
+          created_at: string
+          email: string | null
+          event_id: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          rsvp_status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          checked_in_at?: string | null
+          companions_count?: number
+          created_at?: string
+          email?: string | null
+          event_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          rsvp_status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          checked_in_at?: string | null
+          companions_count?: number
+          created_at?: string
+          email?: string | null
+          event_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rsvp_status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
