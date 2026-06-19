@@ -547,3 +547,119 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
     </div>
   );
 }
+
+/* ---------------- Coordinators ---------------- */
+type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
+
+function CoordinatorsTab({ eventId }: { eventId: string }) {
+  const [rows, setRows] = useState<CoordinatorRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    try {
+      const r = await listCoordinators({ data: { event_id: eventId } });
+      setRows(r as CoordinatorRow[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التحميل");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [eventId]);
+
+  const submit = async () => {
+    if (saving) return;
+    if (!name.trim() || !username.trim() || password.length < 6) {
+      toast.error("جميع الحقول مطلوبة وكلمة المرور لا تقل عن 6 أحرف");
+      return;
+    }
+    setSaving(true);
+    try {
+      await createCoordinator({ data: { event_id: eventId, name: name.trim(), username: username.trim(), password } });
+      toast.success("تم إنشاء المنسق");
+      setName(""); setUsername(""); setPassword(""); setOpen(false);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الإنشاء");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("حذف هذا المنسق؟ سيفقد الوصول فوراً.")) return;
+    try {
+      await deleteCoordinator({ data: { id } });
+      setRows(prev => prev.filter(r => r.id !== id));
+      toast.success("تم الحذف");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-6">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-display text-lg font-bold">منسقو الفعالية</h3>
+            <p className="mt-1 text-sm text-muted-foreground">يمكن للمنسق فقط رؤية قائمة المدعوين وتسجيل الحضور ومسح QR لهذه الفعالية، دون الوصول لإعداداتك أو فعالياتك الأخرى.</p>
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> منسق جديد</Button>
+            </DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader><DialogTitle>إضافة منسق</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+                <div><Label>اسم المستخدم</Label><Input value={username} onChange={e => setUsername(e.target.value)} dir="ltr" placeholder="ahmed_2025" /></div>
+                <div><Label>كلمة المرور (6 أحرف فأكثر)</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} /></div>
+              </div>
+              <DialogFooter>
+                <Button onClick={submit} disabled={saving} className="gold-gradient text-primary-foreground">{saving ? "..." : "إنشاء"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {loading ? <p className="text-sm text-muted-foreground">جاري التحميل...</p> : rows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <UserCog className="mx-auto h-10 w-10 text-gold" />
+            <p className="mt-2 text-sm text-muted-foreground">لا يوجد منسقون بعد لهذه الفعالية</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الاسم</TableHead>
+                <TableHead>اسم المستخدم</TableHead>
+                <TableHead>آخر دخول</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell className="text-sm" dir="ltr">{r.username}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.last_login_at ? formatArabicDate(r.last_login_at) : "—"}</TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          رابط دخول المنسقين: <span className="font-mono text-foreground" dir="ltr">/c/login</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
