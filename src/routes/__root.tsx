@@ -88,9 +88,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "دعوتي — منصة دعوات الفعاليات الرقمية" },
       { name: "description", content: "أنشئ دعوات إلكترونية فاخرة للأعراس والمناسبات وأدِر قائمة المدعوين وردودهم بكل سهولة." },
       { property: "og:title", content: "دعوتي — منصة دعوات الفعاليات الرقمية" },
-      { property: "og:description", content: "دعوات أنيقة، تتبع ردود، وتسجيل حضور عبر QR." },
+      { property: "og:description", content: "أنشئ دعوات إلكترونية فاخرة للأعراس والمناسبات وأدِر قائمة المدعوين وردودهم بكل سهولة." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "دعوتي — منصة دعوات الفعاليات الرقمية" },
+      { name: "twitter:description", content: "أنشئ دعوات إلكترونية فاخرة للأعراس والمناسبات وأدِر قائمة المدعوين وردودهم بكل سهولة." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/191e3853-18b2-42a7-8dbf-b234664e3993/id-preview-efc48858--a2e66951-04f5-4d9b-866f-c6ac2c9c1aae.lovable.app-1781875843357.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/191e3853-18b2-42a7-8dbf-b234664e3993/id-preview-efc48858--a2e66951-04f5-4d9b-866f-c6ac2c9c1aae.lovable.app-1781875843357.png" },
     ],
     links: [
       {
