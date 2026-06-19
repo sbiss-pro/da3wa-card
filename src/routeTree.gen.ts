@@ -13,6 +13,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ITokenRouteImport } from './routes/i.$token'
+import { Route as CLoginRouteImport } from './routes/c.login'
+import { Route as CEventRouteImport } from './routes/c.event'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events.new'
@@ -35,6 +37,16 @@ const IndexRoute = IndexRouteImport.update({
 const ITokenRoute = ITokenRouteImport.update({
   id: '/i/$token',
   path: '/i/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CLoginRoute = CLoginRouteImport.update({
+  id: '/c/login',
+  path: '/c/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CEventRoute = CEventRouteImport.update({
+  id: '/c/event',
+  path: '/c/event',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIntegrationsRoute =
@@ -65,6 +77,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/c/event': typeof CEventRoute
+  '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -74,6 +88,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/c/event': typeof CEventRoute
+  '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -85,6 +101,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
+  '/c/event': typeof CEventRoute
+  '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
@@ -96,6 +114,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/integrations'
+    | '/c/event'
+    | '/c/login'
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
@@ -105,6 +125,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/integrations'
+    | '/c/event'
+    | '/c/login'
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
@@ -115,6 +137,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
+    | '/c/event'
+    | '/c/login'
     | '/i/$token'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
@@ -124,6 +148,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CEventRoute: typeof CEventRoute
+  CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
 }
 
@@ -155,6 +181,20 @@ declare module '@tanstack/react-router' {
       path: '/i/$token'
       fullPath: '/i/$token'
       preLoaderRoute: typeof ITokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/c/login': {
+      id: '/c/login'
+      path: '/c/login'
+      fullPath: '/c/login'
+      preLoaderRoute: typeof CLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/c/event': {
+      id: '/c/event'
+      path: '/c/event'
+      fullPath: '/c/event'
+      preLoaderRoute: typeof CEventRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/integrations': {
@@ -209,6 +249,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  CEventRoute: CEventRoute,
+  CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
 }
 export const routeTree = rootRouteImport
