@@ -117,34 +117,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      submit_rsvp: {
-        Args: {
-          p_companions: number
-          p_notes: string
-          p_status: string
-          p_token: string
-        }
-        Returns: {
-          checked_in_at: string | null
-          companions_count: number
-          created_at: string
-          email: string | null
-          event_id: string
-          id: string
-          name: string
-          notes: string | null
-          phone: string | null
-          rsvp_status: string
-          token: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "guests"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
