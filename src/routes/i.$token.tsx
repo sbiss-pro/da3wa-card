@@ -1,6 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { Check, X, Calendar, MapPin, Download, Apple } from "lucide-react";
 import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
+import { getInvitation, submitRsvp } from "@/lib/invitation.functions";
 
 type LoaderData = {
   guest: { id: string; token: string; name: string; rsvp_status: string; companions_count: number; notes: string | null };
@@ -23,10 +23,12 @@ export const Route = createFileRoute("/i/$token")({
   head: () => ({ meta: [{ title: "دعوتك — دعوتي" }] }),
   component: GuestPage,
   loader: async ({ params }) => {
-    const { data: guest, error } = await supabase.from("guests").select("id,token,name,rsvp_status,companions_count,notes,event_id").eq("token", params.token).maybeSingle();
-    if (error || !guest) throw notFound();
-    const { data: event } = await supabase.from("events").select("id,name,event_type,event_date,location,location_url,description,template_config").eq("id", guest.event_id).single();
-    return { guest, event } as LoaderData;
+    try {
+      const result = await getInvitation({ data: { token: params.token } });
+      return result as LoaderData;
+    } catch {
+      throw notFound();
+    }
   },
 });
 
@@ -59,14 +61,15 @@ function GuestPage() {
 
   const respond = async (status: "accepted" | "declined") => {
     setSubmitting(true);
-    const { data, error } = await supabase.rpc("submit_rsvp", {
-      p_token: guest.token, p_status: status, p_companions: companions, p_notes: notes,
-    });
-    setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
-    setGuest({ ...guest, rsvp_status: status, companions_count: companions, notes });
-    toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك");
-    void data;
+    try {
+      await submitRsvp({ data: { token: guest.token, status, companions, notes } });
+      setGuest({ ...guest, rsvp_status: status, companions_count: companions, notes });
+      toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const cal = buildCalendarLinks({
