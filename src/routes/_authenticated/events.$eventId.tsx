@@ -484,6 +484,8 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
     if (!scanning) return;
     let html5: { stop: () => Promise<void>; clear: () => void } | null = null;
     let cancelled = false;
+    let lastToken = "";
+    let lastAt = 0;
     (async () => {
       const { Html5Qrcode } = await import("html5-qrcode");
       if (cancelled) return;
@@ -494,19 +496,28 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
           async (decoded: string) => {
-            const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded;
+            try {
+              const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
+              if (!token || token.length < 4 || token.length > 128) { toast.error("رمز غير صالح"); return; }
+              const now = Date.now();
+              if (token === lastToken && now - lastAt < 2500) return;
+              lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
             await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
             setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
             toast.success(`أهلاً ${guest.name}`);
             onCheckIn();
+            } catch (err) {
+              console.error(err);
+              toast.error("تعذّر معالجة الرمز");
+            }
           },
           () => {},
         );
       } catch (e) {
         console.error(e);
-        toast.error("تعذر فتح الكاميرا");
+        toast.error("تعذّر فتح الكاميرا — تأكد من السماح بالوصول");
         setScanning(false);
       }
     })();
