@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HostShell } from "@/components/host-shell";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone } from "@/lib/whatsapp";
+import { listCoordinators, createCoordinator, deleteCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -82,6 +85,7 @@ function EventDetails() {
           <TabsTrigger value="guests">المدعوون ({guests.length})</TabsTrigger>
           <TabsTrigger value="rsvp">تتبع الردود</TabsTrigger>
           <TabsTrigger value="automation">التذكيرات</TabsTrigger>
+          <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
           <TabsTrigger value="scanner">مسح QR</TabsTrigger>
         </TabsList>
 
@@ -97,8 +101,13 @@ function EventDetails() {
         <TabsContent value="automation" className="mt-6">
           <AutomationTab event={event} guests={guests} />
         </TabsContent>
+        <TabsContent value="coordinators" className="mt-6">
+          <CoordinatorsTab eventId={event.id} />
+        </TabsContent>
         <TabsContent value="scanner" className="mt-6">
-          <ScannerTab eventId={event.id} onCheckIn={load} />
+          <ErrorBoundary title="تعذّر تشغيل ماسح QR">
+            <ScannerTab eventId={event.id} onCheckIn={load} />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </HostShell>
@@ -181,26 +190,105 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
+  const [importing, setImporting] = useState(false);
+  const [waSending, setWaSending] = useState(false);
+
   const handleFile = (file: File) => {
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (res) => {
-        const rows = res.data.map(r => {
-          const keys = Object.keys(r);
-          const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
-          return {
-            event_id: event.id,
-            name: r[k("name", "اسم")] || "",
-            phone: r[k("phone", "هاتف", "جوال")] || null,
-            email: r[k("email", "بريد", "ايميل")] || null,
-          };
-        }).filter(r => r.name);
-        if (!rows.length) return toast.error("لم يتم العثور على مدعوين");
-        const { error } = await supabase.from("guests").insert(rows);
-        if (error) toast.error(error.message); else { toast.success(`تم استيراد ${rows.length} مدعو`); reload(); }
-      },
-    });
+    const lower = file.name.toLowerCase();
+    if (!/\.(csv|xlsx?|tsv|txt)$/i.test(lower)) {
+      toast.error("صيغة الملف غير مدعومة. استخدم CSV أو Excel.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("حجم الملف كبير جداً (الحد الأقصى 5 ميجابايت)");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setImporting(true);
+    try {
+      Papa.parse<Record<string, string>>(file, {
+        header: true,
+        skipEmptyLines: "greedy",
+        transformHeader: (h) => (h || "").trim(),
+        complete: async (res) => {
+          try {
+            const data = Array.isArray(res.data) ? res.data : [];
+            if (!data.length) {
+              toast.error("الملف فارغ أو لا يحتوي على صفوف صالحة");
+              return;
+            }
+            let skippedNoName = 0, skippedBadPhone = 0;
+            const rows = data.flatMap((r) => {
+              if (!r || typeof r !== "object") return [];
+              const keys = Object.keys(r);
+              const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
+              const name = String(r[k("name", "اسم")] || "").trim();
+              const phoneRaw = String(r[k("phone", "هاتف", "جوال", "mobile")] || "").trim();
+              const email = String(r[k("email", "بريد", "ايميل")] || "").trim();
+              if (!name) { skippedNoName++; return []; }
+              let phone: string | null = null;
+              if (phoneRaw) {
+                const norm = normalizePhone(phoneRaw);
+                if (!norm) { skippedBadPhone++; phone = null; } else phone = norm;
+              }
+              return [{ event_id: event.id, name: name.slice(0, 120), phone, email: email || null }];
+            });
+            if (!rows.length) {
+              toast.error("لم يتم العثور على أسماء صالحة في الملف");
+              return;
+            }
+            const { error } = await supabase.from("guests").insert(rows);
+            if (error) { toast.error(error.message); return; }
+            const warn: string[] = [];
+            if (skippedNoName) warn.push(`${skippedNoName} صف بدون اسم`);
+            if (skippedBadPhone) warn.push(`${skippedBadPhone} رقم هاتف غير صالح`);
+            toast.success(`تم استيراد ${rows.length} مدعو${warn.length ? ` · تجاوزنا: ${warn.join("، ")}` : ""}`);
+            reload();
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "تعذّر معالجة الملف");
+          } finally {
+            setImporting(false);
+            if (fileRef.current) fileRef.current.value = "";
+          }
+        },
+        error: (err) => {
+          toast.error(err?.message || "تعذّر قراءة الملف");
+          setImporting(false);
+          if (fileRef.current) fileRef.current.value = "";
+        },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ أثناء الاستيراد");
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const sendWhatsApp = async () => {
+    if (waSending) return;
+    const cfg = getWhatsAppConfig();
+    if (!cfg.api_key || !cfg.instance_id) {
+      toast.error("يرجى ضبط بيانات WhatsApp من صفحة التكاملات");
+      return;
+    }
+    const recipients = guests
+      .filter(g => g.phone)
+      .map(g => ({ name: g.name, phone: g.phone, url: inviteUrl(g.token) }));
+    if (!recipients.length) {
+      toast.error("لا يوجد مدعوون بأرقام هاتف");
+      return;
+    }
+    setWaSending(true);
+    const id = toast.loading(`جارٍ إرسال ${recipients.length} دعوة عبر WhatsApp...`);
+    try {
+      const r = await simulateWhatsAppBlast(cfg, recipients);
+      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`, { id });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال", { id });
+    } finally {
+      setWaSending(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -219,7 +307,12 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" hidden onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="ms-2 h-4 w-4" /> استيراد Excel/CSV</Button>
+          <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+            <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
+          </Button>
+          <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
+            <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
+          </Button>
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
@@ -391,6 +484,8 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
     if (!scanning) return;
     let html5: { stop: () => Promise<void>; clear: () => void } | null = null;
     let cancelled = false;
+    let lastToken = "";
+    let lastAt = 0;
     (async () => {
       const { Html5Qrcode } = await import("html5-qrcode");
       if (cancelled) return;
@@ -401,19 +496,28 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
           async (decoded: string) => {
-            const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded;
+            try {
+              const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
+              if (!token || token.length < 4 || token.length > 128) { toast.error("رمز غير صالح"); return; }
+              const now = Date.now();
+              if (token === lastToken && now - lastAt < 2500) return;
+              lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
             await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
             setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
             toast.success(`أهلاً ${guest.name}`);
             onCheckIn();
+            } catch (err) {
+              console.error(err);
+              toast.error("تعذّر معالجة الرمز");
+            }
           },
           () => {},
         );
       } catch (e) {
         console.error(e);
-        toast.error("تعذر فتح الكاميرا");
+        toast.error("تعذّر فتح الكاميرا — تأكد من السماح بالوصول");
         setScanning(false);
       }
     })();
@@ -450,6 +554,122 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
         ) : (
           <p className="text-muted-foreground">لم يتم مسح أي رمز بعد</p>
         )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- Coordinators ---------------- */
+type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
+
+function CoordinatorsTab({ eventId }: { eventId: string }) {
+  const [rows, setRows] = useState<CoordinatorRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    try {
+      const r = await listCoordinators({ data: { event_id: eventId } });
+      setRows(r as CoordinatorRow[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التحميل");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [eventId]);
+
+  const submit = async () => {
+    if (saving) return;
+    if (!name.trim() || !username.trim() || password.length < 6) {
+      toast.error("جميع الحقول مطلوبة وكلمة المرور لا تقل عن 6 أحرف");
+      return;
+    }
+    setSaving(true);
+    try {
+      await createCoordinator({ data: { event_id: eventId, name: name.trim(), username: username.trim(), password } });
+      toast.success("تم إنشاء المنسق");
+      setName(""); setUsername(""); setPassword(""); setOpen(false);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الإنشاء");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("حذف هذا المنسق؟ سيفقد الوصول فوراً.")) return;
+    try {
+      await deleteCoordinator({ data: { id } });
+      setRows(prev => prev.filter(r => r.id !== id));
+      toast.success("تم الحذف");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-6">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-display text-lg font-bold">منسقو الفعالية</h3>
+            <p className="mt-1 text-sm text-muted-foreground">يمكن للمنسق فقط رؤية قائمة المدعوين وتسجيل الحضور ومسح QR لهذه الفعالية، دون الوصول لإعداداتك أو فعالياتك الأخرى.</p>
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> منسق جديد</Button>
+            </DialogTrigger>
+            <DialogContent dir="rtl">
+              <DialogHeader><DialogTitle>إضافة منسق</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+                <div><Label>اسم المستخدم</Label><Input value={username} onChange={e => setUsername(e.target.value)} dir="ltr" placeholder="ahmed_2025" /></div>
+                <div><Label>كلمة المرور (6 أحرف فأكثر)</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} /></div>
+              </div>
+              <DialogFooter>
+                <Button onClick={submit} disabled={saving} className="gold-gradient text-primary-foreground">{saving ? "..." : "إنشاء"}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {loading ? <p className="text-sm text-muted-foreground">جاري التحميل...</p> : rows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <UserCog className="mx-auto h-10 w-10 text-gold" />
+            <p className="mt-2 text-sm text-muted-foreground">لا يوجد منسقون بعد لهذه الفعالية</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الاسم</TableHead>
+                <TableHead>اسم المستخدم</TableHead>
+                <TableHead>آخر دخول</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell className="text-sm" dir="ltr">{r.username}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.last_login_at ? formatArabicDate(r.last_login_at) : "—"}</TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          رابط دخول المنسقين: <span className="font-mono text-foreground" dir="ltr">/c/login</span>
+        </div>
       </Card>
     </div>
   );

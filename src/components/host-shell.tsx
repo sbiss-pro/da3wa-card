@@ -1,7 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, LayoutDashboard, Plus } from "lucide-react";
+import { LogOut, LayoutDashboard, Plus, Plug } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function HostShell({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export function HostShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-2">
             <Link to="/dashboard"><Button variant="ghost" size="sm"><LayoutDashboard className="ms-1 h-4 w-4" /> اللوحة</Button></Link>
+            <Link to="/integrations"><Button variant="ghost" size="sm"><Plug className="ms-1 h-4 w-4" /> التكاملات</Button></Link>
             <Link to="/events/new"><Button size="sm" className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> فعالية جديدة</Button></Link>
             <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
           </div>

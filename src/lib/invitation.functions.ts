@@ -26,7 +26,7 @@ export const getInvitation = createServerFn({ method: "GET" })
 const rsvpSchema = z.object({
   token: z.string().min(8).max(64),
   status: z.enum(["accepted", "declined"]),
-  companions: z.number().int().min(0).max(20),
+  companions: z.number().int().min(0).max(2),
   notes: z.string().max(500).optional().nullable(),
 });
 

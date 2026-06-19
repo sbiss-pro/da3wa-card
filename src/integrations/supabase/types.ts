@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      coordinators: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          last_login_at: string | null
+          name: string
+          password_hash: string
+          session_token: string | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          last_login_at?: string | null
+          name: string
+          password_hash: string
+          session_token?: string | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          last_login_at?: string | null
+          name?: string
+          password_hash?: string
+          session_token?: string | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coordinators_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string

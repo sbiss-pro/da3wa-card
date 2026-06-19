@@ -62,8 +62,9 @@ function GuestPage() {
   const respond = async (status: "accepted" | "declined") => {
     setSubmitting(true);
     try {
-      await submitRsvp({ data: { token: guest.token, status, companions, notes } });
-      setGuest({ ...guest, rsvp_status: status, companions_count: companions, notes });
+      const safeCompanions = Math.max(0, Math.min(2, Number.isFinite(companions) ? companions : 0));
+      await submitRsvp({ data: { token: guest.token, status, companions: safeCompanions, notes } });
+      setGuest(prev => ({ ...prev, rsvp_status: status, companions_count: safeCompanions, notes }));
       toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
@@ -113,7 +114,9 @@ function GuestPage() {
                 <Select value={String(companions)} onValueChange={v => setCompanions(Number(v))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 11 }).map((_, i) => <SelectItem key={i} value={String(i)}>{i === 0 ? "بدون مرافقين" : `${i} مرافق`}</SelectItem>)}
+                    <SelectItem value="0">بدون مرافقين</SelectItem>
+                    <SelectItem value="1">مرافق واحد</SelectItem>
+                    <SelectItem value="2">مرافقان (الحد الأقصى)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
