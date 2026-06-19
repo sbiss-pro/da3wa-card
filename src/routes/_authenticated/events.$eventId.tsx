@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HostShell } from "@/components/host-shell";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone } from "@/lib/whatsapp";
+import { listCoordinators, createCoordinator, deleteCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -82,6 +85,7 @@ function EventDetails() {
           <TabsTrigger value="guests">المدعوون ({guests.length})</TabsTrigger>
           <TabsTrigger value="rsvp">تتبع الردود</TabsTrigger>
           <TabsTrigger value="automation">التذكيرات</TabsTrigger>
+          <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
           <TabsTrigger value="scanner">مسح QR</TabsTrigger>
         </TabsList>
 
@@ -97,8 +101,13 @@ function EventDetails() {
         <TabsContent value="automation" className="mt-6">
           <AutomationTab event={event} guests={guests} />
         </TabsContent>
+        <TabsContent value="coordinators" className="mt-6">
+          <CoordinatorsTab eventId={event.id} />
+        </TabsContent>
         <TabsContent value="scanner" className="mt-6">
-          <ScannerTab eventId={event.id} onCheckIn={load} />
+          <ErrorBoundary title="تعذّر تشغيل ماسح QR">
+            <ScannerTab eventId={event.id} onCheckIn={load} />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </HostShell>
