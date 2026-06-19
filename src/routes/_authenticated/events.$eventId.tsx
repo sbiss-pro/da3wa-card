@@ -190,26 +190,105 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
+  const [importing, setImporting] = useState(false);
+  const [waSending, setWaSending] = useState(false);
+
   const handleFile = (file: File) => {
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (res) => {
-        const rows = res.data.map(r => {
-          const keys = Object.keys(r);
-          const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
-          return {
-            event_id: event.id,
-            name: r[k("name", "اسم")] || "",
-            phone: r[k("phone", "هاتف", "جوال")] || null,
-            email: r[k("email", "بريد", "ايميل")] || null,
-          };
-        }).filter(r => r.name);
-        if (!rows.length) return toast.error("لم يتم العثور على مدعوين");
-        const { error } = await supabase.from("guests").insert(rows);
-        if (error) toast.error(error.message); else { toast.success(`تم استيراد ${rows.length} مدعو`); reload(); }
-      },
-    });
+    const lower = file.name.toLowerCase();
+    if (!/\.(csv|xlsx?|tsv|txt)$/i.test(lower)) {
+      toast.error("صيغة الملف غير مدعومة. استخدم CSV أو Excel.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("حجم الملف كبير جداً (الحد الأقصى 5 ميجابايت)");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setImporting(true);
+    try {
+      Papa.parse<Record<string, string>>(file, {
+        header: true,
+        skipEmptyLines: "greedy",
+        transformHeader: (h) => (h || "").trim(),
+        complete: async (res) => {
+          try {
+            const data = Array.isArray(res.data) ? res.data : [];
+            if (!data.length) {
+              toast.error("الملف فارغ أو لا يحتوي على صفوف صالحة");
+              return;
+            }
+            let skippedNoName = 0, skippedBadPhone = 0;
+            const rows = data.flatMap((r) => {
+              if (!r || typeof r !== "object") return [];
+              const keys = Object.keys(r);
+              const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
+              const name = String(r[k("name", "اسم")] || "").trim();
+              const phoneRaw = String(r[k("phone", "هاتف", "جوال", "mobile")] || "").trim();
+              const email = String(r[k("email", "بريد", "ايميل")] || "").trim();
+              if (!name) { skippedNoName++; return []; }
+              let phone: string | null = null;
+              if (phoneRaw) {
+                const norm = normalizePhone(phoneRaw);
+                if (!norm) { skippedBadPhone++; phone = null; } else phone = norm;
+              }
+              return [{ event_id: event.id, name: name.slice(0, 120), phone, email: email || null }];
+            });
+            if (!rows.length) {
+              toast.error("لم يتم العثور على أسماء صالحة في الملف");
+              return;
+            }
+            const { error } = await supabase.from("guests").insert(rows);
+            if (error) { toast.error(error.message); return; }
+            const warn: string[] = [];
+            if (skippedNoName) warn.push(`${skippedNoName} صف بدون اسم`);
+            if (skippedBadPhone) warn.push(`${skippedBadPhone} رقم هاتف غير صالح`);
+            toast.success(`تم استيراد ${rows.length} مدعو${warn.length ? ` · تجاوزنا: ${warn.join("، ")}` : ""}`);
+            reload();
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "تعذّر معالجة الملف");
+          } finally {
+            setImporting(false);
+            if (fileRef.current) fileRef.current.value = "";
+          }
+        },
+        error: (err) => {
+          toast.error(err?.message || "تعذّر قراءة الملف");
+          setImporting(false);
+          if (fileRef.current) fileRef.current.value = "";
+        },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ أثناء الاستيراد");
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const sendWhatsApp = async () => {
+    if (waSending) return;
+    const cfg = getWhatsAppConfig();
+    if (!cfg.api_key || !cfg.instance_id) {
+      toast.error("يرجى ضبط بيانات WhatsApp من صفحة التكاملات");
+      return;
+    }
+    const recipients = guests
+      .filter(g => g.phone)
+      .map(g => ({ name: g.name, phone: g.phone, url: inviteUrl(g.token) }));
+    if (!recipients.length) {
+      toast.error("لا يوجد مدعوون بأرقام هاتف");
+      return;
+    }
+    setWaSending(true);
+    const id = toast.loading(`جارٍ إرسال ${recipients.length} دعوة عبر WhatsApp...`);
+    try {
+      const r = await simulateWhatsAppBlast(cfg, recipients);
+      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`, { id });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال", { id });
+    } finally {
+      setWaSending(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -228,7 +307,12 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         </div>
         <div className="flex gap-2">
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" hidden onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="ms-2 h-4 w-4" /> استيراد Excel/CSV</Button>
+          <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+            <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
+          </Button>
+          <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
+            <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
+          </Button>
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
