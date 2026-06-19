@@ -1,0 +1,50 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+const tokenSchema = z.object({ token: z.string().min(8).max(64) });
+
+export const getInvitation = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => tokenSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: guest, error: gErr } = await supabaseAdmin
+      .from("guests")
+      .select("id,token,name,rsvp_status,companions_count,notes,event_id")
+      .eq("token", data.token)
+      .maybeSingle();
+    if (gErr) throw new Error(gErr.message);
+    if (!guest) throw new Error("NOT_FOUND");
+    const { data: event, error: eErr } = await supabaseAdmin
+      .from("events")
+      .select("id,name,event_type,event_date,location,location_url,description,template_config")
+      .eq("id", guest.event_id)
+      .single();
+    if (eErr || !event) throw new Error("NOT_FOUND");
+    return { guest, event };
+  });
+
+const rsvpSchema = z.object({
+  token: z.string().min(8).max(64),
+  status: z.enum(["accepted", "declined"]),
+  companions: z.number().int().min(0).max(20),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const submitRsvp = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => rsvpSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error } = await supabaseAdmin
+      .from("guests")
+      .update({
+        rsvp_status: data.status,
+        companions_count: data.companions,
+        notes: data.notes ? data.notes : null,
+      })
+      .eq("token", data.token)
+      .select("id,token,name,rsvp_status,companions_count,notes,event_id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!updated) throw new Error("NOT_FOUND");
+    return updated;
+  });
