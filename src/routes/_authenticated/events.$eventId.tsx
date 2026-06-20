@@ -161,7 +161,7 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
           </div>
           <TimelineEditor
             items={cfg.timeline || []}
-            onChange={items => setCfg({ ...cfg, timeline: items })}
+            onChange={(items: TimelineItem[]) => setCfg({ ...cfg, timeline: items })}
           />
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
