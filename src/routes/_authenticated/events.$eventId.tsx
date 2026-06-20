@@ -12,15 +12,15 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Eye, EyeOff, Pencil, Clock } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone } from "@/lib/whatsapp";
-import { listCoordinators, createCoordinator, deleteCoordinator } from "@/lib/coordinator.functions";
+import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -71,9 +71,20 @@ function EventDetails() {
           <h1 className="font-display text-3xl font-bold">{event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatArabicDate(event.event_date)}</p>
         </div>
-        <Button variant="outline" onClick={() => {
-          navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
-          toast.success("تم نسخ رابط الفعالية");
+        <Button variant="outline" onClick={async () => {
+          const url = `${window.location.origin}/e/${event.slug}`;
+          try {
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(url);
+            } else {
+              const ta = document.createElement("textarea");
+              ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+              document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+            }
+            toast.success("تم نسخ رابط الفعالية");
+          } catch {
+            toast.error("تعذّر النسخ — انسخ الرابط يدوياً: " + url);
+          }
         }}>
           <LinkIcon className="ms-2 h-4 w-4" /> نسخ رابط الفعالية
         </Button>
@@ -148,6 +159,10 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             <Label>رسالة الدعوة</Label>
             <Textarea rows={3} value={cfg.custom_message || ""} onChange={e => setCfg({ ...cfg, custom_message: e.target.value })} placeholder="يسرّنا دعوتكم لمشاركتنا فرحة..." />
           </div>
+          <TimelineEditor
+            items={cfg.timeline || []}
+            onChange={(items: TimelineItem[]) => setCfg({ ...cfg, timeline: items })}
+          />
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
             <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
@@ -310,12 +325,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
           <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
             <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
           </Button>
+          <Button variant="outline" onClick={downloadGuestTemplate}>
+            <Download className="ms-2 h-4 w-4" /> تصدير نموذج إكسل
+          </Button>
           <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
             <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
           </Button>
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
+
+      {guests[0] ? (
+        <Card className="flex items-center justify-between gap-3 border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-full gold-gradient text-primary-foreground">
+              <UserCog className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">آخر مدعو تم تسجيله</p>
+              <p className="font-display text-lg font-bold">{guests[0].name}</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs">{formatArabicDate(new Date())}</Badge>
+        </Card>
+      ) : null}
 
       <Card>
         <Table>
@@ -504,6 +537,12 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
               lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
+            if (guest.rsvp_status === "attended") {
+              const when = guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—";
+              toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
+              setLastGuest({ ...guest } as Guest);
+              return;
+            }
             await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
             setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
             toast.success(`أهلاً ${guest.name}`);
@@ -560,7 +599,7 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
 }
 
 /* ---------------- Coordinators ---------------- */
-type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
+type CoordinatorRow = { id: string; name: string; username: string; password_plain: string | null; last_login_at: string | null; created_at: string };
 
 function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<CoordinatorRow[]>([]);
@@ -570,6 +609,8 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showPw, setShowPw] = useState<Record<string, boolean>>({});
+  const [editRow, setEditRow] = useState<CoordinatorRow | null>(null);
 
   const load = async () => {
     try {
@@ -650,8 +691,9 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
               <TableRow>
                 <TableHead>الاسم</TableHead>
                 <TableHead>اسم المستخدم</TableHead>
+                <TableHead>كلمة المرور</TableHead>
                 <TableHead>آخر دخول</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-28">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -659,8 +701,23 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell className="text-sm" dir="ltr">{r.username}</TableCell>
+                  <TableCell className="text-sm" dir="ltr">
+                    {r.password_plain ? (
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono">{showPw[r.id] ? r.password_plain : "••••••••"}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPw(s => ({ ...s, [r.id]: !s[r.id] }))}>
+                          {showPw[r.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    ) : <span className="text-muted-foreground">— (قم بالتعديل)</span>}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.last_login_at ? formatArabicDate(r.last_login_at) : "—"}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setEditRow(r)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -671,6 +728,110 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
           رابط دخول المنسقين: <span className="font-mono text-foreground" dir="ltr">/c/login</span>
         </div>
       </Card>
+      <EditCoordinatorDialog row={editRow} onClose={() => setEditRow(null)} onSaved={load} />
     </div>
+  );
+}
+
+/* ---------------- Helpers added ---------------- */
+
+function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: (items: TimelineItem[]) => void }) {
+  const add = () => onChange([...items, { time: "20:00", title: "" }]);
+  const update = (i: number, patch: Partial<TimelineItem>) =>
+    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> الجدول الزمني للفعالية</Label>
+        <Button type="button" size="sm" variant="outline" onClick={add}><Plus className="ms-1 h-3 w-3" /> إضافة</Button>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">أضف فقرات الفعالية (مثل: وقت الزفة 21:00، تناول العشاء 22:30)</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input type="time" value={it.time} onChange={e => update(i, { time: e.target.value })} className="w-32" dir="ltr" />
+              <Input value={it.title} onChange={e => update(i, { title: e.target.value })} placeholder="مثال: وقت الزفة" className="flex-1" />
+              <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function downloadGuestTemplate() {
+  const headers = ["اللقب", "الاسم", "رقم الجوال"];
+  const sample = [
+    ["المكرم", "محمد بن سعيد", "+966500000000"],
+    ["المكرمة", "فاطمة بنت أحمد", "+966500000001"],
+  ];
+  const rows = [headers, ...sample].map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const csv = "\uFEFF" + rows; // BOM for Excel Arabic
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "guest-template.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast.success("تم تنزيل النموذج");
+}
+
+function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow | null; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (row) { setName(row.name); setUsername(row.username); setPassword(""); setShow(false); }
+  }, [row]);
+
+  const submit = async () => {
+    if (!row) return;
+    if (password && password.length < 6) { toast.error("كلمة المرور لا تقل عن 6 أحرف"); return; }
+    setSaving(true);
+    try {
+      await updateCoordinator({
+        data: {
+          id: row.id,
+          name: name.trim() || undefined,
+          username: username.trim() || undefined,
+          password: password || undefined,
+        },
+      });
+      toast.success("تم تحديث المنسق");
+      onSaved(); onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التحديث");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={!!row} onOpenChange={v => !v && onClose()}>
+      <DialogContent dir="rtl">
+        <DialogHeader><DialogTitle>تعديل بيانات المنسق</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+          <div><Label>اسم المستخدم</Label><Input value={username} onChange={e => setUsername(e.target.value)} dir="ltr" /></div>
+          <div>
+            <Label>كلمة مرور جديدة (اتركها فارغة لعدم التغيير)</Label>
+            <div className="flex items-center gap-2">
+              <Input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} dir="ltr" />
+              <Button type="button" variant="outline" size="icon" onClick={() => setShow(s => !s)}>
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={saving} className="gold-gradient text-primary-foreground">{saving ? "..." : "حفظ"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,5 +1,7 @@
 import { formatArabicDate } from "@/lib/event-utils";
 
+export type TimelineItem = { time: string; title: string };
+
 export type TemplateConfig = {
   template?: string;
   bg_color?: string;
@@ -9,6 +11,7 @@ export type TemplateConfig = {
   custom_title?: string;
   custom_message?: string;
   image_url?: string;
+  timeline?: TimelineItem[];
 };
 
 export function InvitationCard({
@@ -59,6 +62,26 @@ export function InvitationCard({
         <div className="mx-auto mt-8 h-px w-20" style={{ background: accent }} />
         <p className="mt-6 text-lg font-medium">{formatArabicDate(eventDate)}</p>
         {location ? <p className="mt-2 text-sm opacity-80">{location}</p> : null}
+        {config.timeline && config.timeline.length > 0 ? (
+          <div className="mx-auto mt-8 max-w-md">
+            <div className="mx-auto mb-4 h-px w-16" style={{ background: accent }} />
+            <p className="mb-3 text-sm tracking-widest" style={{ color: accent }}>
+              الجدول الزمني
+            </p>
+            <ul className="space-y-2 text-right">
+              {config.timeline.map((it, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
+                  style={{ background: accent + "12", border: `1px solid ${accent}33` }}
+                >
+                  <span className="font-medium">{it.title}</span>
+                  <span className="font-bold tabular-nums" style={{ color: accent }} dir="ltr">{it.time}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </div>
   );
