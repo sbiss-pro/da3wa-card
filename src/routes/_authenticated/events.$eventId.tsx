@@ -12,15 +12,15 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Eye, EyeOff, Pencil, Clock } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone } from "@/lib/whatsapp";
-import { listCoordinators, createCoordinator, deleteCoordinator } from "@/lib/coordinator.functions";
+import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -71,9 +71,20 @@ function EventDetails() {
           <h1 className="font-display text-3xl font-bold">{event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatArabicDate(event.event_date)}</p>
         </div>
-        <Button variant="outline" onClick={() => {
-          navigator.clipboard.writeText(`${window.location.origin}/e/${event.slug}`);
-          toast.success("تم نسخ رابط الفعالية");
+        <Button variant="outline" onClick={async () => {
+          const url = `${window.location.origin}/e/${event.slug}`;
+          try {
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(url);
+            } else {
+              const ta = document.createElement("textarea");
+              ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+              document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+            }
+            toast.success("تم نسخ رابط الفعالية");
+          } catch {
+            toast.error("تعذّر النسخ — انسخ الرابط يدوياً: " + url);
+          }
         }}>
           <LinkIcon className="ms-2 h-4 w-4" /> نسخ رابط الفعالية
         </Button>
