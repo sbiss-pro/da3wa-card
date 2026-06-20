@@ -1,0 +1,1 @@
+ALTER TABLE public.coordinators ADD COLUMN IF NOT EXISTS password_plain TEXT;
