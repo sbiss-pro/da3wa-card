@@ -14,7 +14,7 @@ export const listCoordinators = createServerFn({ method: "GET" })
     // RLS scoped by host
     const { data: rows, error } = await context.supabase
       .from("coordinators")
-      .select("id,name,username,last_login_at,created_at")
+      .select("id,name,username,password_plain,last_login_at,created_at")
       .eq("event_id", data.event_id)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -40,6 +40,7 @@ export const createCoordinator = createServerFn({ method: "POST" })
         name: data.name,
         username: data.username.toLowerCase(),
         password_hash,
+        password_plain: data.password,
       })
       .select("id,name,username,created_at")
       .single();
@@ -48,6 +49,33 @@ export const createCoordinator = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
     return row;
+  });
+
+export const updateCoordinator = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().trim().min(2).max(80).optional(),
+      username: usernameSchema.optional(),
+      password: z.string().min(6).max(72).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const patch: Record<string, unknown> = {};
+    if (data.name) patch.name = data.name;
+    if (data.username) patch.username = data.username.toLowerCase();
+    if (data.password) {
+      patch.password_hash = await bcrypt.hash(data.password, 10);
+      patch.password_plain = data.password;
+    }
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await context.supabase.from("coordinators").update(patch).eq("id", data.id);
+    if (error) {
+      if (error.code === "23505") throw new Error("اسم المستخدم مستخدم بالفعل");
+      throw new Error(error.message);
+    }
+    return { ok: true };
   });
 
 export const deleteCoordinator = createServerFn({ method: "POST" })
