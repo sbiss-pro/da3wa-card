@@ -599,7 +599,7 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
 }
 
 /* ---------------- Coordinators ---------------- */
-type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
+type CoordinatorRow = { id: string; name: string; username: string; password_plain: string | null; last_login_at: string | null; created_at: string };
 
 function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<CoordinatorRow[]>([]);
@@ -609,6 +609,8 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showPw, setShowPw] = useState<Record<string, boolean>>({});
+  const [editRow, setEditRow] = useState<CoordinatorRow | null>(null);
 
   const load = async () => {
     try {
@@ -689,8 +691,9 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
               <TableRow>
                 <TableHead>الاسم</TableHead>
                 <TableHead>اسم المستخدم</TableHead>
+                <TableHead>كلمة المرور</TableHead>
                 <TableHead>آخر دخول</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-28">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -698,8 +701,23 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell className="text-sm" dir="ltr">{r.username}</TableCell>
+                  <TableCell className="text-sm" dir="ltr">
+                    {r.password_plain ? (
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono">{showPw[r.id] ? r.password_plain : "••••••••"}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPw(s => ({ ...s, [r.id]: !s[r.id] }))}>
+                          {showPw[r.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    ) : <span className="text-muted-foreground">— (قم بالتعديل)</span>}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.last_login_at ? formatArabicDate(r.last_login_at) : "—"}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setEditRow(r)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -710,6 +728,110 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
           رابط دخول المنسقين: <span className="font-mono text-foreground" dir="ltr">/c/login</span>
         </div>
       </Card>
+      <EditCoordinatorDialog row={editRow} onClose={() => setEditRow(null)} onSaved={load} />
     </div>
+  );
+}
+
+/* ---------------- Helpers added ---------------- */
+
+function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: (items: TimelineItem[]) => void }) {
+  const add = () => onChange([...items, { time: "20:00", title: "" }]);
+  const update = (i: number, patch: Partial<TimelineItem>) =>
+    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> الجدول الزمني للفعالية</Label>
+        <Button type="button" size="sm" variant="outline" onClick={add}><Plus className="ms-1 h-3 w-3" /> إضافة</Button>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">أضف فقرات الفعالية (مثل: وقت الزفة 21:00، تناول العشاء 22:30)</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input type="time" value={it.time} onChange={e => update(i, { time: e.target.value })} className="w-32" dir="ltr" />
+              <Input value={it.title} onChange={e => update(i, { title: e.target.value })} placeholder="مثال: وقت الزفة" className="flex-1" />
+              <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function downloadGuestTemplate() {
+  const headers = ["اللقب", "الاسم", "رقم الجوال"];
+  const sample = [
+    ["المكرم", "محمد بن سعيد", "+966500000000"],
+    ["المكرمة", "فاطمة بنت أحمد", "+966500000001"],
+  ];
+  const rows = [headers, ...sample].map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const csv = "\uFEFF" + rows; // BOM for Excel Arabic
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "guest-template.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast.success("تم تنزيل النموذج");
+}
+
+function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow | null; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (row) { setName(row.name); setUsername(row.username); setPassword(""); setShow(false); }
+  }, [row]);
+
+  const submit = async () => {
+    if (!row) return;
+    if (password && password.length < 6) { toast.error("كلمة المرور لا تقل عن 6 أحرف"); return; }
+    setSaving(true);
+    try {
+      await updateCoordinator({
+        data: {
+          id: row.id,
+          name: name.trim() || undefined,
+          username: username.trim() || undefined,
+          password: password || undefined,
+        },
+      });
+      toast.success("تم تحديث المنسق");
+      onSaved(); onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التحديث");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={!!row} onOpenChange={v => !v && onClose()}>
+      <DialogContent dir="rtl">
+        <DialogHeader><DialogTitle>تعديل بيانات المنسق</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+          <div><Label>اسم المستخدم</Label><Input value={username} onChange={e => setUsername(e.target.value)} dir="ltr" /></div>
+          <div>
+            <Label>كلمة مرور جديدة (اتركها فارغة لعدم التغيير)</Label>
+            <div className="flex items-center gap-2">
+              <Input type={show ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} dir="ltr" />
+              <Button type="button" variant="outline" size="icon" onClick={() => setShow(s => !s)}>
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={saving} className="gold-gradient text-primary-foreground">{saving ? "..." : "حفظ"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
