@@ -325,12 +325,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
           <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
             <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
           </Button>
+          <Button variant="outline" onClick={downloadGuestTemplate}>
+            <Download className="ms-2 h-4 w-4" /> تصدير نموذج إكسل
+          </Button>
           <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
             <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
           </Button>
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
+
+      {guests[0] ? (
+        <Card className="flex items-center justify-between gap-3 border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-full gold-gradient text-primary-foreground">
+              <UserCog className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">آخر مدعو تم تسجيله</p>
+              <p className="font-display text-lg font-bold">{guests[0].name}</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs">{formatArabicDate(new Date())}</Badge>
+        </Card>
+      ) : null}
 
       <Card>
         <Table>
