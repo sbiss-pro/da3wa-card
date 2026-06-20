@@ -62,7 +62,7 @@ export const updateCoordinator = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: { name?: string; username?: string; password_hash?: string; password_plain?: string } = {};
     if (data.name) patch.name = data.name;
     if (data.username) patch.username = data.username.toLowerCase();
     if (data.password) {
