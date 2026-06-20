@@ -537,6 +537,12 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
               lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
+            if (guest.rsvp_status === "attended") {
+              const when = guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—";
+              toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
+              setLastGuest({ ...guest } as Guest);
+              return;
+            }
             await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
             setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
             toast.success(`أهلاً ${guest.name}`);
