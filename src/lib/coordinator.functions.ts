@@ -14,7 +14,7 @@ export const listCoordinators = createServerFn({ method: "GET" })
     // RLS scoped by host
     const { data: rows, error } = await context.supabase
       .from("coordinators")
-      .select("id,name,username,password_plain,last_login_at,created_at")
+      .select("id,name,username,last_login_at,created_at")
       .eq("event_id", data.event_id)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -40,7 +40,6 @@ export const createCoordinator = createServerFn({ method: "POST" })
         name: data.name,
         username: data.username.toLowerCase(),
         password_hash,
-        password_plain: data.password,
       })
       .select("id,name,username,created_at")
       .single();
@@ -62,12 +61,11 @@ export const updateCoordinator = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const patch: { name?: string; username?: string; password_hash?: string; password_plain?: string } = {};
+    const patch: { name?: string; username?: string; password_hash?: string } = {};
     if (data.name) patch.name = data.name;
     if (data.username) patch.username = data.username.toLowerCase();
     if (data.password) {
       patch.password_hash = await bcrypt.hash(data.password, 10);
-      patch.password_plain = data.password;
     }
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase.from("coordinators").update(patch).eq("id", data.id);
@@ -110,9 +108,10 @@ export const loginCoordinator = createServerFn({ method: "POST" })
     const ok = await bcrypt.compare(data.password, row.password_hash);
     if (!ok) throw new Error("بيانات الدخول غير صحيحة");
     const session_token = newToken();
+    const session_expires_at = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
     await supabaseAdmin
       .from("coordinators")
-      .update({ session_token, last_login_at: new Date().toISOString() })
+      .update({ session_token, session_expires_at, last_login_at: new Date().toISOString() })
       .eq("id", row.id);
     return { coordinator_id: row.id, event_id: row.event_id, name: row.name, session_token };
   });
@@ -121,10 +120,15 @@ async function authCoordinator(coordinator_id: string, session_token: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: row } = await supabaseAdmin
     .from("coordinators")
-    .select("id,event_id,name,session_token")
+    .select("id,event_id,name,session_token,session_expires_at")
     .eq("id", coordinator_id)
     .maybeSingle();
   if (!row || !row.session_token || row.session_token !== session_token) {
+    throw new Error("الجلسة منتهية، يرجى تسجيل الدخول مجدداً");
+  }
+  if (!row.session_expires_at || new Date(row.session_expires_at).getTime() < Date.now()) {
+    // Invalidate stale token defensively.
+    await supabaseAdmin.from("coordinators").update({ session_token: null, session_expires_at: null }).eq("id", row.id);
     throw new Error("الجلسة منتهية، يرجى تسجيل الدخول مجدداً");
   }
   return { row, supabaseAdmin };
