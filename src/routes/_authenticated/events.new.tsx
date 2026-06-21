@@ -31,6 +31,10 @@ function NewEvent() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.location_url && !/^https?:\/\//i.test(form.location_url.trim())) {
+      toast.error("رابط الموقع يجب أن يبدأ بـ http:// أو https://");
+      return;
+    }
     setLoading(true);
     try {
       const { data: u } = await supabase.auth.getUser();

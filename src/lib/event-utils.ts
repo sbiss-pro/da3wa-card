@@ -42,17 +42,44 @@ export function buildCalendarLinks(opts: {
   const end = new Date(opts.start.getTime() + (opts.durationHours ?? 3) * 3600 * 1000);
   const fmt = (d: Date) =>
     d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  // RFC 5545 escaping: backslash, semicolon, comma, and CR/LF must be escaped.
+  const ics_esc = (s: string) =>
+    (s || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/\r\n|\r|\n/g, "\\n")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,");
   const params = new URLSearchParams({
     action: "TEMPLATE",
-    text: opts.title,
+    text: opts.title.replace(/[\r\n]+/g, " "),
     dates: `${fmt(opts.start)}/${fmt(end)}`,
-    details: opts.description ?? "",
-    location: opts.location ?? "",
+    details: (opts.description ?? "").replace(/[\r\n]+/g, " "),
+    location: (opts.location ?? "").replace(/[\r\n]+/g, " "),
   });
   const google = `https://calendar.google.com/calendar/render?${params.toString()}`;
-  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:${opts.title}\nDTSTART:${fmt(opts.start)}\nDTEND:${fmt(end)}\nLOCATION:${opts.location ?? ""}\nDESCRIPTION:${opts.description ?? ""}\nEND:VEVENT\nEND:VCALENDAR`;
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Dawati//Invitations//AR",
+    "BEGIN:VEVENT",
+    `SUMMARY:${ics_esc(opts.title)}`,
+    `DTSTART:${fmt(opts.start)}`,
+    `DTEND:${fmt(end)}`,
+    `LOCATION:${ics_esc(opts.location ?? "")}`,
+    `DESCRIPTION:${ics_esc(opts.description ?? "")}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
   return {
     google,
     apple: `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`,
   };
+}
+
+/** Allow only http(s) URLs; returns null for anything else (javascript:, data:, vbscript:…). */
+export function safeHttpUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  return trimmed;
 }

@@ -12,14 +12,20 @@ export const getInvitation = createServerFn({ method: "GET" })
       .select("id,token,name,rsvp_status,companions_count,notes,event_id")
       .eq("token", data.token)
       .maybeSingle();
-    if (gErr) throw new Error(gErr.message);
+    if (gErr) {
+      console.error("[getInvitation] guest lookup failed", gErr);
+      throw new Error("الخدمة غير متاحة مؤقتاً");
+    }
     if (!guest) throw new Error("NOT_FOUND");
     const { data: event, error: eErr } = await supabaseAdmin
       .from("events")
       .select("id,name,event_type,event_date,location,location_url,description,template_config")
       .eq("id", guest.event_id)
       .single();
-    if (eErr || !event) throw new Error("NOT_FOUND");
+    if (eErr || !event) {
+      if (eErr) console.error("[getInvitation] event lookup failed", eErr);
+      throw new Error("NOT_FOUND");
+    }
     return { guest, event };
   });
 
@@ -60,7 +66,10 @@ export const submitRsvp = createServerFn({ method: "POST" })
       .eq("token", data.token)
       .select("id,token,name,rsvp_status,companions_count,notes,event_id")
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[submitRsvp] update failed", error);
+      throw new Error("تعذّر تسجيل ردك، يرجى المحاولة لاحقاً");
+    }
     if (!updated) throw new Error("NOT_FOUND");
     return updated;
   });

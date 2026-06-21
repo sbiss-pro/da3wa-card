@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Eye, EyeOff, Pencil, Clock } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
@@ -621,7 +621,7 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
 }
 
 /* ---------------- Coordinators ---------------- */
-type CoordinatorRow = { id: string; name: string; username: string; password_plain: string | null; last_login_at: string | null; created_at: string };
+type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
 
 function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<CoordinatorRow[]>([]);
@@ -631,7 +631,6 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showPw, setShowPw] = useState<Record<string, boolean>>({});
   const [editRow, setEditRow] = useState<CoordinatorRow | null>(null);
 
   const load = async () => {
@@ -713,7 +712,6 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
               <TableRow>
                 <TableHead>الاسم</TableHead>
                 <TableHead>اسم المستخدم</TableHead>
-                <TableHead>كلمة المرور</TableHead>
                 <TableHead>آخر دخول</TableHead>
                 <TableHead className="w-28">إجراءات</TableHead>
               </TableRow>
@@ -723,16 +721,6 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell className="text-sm" dir="ltr">{r.username}</TableCell>
-                  <TableCell className="text-sm" dir="ltr">
-                    {r.password_plain ? (
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono">{showPw[r.id] ? r.password_plain : "••••••••"}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowPw(s => ({ ...s, [r.id]: !s[r.id] }))}>
-                          {showPw[r.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-                      </div>
-                    ) : <span className="text-muted-foreground">— (قم بالتعديل)</span>}
-                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{r.last_login_at ? formatArabicDate(r.last_login_at) : "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
