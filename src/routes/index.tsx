@@ -31,8 +31,14 @@ function Index() {
     { icon: Calendar, title: "إضافة للتقويم", desc: "روابط Google و Apple Calendar للمدعوين." },
   ];
   return (
-    <div dir="rtl" className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
+    <div dir="rtl" className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* Animated blurred ambient background */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <span className="blob blob-a top-[-10%] right-[-10%] h-[55vw] w-[55vw] max-h-[680px] max-w-[680px]" style={{ background: "radial-gradient(circle at 30% 30%, oklch(0.82 0.12 78 / 0.9), transparent 70%)" }} />
+        <span className="blob blob-b bottom-[-15%] left-[-10%] h-[60vw] w-[60vw] max-h-[720px] max-w-[720px]" style={{ background: "radial-gradient(circle at 50% 50%, oklch(0.72 0.13 78 / 0.7), transparent 70%)" }} />
+        <span className="blob blob-c top-[30%] left-[20%] h-[45vw] w-[45vw] max-h-[520px] max-w-[520px]" style={{ background: "radial-gradient(circle at 50% 50%, oklch(0.88 0.06 90 / 0.65), transparent 70%)" }} />
+      </div>
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link to="/" className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-full gold-gradient font-bold text-primary-foreground">د</span>
@@ -46,15 +52,12 @@ function Index() {
       </header>
 
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 opacity-40" style={{
-          backgroundImage: "radial-gradient(circle at 20% 20%, oklch(0.82 0.08 80 / 0.6), transparent 50%), radial-gradient(circle at 80% 60%, oklch(0.72 0.13 78 / 0.4), transparent 50%)"
-        }} />
-        <div className="mx-auto max-w-5xl px-4 py-24 text-center">
+        <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:py-24">
           <span className="inline-block rounded-full border border-primary/40 bg-card px-4 py-1 text-xs font-medium text-gold">منصة دعوات إلكترونية فاخرة</span>
-          <h1 className="mt-6 font-display text-5xl font-bold leading-tight md:text-7xl">
+          <h1 className="mt-6 font-display text-4xl font-bold leading-tight sm:text-5xl md:text-7xl">
             ادعُ ضيوفك بأناقة <span className="text-gold">تليق بمناسبتك</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+          <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
             صمم بطاقتك، استورد قائمة المدعوين من Excel، تتبع الردود لحظياً، وسجّل الحضور بمسح QR — كل ذلك في مكان واحد.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
