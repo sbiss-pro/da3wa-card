@@ -3,46 +3,105 @@ export type WhatsAppConfig = {
   api_key: string;
   instance_id: string;
   sender: string;
+  message_template?: string;
 };
 const KEY = "dawati_whatsapp_config";
+const TPL_KEY = "dawati_whatsapp_template";
+
+export const DEFAULT_WA_TEMPLATE =
+  "السلام عليكم [اللقب] [اسم_الضيف]،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: [رابط_الدعوة]";
+
 export const DEFAULT_WA_CONFIG: WhatsAppConfig = {
   provider: "ultramsg",
   api_key: "",
   instance_id: "",
   sender: "",
+  message_template: DEFAULT_WA_TEMPLATE,
 };
 export function getWhatsAppConfig(): WhatsAppConfig {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_WA_CONFIG;
-    return { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) };
+    const base = raw ? { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_WA_CONFIG };
+    const tpl = localStorage.getItem(TPL_KEY);
+    if (tpl) base.message_template = tpl;
+    if (!base.message_template) base.message_template = DEFAULT_WA_TEMPLATE;
+    return base;
   } catch { return DEFAULT_WA_CONFIG; }
 }
 export function saveWhatsAppConfig(c: WhatsAppConfig) {
-  try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* ignore */ }
+  try {
+    const { message_template, ...rest } = c;
+    localStorage.setItem(KEY, JSON.stringify(rest));
+    if (message_template) localStorage.setItem(TPL_KEY, message_template);
+  } catch { /* ignore */ }
 }
 
-/** Naive phone normalizer + validator. Returns null if invalid. */
+/** Phone normalizer + validator with Saudi-friendly defaults. */
 export function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const cleaned = String(raw).replace(/[^\d+]/g, "");
-  const digits = cleaned.replace(/\D/g, "");
-  if (digits.length < 8 || digits.length > 15) return null;
-  return cleaned.startsWith("+") ? cleaned : `+${digits}`;
+  let s = String(raw).trim().replace(/[\s\-()._]/g, "");
+  if (!s) return null;
+  // already E.164
+  if (s.startsWith("+")) {
+    const d = s.slice(1).replace(/\D/g, "");
+    if (d.length < 8 || d.length > 15) return null;
+    return "+" + d;
+  }
+  const digits = s.replace(/\D/g, "");
+  if (!digits) return null;
+  // Saudi local 05XXXXXXXX → +9665XXXXXXXX
+  if (/^05\d{8}$/.test(digits)) return "+966" + digits.slice(1);
+  // Excel-stripped leading zero: 5XXXXXXXX → +9665XXXXXXXX
+  if (/^5\d{8}$/.test(digits)) return "+966" + digits;
+  // Saudi without plus: 9665XXXXXXXX
+  if (/^966\d{9}$/.test(digits)) return "+" + digits;
+  // 009665... international prefix
+  if (/^009665\d{8}$/.test(digits)) return "+" + digits.slice(2);
+  if (digits.length >= 8 && digits.length <= 15) return "+" + digits;
+  return null;
+}
+
+/** Split a name that was imported as "Title / Name" back into parts. */
+export function splitTitleName(full: string): { title: string; name: string } {
+  const m = full.match(/^\s*([^/|·•]+?)\s*[\/|·•]\s*(.+)$/);
+  if (m) return { title: m[1].trim(), name: m[2].trim() };
+  return { title: "", name: full.trim() };
+}
+
+/** Sanitize a freeform template — strip control chars and HTML brackets. */
+export function sanitizeTemplate(t: string): string {
+  return (t || "").replace(/[<>]/g, "").slice(0, 1000);
+}
+
+/** Apply [اللقب] / [اسم_الضيف] / [رابط_الدعوة] placeholders. */
+export function applyTemplate(
+  template: string,
+  vars: { title?: string; name: string; url: string },
+): string {
+  const t = sanitizeTemplate(template || DEFAULT_WA_TEMPLATE);
+  return t
+    .replace(/\[اللقب\]/g, vars.title || "")
+    .replace(/\[اسم_الضيف\]/g, vars.name || "")
+    .replace(/\[رابط_الدعوة\]/g, vars.url || "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 }
 
 /** Simulated send — returns a promise resolving with per-recipient outcome. */
 export async function simulateWhatsAppBlast(
   config: WhatsAppConfig,
-  recipients: { name: string; phone: string | null; url: string }[],
+  recipients: { name: string; phone: string | null; url: string; title?: string }[],
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   if (!config.api_key || !config.instance_id) {
     throw new Error("يرجى إعداد بيانات WhatsApp أولاً من التكاملات");
   }
+  const tpl = config.message_template || DEFAULT_WA_TEMPLATE;
   let sent = 0, failed = 0, skipped = 0;
   for (const r of recipients) {
     const phone = normalizePhone(r.phone);
     if (!phone) { skipped++; continue; }
+    // Build message (would be POSTed server-side in production).
+    void applyTemplate(tpl, { title: r.title, name: r.name, url: r.url });
     await new Promise(res => setTimeout(res, 120));
     // simulated 95% success
     if (Math.random() < 0.95) sent++; else failed++;

@@ -34,6 +34,22 @@ export const submitRsvp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => rsvpSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Look up guest + event to enforce RSVP deadline server-side.
+    const { data: existing } = await supabaseAdmin
+      .from("guests")
+      .select("id,event_id")
+      .eq("token", data.token)
+      .maybeSingle();
+    if (!existing) throw new Error("NOT_FOUND");
+    const { data: ev } = await supabaseAdmin
+      .from("events")
+      .select("template_config")
+      .eq("id", existing.event_id)
+      .maybeSingle();
+    const deadline = (ev?.template_config as { rsvp_deadline?: string | null } | null)?.rsvp_deadline;
+    if (deadline && new Date(deadline).getTime() < Date.now()) {
+      throw new Error("انتهت الفترة المحددة لتأكيد الحضور");
+    }
     const { data: updated, error } = await supabaseAdmin
       .from("guests")
       .update({

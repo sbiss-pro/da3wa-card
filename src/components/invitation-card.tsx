@@ -12,6 +12,8 @@ export type TemplateConfig = {
   custom_message?: string;
   image_url?: string;
   timeline?: TimelineItem[];
+  rsvp_deadline?: string | null;
+  wa_message_template?: string;
 };
 
 export function InvitationCard({
