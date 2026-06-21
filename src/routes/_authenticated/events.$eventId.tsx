@@ -14,12 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName } from "@/lib/whatsapp";
+import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
