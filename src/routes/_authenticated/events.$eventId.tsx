@@ -878,3 +878,119 @@ function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow 
     </Dialog>
   );
 }
+
+/* ---------------- Per-event Integrations ---------------- */
+function EventIntegrationsTab({ eventId }: { eventId: string }) {
+  const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
+  const [loaded, setLoaded] = useState(false);
+  const tplRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setCfg(getWhatsAppConfig(eventId));
+    setLoaded(true);
+  }, [eventId]);
+
+  const save = () => {
+    saveWhatsAppConfig(
+      { ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) },
+      eventId,
+    );
+    toast.success("تم حفظ إعدادات هذه الفعالية");
+  };
+
+  const insertTag = (tag: string) => {
+    const el = tplRef.current;
+    const current = cfg.message_template || "";
+    if (!el) { setCfg({ ...cfg, message_template: current + tag }); return; }
+    const start = el.selectionStart ?? current.length;
+    const end = el.selectionEnd ?? current.length;
+    const next = current.slice(0, start) + tag + current.slice(end);
+    setCfg({ ...cfg, message_template: next });
+    requestAnimationFrame(() => { el.focus(); const pos = start + tag.length; el.setSelectionRange(pos, pos); });
+  };
+
+  const preview = applyTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE, {
+    title: "المكرم", name: "محمد بن سعيد", url: "https://da3wa-card.lovable.app/i/abc123",
+  });
+
+  const isConfigured = Boolean(cfg.api_key && cfg.instance_id);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card className="p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600">
+              <MessageCircle className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-bold sm:text-xl">WhatsApp</h2>
+              <p className="text-xs text-muted-foreground sm:text-sm">إعدادات خاصة بهذه الفعالية فقط</p>
+            </div>
+          </div>
+          {loaded ? (
+            <Badge variant={isConfigured ? "default" : "outline"} className={isConfigured ? "bg-emerald-500 text-white" : ""}>
+              <ShieldCheck className="ms-1 h-3 w-3" /> {isConfigured ? "مفعّل" : "غير مفعّل"}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>المزود</Label>
+            <Select value={cfg.provider} onValueChange={(v) => setCfg({ ...cfg, provider: v as WhatsAppConfig["provider"] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ultramsg">UltraMsg</SelectItem>
+                <SelectItem value="twilio">Twilio</SelectItem>
+                <SelectItem value="meta">Meta Cloud API</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>مفتاح API</Label>
+            <Input type="password" value={cfg.api_key} onChange={(e) => setCfg({ ...cfg, api_key: e.target.value })} placeholder="sk_live_xxx" autoComplete="off" />
+          </div>
+          <div className="space-y-2">
+            <Label>معرّف الاتصال (Instance ID / Account SID)</Label>
+            <Input value={cfg.instance_id} onChange={(e) => setCfg({ ...cfg, instance_id: e.target.value })} placeholder="instance123" />
+          </div>
+          <div className="space-y-2">
+            <Label>رقم المُرسِل (اختياري)</Label>
+            <Input value={cfg.sender} onChange={(e) => setCfg({ ...cfg, sender: e.target.value })} placeholder="+9665XXXXXXXX" dir="ltr" />
+          </div>
+          <Button onClick={save} className="w-full gold-gradient text-primary-foreground">
+            <Save className="ms-2 h-4 w-4" /> حفظ
+          </Button>
+          <p className="text-xs text-muted-foreground">يتم حفظ هذه الإعدادات محلياً لهذه الفعالية فقط ولا تظهر في فعالياتك الأخرى.</p>
+        </div>
+      </Card>
+
+      <Card className="p-4 sm:p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-600">
+            <Tag className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-bold sm:text-xl">قالب الرسالة</h2>
+            <p className="text-xs text-muted-foreground sm:text-sm">خاص بهذه الفعالية</p>
+          </div>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {["[اللقب]", "[اسم_الضيف]", "[رابط_الدعوة]"].map(t => (
+            <Button key={t} type="button" variant="outline" size="sm" onClick={() => insertTag(t)}>{t}</Button>
+          ))}
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, message_template: DEFAULT_WA_TEMPLATE })}>إعادة للنص الافتراضي</Button>
+        </div>
+        <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
+        <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف.</p>
+        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">معاينة الرسالة</p>
+          <pre className="whitespace-pre-wrap break-words text-sm leading-loose font-sans">{preview}</pre>
+        </div>
+        <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
+          <Save className="ms-2 h-4 w-4" /> حفظ القالب
+        </Button>
+      </Card>
+    </div>
+  );
+}
