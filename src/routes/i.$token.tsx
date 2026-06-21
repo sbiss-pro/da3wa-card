@@ -59,6 +59,9 @@ function GuestPage() {
     return () => clearInterval(t);
   }, [event.event_date]);
 
+  const deadlineIso = event.template_config?.rsvp_deadline || null;
+  const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
+
   const respond = async (status: "accepted" | "declined") => {
     if (deadlinePassed) {
       toast.error("انتهت الفترة المحددة لتأكيد الحضور");
@@ -86,8 +89,6 @@ function GuestPage() {
 
   const accepted = guest.rsvp_status === "accepted" || guest.rsvp_status === "attended";
   const declined = guest.rsvp_status === "declined";
-  const deadlineIso = event.template_config?.rsvp_deadline || null;
-  const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
 
   const downloadPass = (wallet: "apple" | "google") => {
     const lines = [
