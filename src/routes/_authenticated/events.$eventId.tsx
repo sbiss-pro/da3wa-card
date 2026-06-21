@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone } from "@/lib/whatsapp";
+import { getWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
@@ -163,6 +163,21 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             items={cfg.timeline || []}
             onChange={(items: TimelineItem[]) => setCfg({ ...cfg, timeline: items })}
           />
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> مهلة تأكيد الحضور (اختياري)</Label>
+            <Input
+              type="datetime-local"
+              value={cfg.rsvp_deadline ? toLocalInput(cfg.rsvp_deadline) : ""}
+              onChange={e => setCfg({ ...cfg, rsvp_deadline: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              dir="ltr"
+            />
+            <p className="text-xs text-muted-foreground">بعد هذا الموعد لن يتمكن المدعوون من تأكيد أو الاعتذار عن الحضور.</p>
+            {cfg.rsvp_deadline ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, rsvp_deadline: null })}>
+                إزالة المهلة
+              </Button>
+            ) : null}
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
             <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
@@ -238,16 +253,20 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
               if (!r || typeof r !== "object") return [];
               const keys = Object.keys(r);
               const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
-              const name = String(r[k("name", "اسم")] || "").trim();
-              const phoneRaw = String(r[k("phone", "هاتف", "جوال", "mobile")] || "").trim();
-              const email = String(r[k("email", "بريد", "ايميل")] || "").trim();
-              if (!name) { skippedNoName++; return []; }
+              // Strict 3-column structure: A=اللقب, B=اسم الضيف, C=رقم الجوال
+              const titleRaw = String(r[k("اللقب", "title", "لقب")] || "").trim();
+              const nameRaw = String(r[k("اسم الضيف", "اسم", "name")] || "").trim();
+              const phoneRaw = String(r[k("جوال", "هاتف", "phone", "mobile")] || "").trim();
+              const cleanName = sanitizeCell(nameRaw);
+              const cleanTitle = sanitizeCell(titleRaw);
+              if (!cleanName) { skippedNoName++; return []; }
+              const fullName = cleanTitle ? `${cleanTitle} / ${cleanName}`.slice(0, 160) : cleanName.slice(0, 120);
               let phone: string | null = null;
               if (phoneRaw) {
                 const norm = normalizePhone(phoneRaw);
                 if (!norm) { skippedBadPhone++; phone = null; } else phone = norm;
               }
-              return [{ event_id: event.id, name: name.slice(0, 120), phone, email: email || null }];
+              return [{ event_id: event.id, name: fullName, phone, email: null }];
             });
             if (!rows.length) {
               toast.error("لم يتم العثور على أسماء صالحة في الملف");
@@ -289,7 +308,10 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
     }
     const recipients = guests
       .filter(g => g.phone)
-      .map(g => ({ name: g.name, phone: g.phone, url: inviteUrl(g.token) }));
+      .map(g => {
+        const { title, name } = splitTitleName(g.name);
+        return { title, name, phone: g.phone, url: inviteUrl(g.token) };
+      });
     if (!recipients.length) {
       toast.error("لا يوجد مدعوون بأرقام هاتف");
       return;
