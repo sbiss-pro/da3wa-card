@@ -7,6 +7,7 @@ export type WhatsAppConfig = {
 };
 const KEY = "dawati_whatsapp_config";
 const TPL_KEY = "dawati_whatsapp_template";
+const EVENT_PREFIX = "dawati_wa_event::";
 
 export const DEFAULT_WA_TEMPLATE =
   "السلام عليكم [اللقب] [اسم_الضيف]،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: [رابط_الدعوة]";
@@ -18,8 +19,20 @@ export const DEFAULT_WA_CONFIG: WhatsAppConfig = {
   sender: "",
   message_template: DEFAULT_WA_TEMPLATE,
 };
-export function getWhatsAppConfig(): WhatsAppConfig {
+/**
+ * Read WhatsApp config. If eventId is provided, prefer per-event config
+ * (falling back to the global one if the event has none yet).
+ */
+export function getWhatsAppConfig(eventId?: string): WhatsAppConfig {
   try {
+    if (eventId) {
+      const raw = localStorage.getItem(EVENT_PREFIX + eventId);
+      if (raw) {
+        const parsed = { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) };
+        if (!parsed.message_template) parsed.message_template = DEFAULT_WA_TEMPLATE;
+        return parsed;
+      }
+    }
     const raw = localStorage.getItem(KEY);
     const base = raw ? { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_WA_CONFIG };
     const tpl = localStorage.getItem(TPL_KEY);
@@ -28,8 +41,12 @@ export function getWhatsAppConfig(): WhatsAppConfig {
     return base;
   } catch { return DEFAULT_WA_CONFIG; }
 }
-export function saveWhatsAppConfig(c: WhatsAppConfig) {
+export function saveWhatsAppConfig(c: WhatsAppConfig, eventId?: string) {
   try {
+    if (eventId) {
+      localStorage.setItem(EVENT_PREFIX + eventId, JSON.stringify(c));
+      return;
+    }
     const { message_template, ...rest } = c;
     localStorage.setItem(KEY, JSON.stringify(rest));
     if (message_template) localStorage.setItem(TPL_KEY, message_template);
