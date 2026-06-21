@@ -91,14 +91,17 @@ function EventDetails() {
       </div>
 
       <Tabs defaultValue="builder">
-        <TabsList>
-          <TabsTrigger value="builder">بطاقة الدعوة</TabsTrigger>
-          <TabsTrigger value="guests">المدعوون ({guests.length})</TabsTrigger>
-          <TabsTrigger value="rsvp">تتبع الردود</TabsTrigger>
-          <TabsTrigger value="automation">التذكيرات</TabsTrigger>
-          <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
-          <TabsTrigger value="scanner">مسح QR</TabsTrigger>
-        </TabsList>
+        <div className="-mx-2 overflow-x-auto px-2">
+          <TabsList className="flex w-max min-w-full flex-nowrap">
+            <TabsTrigger value="builder">بطاقة الدعوة</TabsTrigger>
+            <TabsTrigger value="guests">المدعوون ({guests.length})</TabsTrigger>
+            <TabsTrigger value="rsvp">تتبع الردود</TabsTrigger>
+            <TabsTrigger value="automation">التذكيرات</TabsTrigger>
+            <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
+            <TabsTrigger value="integrations">التكاملات</TabsTrigger>
+            <TabsTrigger value="scanner">مسح QR</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="builder" className="mt-6">
           <BuilderTab event={event} onSaved={load} />
@@ -114,6 +117,9 @@ function EventDetails() {
         </TabsContent>
         <TabsContent value="coordinators" className="mt-6">
           <CoordinatorsTab eventId={event.id} />
+        </TabsContent>
+        <TabsContent value="integrations" className="mt-6">
+          <EventIntegrationsTab eventId={event.id} />
         </TabsContent>
         <TabsContent value="scanner" className="mt-6">
           <ErrorBoundary title="تعذّر تشغيل ماسح QR">
