@@ -22,7 +22,7 @@ export type Database = {
           last_login_at: string | null
           name: string
           password_hash: string
-          password_plain: string | null
+          session_expires_at: string | null
           session_token: string | null
           updated_at: string
           username: string
@@ -34,7 +34,7 @@ export type Database = {
           last_login_at?: string | null
           name: string
           password_hash: string
-          password_plain?: string | null
+          session_expires_at?: string | null
           session_token?: string | null
           updated_at?: string
           username: string
@@ -46,7 +46,7 @@ export type Database = {
           last_login_at?: string | null
           name?: string
           password_hash?: string
-          password_plain?: string | null
+          session_expires_at?: string | null
           session_token?: string | null
           updated_at?: string
           username?: string
