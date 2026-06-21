@@ -378,7 +378,8 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         </Card>
       ) : null}
 
-      <Card>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -409,6 +410,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
 
       <div className="flex items-center justify-between text-sm">
