@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, ShieldCheck, Save } from "lucide-react";
+import { MessageCircle, ShieldCheck, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { getWhatsAppConfig, saveWhatsAppConfig, type WhatsAppConfig, DEFAULT_WA_CONFIG } from "@/lib/whatsapp";
+import { Textarea } from "@/components/ui/textarea";
+import { getWhatsAppConfig, saveWhatsAppConfig, type WhatsAppConfig, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, sanitizeTemplate, applyTemplate } from "@/lib/whatsapp";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   head: () => ({ meta: [{ title: "التكاملات — دعوتي" }] }),
@@ -19,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/integrations")({
 function IntegrationsPage() {
   const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [loaded, setLoaded] = useState(false);
+  const tplRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setCfg(getWhatsAppConfig());
@@ -26,11 +29,32 @@ function IntegrationsPage() {
   }, []);
 
   const save = () => {
-    saveWhatsAppConfig(cfg);
+    saveWhatsAppConfig({ ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) });
     toast.success("تم حفظ إعدادات WhatsApp");
   };
 
   const isConfigured = Boolean(cfg.api_key && cfg.instance_id);
+
+  const insertTag = (tag: string) => {
+    const el = tplRef.current;
+    const current = cfg.message_template || "";
+    if (!el) { setCfg({ ...cfg, message_template: current + tag }); return; }
+    const start = el.selectionStart ?? current.length;
+    const end = el.selectionEnd ?? current.length;
+    const next = current.slice(0, start) + tag + current.slice(end);
+    setCfg({ ...cfg, message_template: next });
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + tag.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const preview = applyTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE, {
+    title: "المكرم",
+    name: "محمد بن سعيد",
+    url: "https://da3wa-card.lovable.app/i/abc123",
+  });
 
   return (
     <HostShell>
@@ -103,6 +127,47 @@ function IntegrationsPage() {
             ملاحظة: هذا إعداد تجريبي يُحفظ محلياً على هذا الجهاز. عند الإرسال الفعلي سيتم استخدام هذه البيانات للاتصال بمزوّد الخدمة.
           </p>
         </div>
+      </Card>
+
+      <Card className="mt-6 max-w-2xl p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-500/15 text-amber-600">
+            <Tag className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-bold">قالب رسالة WhatsApp</h2>
+            <p className="text-sm text-muted-foreground">خصّص نص الرسالة المرسلة مع رابط الدعوة. استخدم الوسوم أدناه للإدراج التلقائي.</p>
+          </div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {["[اللقب]", "[اسم_الضيف]", "[رابط_الدعوة]"].map(t => (
+            <Button key={t} type="button" variant="outline" size="sm" onClick={() => insertTag(t)}>
+              {t}
+            </Button>
+          ))}
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, message_template: DEFAULT_WA_TEMPLATE })}>
+            إعادة للنص الافتراضي
+          </Button>
+        </div>
+
+        <Textarea
+          ref={tplRef}
+          rows={6}
+          value={cfg.message_template || ""}
+          onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })}
+          placeholder={DEFAULT_WA_TEMPLATE}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف.</p>
+
+        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">معاينة الرسالة</p>
+          <pre className="whitespace-pre-wrap break-words text-sm leading-loose font-sans">{preview}</pre>
+        </div>
+
+        <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
+          <Save className="ms-2 h-4 w-4" /> حفظ القالب
+        </Button>
       </Card>
     </HostShell>
   );
