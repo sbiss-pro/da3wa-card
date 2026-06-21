@@ -786,12 +786,18 @@ function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: 
 }
 
 function downloadGuestTemplate() {
-  const headers = ["اللقب", "الاسم", "رقم الجوال"];
+  const headers = ["اللقب", "اسم الضيف", "رقم الجوال"];
   const sample = [
     ["المكرم", "محمد بن سعيد", "+966500000000"],
-    ["المكرمة", "فاطمة بنت أحمد", "+966500000001"],
+    ["المكرمة", "فاطمة بنت أحمد", "0551234567"],
   ];
-  const rows = [headers, ...sample].map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const safe = (c: string) => {
+    const v = c || "";
+    // CSV injection guard: prefix risky leading chars
+    const needsGuard = /^[=+\-@\t\r]/.test(v);
+    return `"${(needsGuard ? "'" + v : v).replace(/"/g, '""')}"`;
+  };
+  const rows = [headers, ...sample].map(r => r.map(safe).join(",")).join("\r\n");
   const csv = "\uFEFF" + rows; // BOM for Excel Arabic
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -800,6 +806,25 @@ function downloadGuestTemplate() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast.success("تم تنزيل النموذج");
+}
+
+/** Strip CSV-injection prefixes and control chars from imported cell values. */
+function sanitizeCell(v: string): string {
+  let s = (v || "").toString().replace(/[\u0000-\u001F\u007F]/g, "").trim();
+  // Drop leading formula chars to neutralize CSV injection
+  while (s && /^[=+\-@]/.test(s)) s = s.slice(1).trim();
+  // strip angle brackets to neutralize naive XSS payloads
+  s = s.replace(/[<>]/g, "");
+  return s;
+}
+
+/** Convert an ISO string to the value format expected by <input type="datetime-local">. */
+function toLocalInput(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return ""; }
 }
 
 function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow | null; onClose: () => void; onSaved: () => void }) {
