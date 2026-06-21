@@ -307,9 +307,9 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
 
   const sendWhatsApp = async () => {
     if (waSending) return;
-    const cfg = getWhatsAppConfig();
+    const cfg = getWhatsAppConfig(event.id);
     if (!cfg.api_key || !cfg.instance_id) {
-      toast.error("يرجى ضبط بيانات WhatsApp من صفحة التكاملات");
+      toast.error("يرجى ضبط بيانات WhatsApp من تبويب التكاملات داخل هذه الفعالية");
       return;
     }
     const recipients = guests
@@ -780,7 +780,7 @@ function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: 
 }
 
 function downloadGuestTemplate() {
-  const headers = ["اللقب", "اسم الضيف", "رقم الجوال"];
+  const headers = ["اللقب", "الاسم", "رقم الجوال"];
   const sample = [
     ["المكرم", "محمد بن سعيد", "+966500000000"],
     ["المكرمة", "فاطمة بنت أحمد", "0551234567"],
