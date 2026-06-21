@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Calendar, MapPin, Download, Apple, Wallet, Clock } from "lucide-react";
-import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS } from "@/lib/event-utils";
+import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { getInvitation, submitRsvp } from "@/lib/invitation.functions";
@@ -130,8 +130,8 @@ function GuestPage() {
           <p className="mt-2 font-display text-2xl font-bold text-gold">{countdown}</p>
         </Card>
 
-        {event.location_url ? (
-          <a href={event.location_url} target="_blank" rel="noreferrer">
+        {safeHttpUrl(event.location_url) ? (
+          <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" className="w-full"><MapPin className="ms-2 h-4 w-4" /> فتح الموقع على الخريطة</Button>
           </a>
         ) : null}
