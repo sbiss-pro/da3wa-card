@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Calendar, MapPin, Download, Apple } from "lucide-react";
+import { Check, X, Calendar, MapPin, Download, Apple, Wallet, Clock } from "lucide-react";
 import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -60,6 +60,10 @@ function GuestPage() {
   }, [event.event_date]);
 
   const respond = async (status: "accepted" | "declined") => {
+    if (deadlinePassed) {
+      toast.error("انتهت الفترة المحددة لتأكيد الحضور");
+      return;
+    }
     setSubmitting(true);
     try {
       const safeCompanions = Math.max(0, Math.min(2, Number.isFinite(companions) ? companions : 0));
@@ -82,6 +86,32 @@ function GuestPage() {
 
   const accepted = guest.rsvp_status === "accepted" || guest.rsvp_status === "attended";
   const declined = guest.rsvp_status === "declined";
+  const deadlineIso = event.template_config?.rsvp_deadline || null;
+  const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
+
+  const downloadPass = (wallet: "apple" | "google") => {
+    const lines = [
+      "DAWATI DIGITAL PASS",
+      "===================",
+      `Wallet: ${wallet === "apple" ? "Apple Wallet" : "Google Wallet"}`,
+      `Event:  ${event.name}`,
+      `Date:   ${formatArabicDate(event.event_date)}`,
+      `Guest:  ${guest.name}`,
+      `Companions: ${guest.companions_count}`,
+      `Token:  ${guest.token}`,
+      event.location ? `Place:  ${event.location}` : "",
+      "",
+      "(عرض تجريبي لبطاقة المحفظة الرقمية)",
+    ].filter(Boolean).join("\n");
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dawati-pass-${guest.token}.${wallet === "apple" ? "pkpass.txt" : "gpass.txt"}`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(wallet === "apple" ? "تم تجهيز بطاقة Apple Wallet" : "تم تجهيز بطاقة Google Wallet");
+  };
 
   return (
     <div dir="rtl" className="min-h-screen bg-background px-4 py-8">
@@ -105,7 +135,7 @@ function GuestPage() {
           </a>
         ) : null}
 
-        {!accepted && !declined ? (
+        {!accepted && !declined && !deadlinePassed ? (
           <Card className="p-6">
             <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
             <div className="space-y-4">
@@ -130,6 +160,13 @@ function GuestPage() {
               </div>
             </div>
           </Card>
+        ) : !accepted && !declined && deadlinePassed ? (
+          <Card className="p-6 text-center">
+            <Clock className="mx-auto h-10 w-10 text-muted-foreground" />
+            <p className="mt-3 font-display text-lg font-bold">نعتذر منك</p>
+            <p className="mt-1 text-sm text-muted-foreground">لقد انتهت الفترة المحددة لتأكيد الحضور.</p>
+            {deadlineIso ? <p className="mt-2 text-xs text-muted-foreground">المهلة: {formatArabicDate(deadlineIso)}</p> : null}
+          </Card>
         ) : (
           <Card className="p-6 text-center">
             <Badge style={{ background: RSVP_COLORS[guest.rsvp_status], color: "#fff" }}>{RSVP_LABELS[guest.rsvp_status]}</Badge>
@@ -145,6 +182,22 @@ function GuestPage() {
                     <p className="mb-2 text-sm text-muted-foreground">رمز الدخول الخاص بك</p>
                     <img src={qr} alt="QR" className="mx-auto rounded-xl" />
                     <a href={qr} download={`invite-${guest.name}.png`}><Button variant="outline" size="sm" className="mt-3"><Download className="ms-2 h-4 w-4" /> تحميل الرمز</Button></a>
+                    <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <Button
+                        onClick={() => downloadPass("apple")}
+                        className="w-full bg-black text-white hover:bg-black/90"
+                      >
+                        <Apple className="ms-2 h-4 w-4" /> إضافة إلى محفظة Apple
+                      </Button>
+                      <Button
+                        onClick={() => downloadPass("google")}
+                        className="w-full"
+                        style={{ background: "#1a73e8", color: "#fff" }}
+                      >
+                        <Wallet className="ms-2 h-4 w-4" /> إضافة إلى محفظة Google
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">عرض تجريبي — يتم تنزيل ملف بطاقة معاينة.</p>
                   </div>
                 ) : null}
               </>
