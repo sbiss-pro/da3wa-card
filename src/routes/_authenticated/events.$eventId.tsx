@@ -1028,3 +1028,141 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
     </div>
   );
 }
+
+/* ---------------- Delete Event ---------------- */
+function DeleteEventDialog({ event, onDeleted }: { event: EventRow; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const submit = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      // Cascade-delete dependent rows first to avoid FK constraint failures.
+      await supabase.from("guests").delete().eq("event_id", event.id);
+      await supabase.from("coordinators").delete().eq("event_id", event.id);
+      const { error } = await supabase.from("events").delete().eq("id", event.id);
+      if (error) throw error;
+      toast.success("تم حذف الفعالية");
+      onDeleted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    } finally {
+      setDeleting(false);
+      setOpen(false);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive">
+          <Trash2 className="ms-2 h-4 w-4" /> حذف الفعالية
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" /> تأكيد حذف الفعالية
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p>هذا الإجراء <span className="font-bold text-destructive">لا يمكن التراجع عنه</span>. سيتم حذف:</p>
+          <ul className="list-inside list-disc text-muted-foreground">
+            <li>الفعالية: <span className="font-bold">{event.name}</span></li>
+            <li>جميع المدعوين وبيانات الحضور</li>
+            <li>جميع حسابات المنسقين المرتبطة</li>
+          </ul>
+          <div className="space-y-2">
+            <Label>اكتب اسم الفعالية للتأكيد</Label>
+            <Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder={event.name} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button variant="destructive" disabled={deleting || confirmText.trim() !== event.name.trim()} onClick={submit}>
+            {deleting ? "جارٍ الحذف..." : "حذف نهائي"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------------- Delete All Guests ---------------- */
+function DeleteAllGuestsDialog({ eventId, count, onDeleted }: { eventId: string; count: number; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("guests").delete().eq("event_id", eventId);
+      if (error) throw error;
+      toast.success("تم حذف جميع المدعوين");
+      onDeleted();
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" disabled={!count} className="border-destructive/40 text-destructive hover:bg-destructive/10">
+          <Trash2 className="ms-2 h-4 w-4" /> حذف جميع الضيوف
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" /> تأكيد حذف جميع المدعوين
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm">سيتم حذف <span className="font-bold">{count}</span> مدعو نهائياً مع كل ردودهم وملاحظاتهم. لا يمكن التراجع عن هذا الإجراء.</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button variant="destructive" disabled={busy} onClick={submit}>{busy ? "جارٍ الحذف..." : "حذف الكل"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------------- Background Controls ---------------- */
+function BackgroundControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onFile = (f: File) => {
+    if (f.size > 3 * 1024 * 1024) { toast.error("الصورة كبيرة جداً (الحد الأقصى 3MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => setCfg({ ...cfg, image_url: String(reader.result || "") });
+    reader.readAsDataURL(f);
+  };
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-gold" /> خلفية البطاقة</Label>
+      <div className="flex gap-2">
+        <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+          <Upload className="ms-1 h-3 w-3" /> رفع صورة
+        </Button>
+        {cfg.image_url ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, image_url: "" })}>
+            <XIcon className="ms-1 h-3 w-3" /> إزالة
+          </Button>
+        ) : null}
+      </div>
+      <Input
+        value={cfg.image_url?.startsWith("data:") ? "" : (cfg.image_url || "")}
+        onChange={e => setCfg({ ...cfg, image_url: e.target.value })}
+        placeholder="أو ألصق رابط صورة https://..."
+        dir="ltr"
+      />
+      <div className="flex items-center justify-between rounded-lg border border-border bg-background p-2">
+        <div>
+          <p className="text-sm font-medium">نمط الخلفية</p>
+          <p className="text-xs text-muted-foreground">{cfg.bg_blur ? "ضبابية أنيقة (Frosted Glass)" : "واضحة"}</p>
+        </div>
+        <Switch checked={!!cfg.bg_blur} onCheckedChange={(v) => setCfg({ ...cfg, bg_blur: v })} />
+      </div>
+    </div>
+  );
+}
