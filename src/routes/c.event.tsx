@@ -237,17 +237,19 @@ function CoordinatorEvent() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color }: { icon: typeof Users; label: string; value: number; color: string }) {
+function StatCard({ icon: Icon, label, value, color, active, onClick }: { icon: typeof Users; label: string; value: number; color: string; active?: boolean; onClick?: () => void }) {
   return (
-    <Card className="p-3">
-      <div className="flex items-center gap-3">
-        <div className={`grid h-9 w-9 place-items-center rounded-lg ${color} text-white`}><Icon className="h-4 w-4" /></div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="font-display text-xl font-bold">{value}</p>
+    <button type="button" onClick={onClick} className={`text-right transition ${onClick ? "cursor-pointer hover:scale-[1.02]" : "cursor-default"}`}>
+      <Card className={`p-3 ${active ? "ring-2 ring-primary border-primary" : ""}`}>
+        <div className="flex items-center gap-3">
+          <div className={`grid h-9 w-9 place-items-center rounded-lg ${color} text-white`}><Icon className="h-4 w-4" /></div>
+          <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="font-display text-xl font-bold">{value}</p>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </button>
   );
 }
 
