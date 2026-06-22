@@ -64,16 +64,16 @@ export function normalizePhone(raw: string | null | undefined): string | null {
     if (d.length < 8 || d.length > 15) return null;
     return "+" + d;
   }
-  const digits = s.replace(/\D/g, "");
+  let digits = s.replace(/\D/g, "");
   if (!digits) return null;
-  // Saudi local 05XXXXXXXX → +9665XXXXXXXX
-  if (/^05\d{8}$/.test(digits)) return "+966" + digits.slice(1);
-  // Excel-stripped leading zero: 5XXXXXXXX → +9665XXXXXXXX
+  // 00xxx international prefix → drop the 00
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  // Saudi local (leading 0 e.g. 05XXXXXXXX) → keep Saudi default
+  if (/^0\d{8,}$/.test(digits)) return "+966" + digits.slice(1);
+  // Excel-stripped leading zero for Saudi mobile: 5XXXXXXXX
   if (/^5\d{8}$/.test(digits)) return "+966" + digits;
-  // Saudi without plus: 9665XXXXXXXX
-  if (/^966\d{9}$/.test(digits)) return "+" + digits;
-  // 009665... international prefix
-  if (/^009665\d{8}$/.test(digits)) return "+" + digits.slice(2);
+  // Anything else: preserve the imported country code as-is, just prepend "+"
+  // (e.g. 967xxxx → +967xxxx, 1xxxx → +1xxxx, 9665xxxx → +9665xxxx)
   if (digits.length >= 8 && digits.length <= 15) return "+" + digits;
   return null;
 }

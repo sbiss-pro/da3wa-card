@@ -1,4 +1,4 @@
-import { formatArabicDate } from "@/lib/event-utils";
+import { formatArabicDate, formatArabicTime12 } from "@/lib/event-utils";
 
 export type TimelineItem = { time: string; title: string };
 
@@ -14,6 +14,16 @@ export type TemplateConfig = {
   timeline?: TimelineItem[];
   rsvp_deadline?: string | null;
   wa_message_template?: string;
+  bg_blur?: boolean;
+  text_align?: "right" | "center" | "left";
+  text_size?: "sm" | "md" | "lg" | "xl";
+};
+
+const FONT_MAP: Record<string, string> = {
+  amiri: "'Amiri', serif",
+  tajawal: "'Tajawal', sans-serif",
+  cairo: "'Cairo', sans-serif",
+  "reem-kufi": "'Reem Kufi', sans-serif",
 };
 
 export function InvitationCard({
@@ -32,18 +42,30 @@ export function InvitationCard({
   const bg = config.bg_color || "#f7f1e6";
   const text = config.text_color || "#1a1410";
   const accent = config.accent_color || "#c9a24a";
-  const font = config.font === "tajawal" ? "'Tajawal', sans-serif" : "'Amiri', serif";
+  const font = FONT_MAP[config.font || "amiri"] || FONT_MAP.amiri;
+  const align = config.text_align || "center";
+  const sizeClass = config.text_size === "sm" ? "text-sm" : config.text_size === "lg" ? "text-lg" : config.text_size === "xl" ? "text-xl" : "text-base";
+  const blurredBg = config.image_url && config.bg_blur;
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border shadow-2xl"
+      className={`relative overflow-hidden rounded-3xl border shadow-2xl text-${align}`}
       style={{ background: bg, color: text, fontFamily: font, borderColor: accent + "55" }}
     >
-      {config.image_url ? (
+      {blurredBg ? (
+        <>
+          <div
+            className="absolute inset-0"
+            style={{ backgroundImage: `url(${config.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+            aria-hidden
+          />
+          <div className="absolute inset-0 backdrop-blur-md bg-black/30" aria-hidden />
+        </>
+      ) : config.image_url ? (
         <div className="h-48 w-full overflow-hidden">
           <img src={config.image_url} alt="" className="h-full w-full object-cover" />
         </div>
       ) : null}
-      <div className="px-8 py-12 text-center">
+      <div className={`relative px-8 py-12 ${sizeClass}`} style={{ textAlign: align, color: blurredBg ? "#fff" : text }}>
         <div className="mx-auto mb-6 h-px w-20" style={{ background: accent }} />
         <p className="text-sm tracking-widest uppercase" style={{ color: accent }}>
           دعوة كريمة
@@ -57,7 +79,7 @@ export function InvitationCard({
           </p>
         ) : null}
         {config.custom_message ? (
-          <p className="mx-auto mt-4 max-w-md text-base leading-loose opacity-90">
+          <p className="mx-auto mt-4 max-w-md leading-loose opacity-90 whitespace-pre-wrap">
             {config.custom_message}
           </p>
         ) : null}
@@ -78,7 +100,7 @@ export function InvitationCard({
                   style={{ background: accent + "12", border: `1px solid ${accent}33` }}
                 >
                   <span className="font-medium">{it.title}</span>
-                  <span className="font-bold tabular-nums" style={{ color: accent }} dir="ltr">{it.time}</span>
+                  <span className="font-bold tabular-nums" style={{ color: accent }}>{formatArabicTime12(it.time)}</span>
                 </li>
               ))}
             </ul>

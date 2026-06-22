@@ -32,6 +32,30 @@ export function formatArabicDate(d: string | Date) {
   }).format(date);
 }
 
+/** Convert Western digits in a string to Eastern Arabic digits (٠–٩). */
+export function toArabicDigits(input: string | number): string {
+  const map = "٠١٢٣٤٥٦٧٨٩";
+  return String(input).replace(/\d/g, (d) => map[Number(d)]);
+}
+
+/**
+ * Format an "HH:MM" 24h string as 12-hour Eastern Arabic numerals with ص/م,
+ * e.g. "21:00" -> "٠٩:٠٠ م".
+ */
+export function formatArabicTime12(hhmm: string): string {
+  if (!hhmm) return "";
+  const [hStr, mStr = "00"] = hhmm.split(":");
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+  const period = h >= 12 ? "م" : "ص";
+  h = h % 12;
+  if (h === 0) h = 12;
+  const hh = String(h).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  return `${toArabicDigits(hh)}:${toArabicDigits(mm)} ${period}`;
+}
+
 export function buildCalendarLinks(opts: {
   title: string;
   description?: string;
