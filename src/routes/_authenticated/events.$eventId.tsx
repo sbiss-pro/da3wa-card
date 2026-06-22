@@ -346,14 +346,33 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
     reload();
   };
 
+  const counts = useMemo(() => guests.reduce((a, g) => { a[g.rsvp_status] = (a[g.rsvp_status] || 0) + 1; return a; }, {} as Record<string, number>), [guests]);
+  const toggleFilter = (s: string) => { setStatusFilter(prev => prev === s ? null : s); setPage(0); };
+
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {(["accepted","declined","pending","attended"] as const).map(s => (
+          <button key={s} type="button" onClick={() => toggleFilter(s)} className="text-right">
+            <Card className={`p-3 transition hover:shadow-md ${statusFilter === s ? "ring-2 ring-primary border-primary" : ""}`}>
+              <p className="text-xs text-muted-foreground">{RSVP_LABELS[s]}</p>
+              <p className="mt-1 font-display text-2xl font-bold" style={{ color: RSVP_COLORS[s] }}>{counts[s] || 0}</p>
+            </Card>
+          </button>
+        ))}
+      </div>
+      {statusFilter ? (
+        <p className="text-xs text-muted-foreground">
+          مرشّح حسب: <span className="font-bold">{RSVP_LABELS[statusFilter]}</span>{" · "}
+          <button onClick={() => setStatusFilter(null)} className="text-gold underline">إزالة الفلتر</button>
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="بحث بالاسم أو الهاتف..." className="ps-3 pe-9" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" hidden onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
             <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
@@ -364,6 +383,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
           <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
             <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
           </Button>
+          <DeleteAllGuestsDialog eventId={event.id} count={guests.length} onDeleted={reload} />
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
@@ -388,31 +408,36 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>اللقب</TableHead>
               <TableHead>الاسم</TableHead>
-              <TableHead>الهاتف</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead>المرافقون</TableHead>
+              <TableHead>رقم الهاتف</TableHead>
+              <TableHead>حالة الدعوة</TableHead>
+              <TableHead>الملاحظات</TableHead>
               <TableHead>الدعوة</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
-            ) : paged.map(g => (
-              <TableRow key={g.id}>
-                <TableCell className="font-medium">{g.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{g.phone || "—"}</TableCell>
-                <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
-                <TableCell className="text-center">{g.companions_count}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl(g.token)); toast.success("تم النسخ"); }}>
-                    <Copy className="ms-1 h-3 w-3" /> نسخ
-                  </Button>
-                </TableCell>
-                <TableCell><Button variant="ghost" size="icon" onClick={() => remove(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
-              </TableRow>
-            ))}
+              <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
+            ) : paged.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <TableRow key={g.id}>
+                  <TableCell className="text-sm text-muted-foreground">{title || "—"}</TableCell>
+                  <TableCell className="font-medium">{name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground" dir="ltr">{g.phone || "—"}</TableCell>
+                  <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
+                  <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl(g.token)); toast.success("تم النسخ"); }}>
+                      <Copy className="ms-1 h-3 w-3" /> نسخ
+                    </Button>
+                  </TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         </div>
