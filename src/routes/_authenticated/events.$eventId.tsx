@@ -225,8 +225,12 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
 function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; guests: Guest[]; reload: () => void; inviteUrl: (t: string) => string }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const filtered = useMemo(() => guests.filter(g => g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)), [guests, q]);
+  const filtered = useMemo(() => guests.filter(g =>
+    (g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)) &&
+    (!statusFilter || g.rsvp_status === statusFilter),
+  ), [guests, q, statusFilter]);
   const pageSize = 10;
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
