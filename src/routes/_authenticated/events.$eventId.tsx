@@ -200,15 +200,14 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="amiri">أميري (كلاسيكي)</SelectItem>
-                <SelectItem value="tajawal">تجوال (عصري)</SelectItem>
+                <SelectItem value="cairo">Cairo (النسخ)</SelectItem>
+                <SelectItem value="tajawal">Tajawal (الرقعة)</SelectItem>
+                <SelectItem value="amiri">Amiri (الديواني)</SelectItem>
+                <SelectItem value="reem-kufi">Reem Kufi (الكوفي)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>رابط صورة الخلفية (اختياري)</Label>
-            <Input value={cfg.image_url || ""} onChange={e => setCfg({ ...cfg, image_url: e.target.value })} placeholder="https://..." />
-          </div>
+          <BackgroundControls cfg={cfg} setCfg={setCfg} />
           <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
             <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
           </Button>
