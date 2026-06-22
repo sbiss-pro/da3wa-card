@@ -14,13 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -46,6 +48,7 @@ const PRESETS = [
 
 function EventDetails() {
   const { eventId } = Route.useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<EventRow | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +74,7 @@ function EventDetails() {
           <h1 className="font-display text-3xl font-bold">{event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatArabicDate(event.event_date)}</p>
         </div>
+        <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={async () => {
           const url = `${window.location.origin}/e/${event.slug}`;
           try {
@@ -88,6 +92,8 @@ function EventDetails() {
         }}>
           <LinkIcon className="ms-2 h-4 w-4" /> نسخ رابط الفعالية
         </Button>
+          <DeleteEventDialog event={event} onDeleted={() => navigate({ to: "/dashboard" })} />
+        </div>
       </div>
 
       <Tabs defaultValue="builder">
