@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { loginCoordinator } from "@/lib/coordinator.functions";
 import { saveCoordSession, getCoordSession } from "@/lib/coordinator-session";
 import { toast } from "sonner";
-import { ScanLine } from "lucide-react";
+import { ScanLine, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/c/login")({
   ssr: false,
@@ -45,6 +45,11 @@ function CoordinatorLogin() {
   return (
     <div dir="rtl" className="grid min-h-screen place-items-center bg-background px-4">
       <div className="w-full max-w-md">
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
+            <ArrowRight className="ms-1 h-4 w-4" /> رجوع للخلف
+          </Button>
+        </div>
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
           <span className="grid h-10 w-10 place-items-center rounded-full gold-gradient font-bold text-primary-foreground">د</span>
           <span className="font-display text-2xl font-bold">دعوتي</span>

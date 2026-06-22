@@ -14,13 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -46,6 +48,7 @@ const PRESETS = [
 
 function EventDetails() {
   const { eventId } = Route.useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<EventRow | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +74,7 @@ function EventDetails() {
           <h1 className="font-display text-3xl font-bold">{event.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formatArabicDate(event.event_date)}</p>
         </div>
+        <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={async () => {
           const url = `${window.location.origin}/e/${event.slug}`;
           try {
@@ -88,6 +92,8 @@ function EventDetails() {
         }}>
           <LinkIcon className="ms-2 h-4 w-4" /> نسخ رابط الفعالية
         </Button>
+          <DeleteEventDialog event={event} onDeleted={() => navigate({ to: "/dashboard" })} />
+        </div>
       </div>
 
       <Tabs defaultValue="builder">
@@ -194,15 +200,14 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="amiri">أميري (كلاسيكي)</SelectItem>
-                <SelectItem value="tajawal">تجوال (عصري)</SelectItem>
+                <SelectItem value="cairo">Cairo (النسخ)</SelectItem>
+                <SelectItem value="tajawal">Tajawal (الرقعة)</SelectItem>
+                <SelectItem value="amiri">Amiri (الديواني)</SelectItem>
+                <SelectItem value="reem-kufi">Reem Kufi (الكوفي)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>رابط صورة الخلفية (اختياري)</Label>
-            <Input value={cfg.image_url || ""} onChange={e => setCfg({ ...cfg, image_url: e.target.value })} placeholder="https://..." />
-          </div>
+          <BackgroundControls cfg={cfg} setCfg={setCfg} />
           <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
             <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
           </Button>
@@ -220,8 +225,12 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
 function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; guests: Guest[]; reload: () => void; inviteUrl: (t: string) => string }) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const filtered = useMemo(() => guests.filter(g => g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)), [guests, q]);
+  const filtered = useMemo(() => guests.filter(g =>
+    (g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)) &&
+    (!statusFilter || g.rsvp_status === statusFilter),
+  ), [guests, q, statusFilter]);
   const pageSize = 10;
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -341,14 +350,33 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
     reload();
   };
 
+  const counts = useMemo(() => guests.reduce((a, g) => { a[g.rsvp_status] = (a[g.rsvp_status] || 0) + 1; return a; }, {} as Record<string, number>), [guests]);
+  const toggleFilter = (s: string) => { setStatusFilter(prev => prev === s ? null : s); setPage(0); };
+
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {(["accepted","declined","pending","attended"] as const).map(s => (
+          <button key={s} type="button" onClick={() => toggleFilter(s)} className="text-right">
+            <Card className={`p-3 transition hover:shadow-md ${statusFilter === s ? "ring-2 ring-primary border-primary" : ""}`}>
+              <p className="text-xs text-muted-foreground">{RSVP_LABELS[s]}</p>
+              <p className="mt-1 font-display text-2xl font-bold" style={{ color: RSVP_COLORS[s] }}>{counts[s] || 0}</p>
+            </Card>
+          </button>
+        ))}
+      </div>
+      {statusFilter ? (
+        <p className="text-xs text-muted-foreground">
+          مرشّح حسب: <span className="font-bold">{RSVP_LABELS[statusFilter]}</span>{" · "}
+          <button onClick={() => setStatusFilter(null)} className="text-gold underline">إزالة الفلتر</button>
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="بحث بالاسم أو الهاتف..." className="ps-3 pe-9" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" hidden onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
             <Upload className="ms-2 h-4 w-4" /> {importing ? "جارٍ الاستيراد..." : "استيراد Excel/CSV"}
@@ -359,6 +387,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
           <Button variant="outline" disabled={waSending || !guests.length} onClick={sendWhatsApp} className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10">
             <MessageCircle className="ms-2 h-4 w-4" /> {waSending ? "جارٍ الإرسال..." : "إرسال عبر WhatsApp"}
           </Button>
+          <DeleteAllGuestsDialog eventId={event.id} count={guests.length} onDeleted={reload} />
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
@@ -383,31 +412,36 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>اللقب</TableHead>
               <TableHead>الاسم</TableHead>
-              <TableHead>الهاتف</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead>المرافقون</TableHead>
+              <TableHead>رقم الهاتف</TableHead>
+              <TableHead>حالة الدعوة</TableHead>
+              <TableHead>الملاحظات</TableHead>
               <TableHead>الدعوة</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
-            ) : paged.map(g => (
-              <TableRow key={g.id}>
-                <TableCell className="font-medium">{g.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{g.phone || "—"}</TableCell>
-                <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
-                <TableCell className="text-center">{g.companions_count}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl(g.token)); toast.success("تم النسخ"); }}>
-                    <Copy className="ms-1 h-3 w-3" /> نسخ
-                  </Button>
-                </TableCell>
-                <TableCell><Button variant="ghost" size="icon" onClick={() => remove(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
-              </TableRow>
-            ))}
+              <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
+            ) : paged.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <TableRow key={g.id}>
+                  <TableCell className="text-sm text-muted-foreground">{title || "—"}</TableCell>
+                  <TableCell className="font-medium">{name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground" dir="ltr">{g.phone || "—"}</TableCell>
+                  <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
+                  <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl(g.token)); toast.success("تم النسخ"); }}>
+                      <Copy className="ms-1 h-3 w-3" /> نسخ
+                    </Button>
+                  </TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         </div>
@@ -991,6 +1025,144 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
           <Save className="ms-2 h-4 w-4" /> حفظ القالب
         </Button>
       </Card>
+    </div>
+  );
+}
+
+/* ---------------- Delete Event ---------------- */
+function DeleteEventDialog({ event, onDeleted }: { event: EventRow; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const submit = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      // Cascade-delete dependent rows first to avoid FK constraint failures.
+      await supabase.from("guests").delete().eq("event_id", event.id);
+      await supabase.from("coordinators").delete().eq("event_id", event.id);
+      const { error } = await supabase.from("events").delete().eq("id", event.id);
+      if (error) throw error;
+      toast.success("تم حذف الفعالية");
+      onDeleted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    } finally {
+      setDeleting(false);
+      setOpen(false);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive">
+          <Trash2 className="ms-2 h-4 w-4" /> حذف الفعالية
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" /> تأكيد حذف الفعالية
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p>هذا الإجراء <span className="font-bold text-destructive">لا يمكن التراجع عنه</span>. سيتم حذف:</p>
+          <ul className="list-inside list-disc text-muted-foreground">
+            <li>الفعالية: <span className="font-bold">{event.name}</span></li>
+            <li>جميع المدعوين وبيانات الحضور</li>
+            <li>جميع حسابات المنسقين المرتبطة</li>
+          </ul>
+          <div className="space-y-2">
+            <Label>اكتب اسم الفعالية للتأكيد</Label>
+            <Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder={event.name} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button variant="destructive" disabled={deleting || confirmText.trim() !== event.name.trim()} onClick={submit}>
+            {deleting ? "جارٍ الحذف..." : "حذف نهائي"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------------- Delete All Guests ---------------- */
+function DeleteAllGuestsDialog({ eventId, count, onDeleted }: { eventId: string; count: number; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("guests").delete().eq("event_id", eventId);
+      if (error) throw error;
+      toast.success("تم حذف جميع المدعوين");
+      onDeleted();
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر الحذف");
+    } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" disabled={!count} className="border-destructive/40 text-destructive hover:bg-destructive/10">
+          <Trash2 className="ms-2 h-4 w-4" /> حذف جميع الضيوف
+        </Button>
+      </DialogTrigger>
+      <DialogContent dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" /> تأكيد حذف جميع المدعوين
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm">سيتم حذف <span className="font-bold">{count}</span> مدعو نهائياً مع كل ردودهم وملاحظاتهم. لا يمكن التراجع عن هذا الإجراء.</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+          <Button variant="destructive" disabled={busy} onClick={submit}>{busy ? "جارٍ الحذف..." : "حذف الكل"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------------- Background Controls ---------------- */
+function BackgroundControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onFile = (f: File) => {
+    if (f.size > 3 * 1024 * 1024) { toast.error("الصورة كبيرة جداً (الحد الأقصى 3MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => setCfg({ ...cfg, image_url: String(reader.result || "") });
+    reader.readAsDataURL(f);
+  };
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-gold" /> خلفية البطاقة</Label>
+      <div className="flex gap-2">
+        <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+          <Upload className="ms-1 h-3 w-3" /> رفع صورة
+        </Button>
+        {cfg.image_url ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, image_url: "" })}>
+            <XIcon className="ms-1 h-3 w-3" /> إزالة
+          </Button>
+        ) : null}
+      </div>
+      <Input
+        value={cfg.image_url?.startsWith("data:") ? "" : (cfg.image_url || "")}
+        onChange={e => setCfg({ ...cfg, image_url: e.target.value })}
+        placeholder="أو ألصق رابط صورة https://..."
+        dir="ltr"
+      />
+      <div className="flex items-center justify-between rounded-lg border border-border bg-background p-2">
+        <div>
+          <p className="text-sm font-medium">نمط الخلفية</p>
+          <p className="text-xs text-muted-foreground">{cfg.bg_blur ? "ضبابية أنيقة (Frosted Glass)" : "واضحة"}</p>
+        </div>
+        <Switch checked={!!cfg.bg_blur} onCheckedChange={(v) => setCfg({ ...cfg, bg_blur: v })} />
+      </div>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock } from "lucide-react";
+import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
@@ -33,6 +33,7 @@ function CoordinatorEvent() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   const signOut = useCallback(() => {
     clearCoordSession();
@@ -61,8 +62,11 @@ function CoordinatorEvent() {
   }, [load, navigate]);
 
   const filtered = useMemo(
-    () => guests.filter(g => g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)),
-    [guests, q],
+    () => guests.filter(g =>
+      (g.name.toLowerCase().includes(q.toLowerCase()) || (g.phone || "").includes(q)) &&
+      (!statusFilter || g.rsvp_status === statusFilter),
+    ),
+    [guests, q, statusFilter],
   );
 
   const checkInGuest = useCallback(async (g: Guest) => {
@@ -112,6 +116,9 @@ function CoordinatorEvent() {
   const accepted = guests.filter(g => g.rsvp_status === "accepted").length;
   const pending = guests.filter(g => g.rsvp_status === "pending").length;
   const declined = guests.filter(g => g.rsvp_status === "declined").length;
+  const specialGuests = guests.filter(g => (g.notes || "").trim().length > 0);
+
+  const toggleFilter = (s: string) => setStatusFilter(prev => prev === s ? null : s);
 
   return (
     <div dir="rtl" className="min-h-screen bg-background">
@@ -129,13 +136,22 @@ function CoordinatorEvent() {
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold">{event.name}</h1>
           <p className="text-sm text-muted-foreground">{formatArabicDate(event.event_date)}{event.location ? ` · ${event.location}` : ""}</p>
+          {specialGuests.length > 0 ? (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div className="text-sm">
+                <p className="font-bold">تنبيه: لديك {specialGuests.length} ضيف بملاحظات خاصة</p>
+                <p className="opacity-80">يرجى مراجعة الملاحظات (احتياجات خاصة، طلبات غذائية، وصول كرسي متحرك…) قبل وأثناء استقبال الضيوف.</p>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard icon={UserCheck} label="حضروا" value={attended} color="bg-emerald-500" />
-            <StatCard icon={Users} label="إجمالي" value={guests.length} color="bg-primary" />
-            <StatCard icon={Check} label="مقبولون" value={accepted} color="bg-blue-500" />
-            <StatCard icon={Clock} label="لم يردوا" value={pending} color="bg-amber-500" />
+            <StatCard icon={UserCheck} label="حضروا" value={attended} color="bg-emerald-500" active={statusFilter === "attended"} onClick={() => toggleFilter("attended")} />
+            <StatCard icon={Check} label="مقبولون" value={accepted} color="bg-blue-500" active={statusFilter === "accepted"} onClick={() => toggleFilter("accepted")} />
+            <StatCard icon={UserX} label="معتذرون" value={declined} color="bg-rose-500" active={statusFilter === "declined"} onClick={() => toggleFilter("declined")} />
+            <StatCard icon={Clock} label="لم يردوا" value={pending} color="bg-amber-500" active={statusFilter === "pending"} onClick={() => toggleFilter("pending")} />
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">معتذرون: {declined}</p>
+          <p className="mt-2 text-xs text-muted-foreground">إجمالي: {guests.length}{statusFilter ? ` · مرشّح: ${RSVP_LABELS[statusFilter]}` : ""}{statusFilter ? ` · `: ""}{statusFilter ? <button onClick={() => setStatusFilter(null)} className="underline">إزالة الفلتر</button> : null}</p>
         </div>
 
         <Tabs defaultValue="list">
@@ -164,7 +180,17 @@ function CoordinatorEvent() {
                     <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">لا يوجد نتائج</TableCell></TableRow>
                   ) : filtered.map(g => (
                     <TableRow key={g.id}>
-                      <TableCell className="font-medium">{g.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          {g.notes ? (
+                            <span className="relative inline-flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+                            </span>
+                          ) : null}
+                          {g.name}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <Select value={g.rsvp_status} onValueChange={(v) => changeStatus(g, v)}>
                           <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
@@ -211,17 +237,19 @@ function CoordinatorEvent() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color }: { icon: typeof Users; label: string; value: number; color: string }) {
+function StatCard({ icon: Icon, label, value, color, active, onClick }: { icon: typeof Users; label: string; value: number; color: string; active?: boolean; onClick?: () => void }) {
   return (
-    <Card className="p-3">
-      <div className="flex items-center gap-3">
-        <div className={`grid h-9 w-9 place-items-center rounded-lg ${color} text-white`}><Icon className="h-4 w-4" /></div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="font-display text-xl font-bold">{value}</p>
+    <button type="button" onClick={onClick} className={`text-right transition ${onClick ? "cursor-pointer hover:scale-[1.02]" : "cursor-default"}`}>
+      <Card className={`p-3 ${active ? "ring-2 ring-primary border-primary" : ""}`}>
+        <div className="flex items-center gap-3">
+          <div className={`grid h-9 w-9 place-items-center rounded-lg ${color} text-white`}><Icon className="h-4 w-4" /></div>
+          <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="font-display text-xl font-bold">{value}</p>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </button>
   );
 }
 
