@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle } from "lucide-react";
+import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
@@ -187,7 +187,14 @@ function CoordinatorEvent() {
             <span className="grid h-8 w-8 place-items-center rounded-full gold-gradient text-primary-foreground font-bold">د</span>
             <span className="font-display text-lg font-bold">منسق · {session.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${online ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700"}`}>
+              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {online ? "متصل" : "غير متصل"}
+              {pendingCount > 0 ? ` · ${pendingCount} بانتظار المزامنة` : ""}
+            </span>
+            <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
+          </div>
         </div>
       </header>
 
