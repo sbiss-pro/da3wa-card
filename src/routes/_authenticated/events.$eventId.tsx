@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -105,6 +105,7 @@ function EventDetails() {
             <TabsTrigger value="automation">التذكيرات</TabsTrigger>
             <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
             <TabsTrigger value="integrations">التكاملات</TabsTrigger>
+            <TabsTrigger value="wishes">حائط التهاني والاعتذارات</TabsTrigger>
             <TabsTrigger value="scanner">مسح QR</TabsTrigger>
           </TabsList>
         </div>
@@ -126,6 +127,9 @@ function EventDetails() {
         </TabsContent>
         <TabsContent value="integrations" className="mt-6">
           <EventIntegrationsTab eventId={event.id} />
+        </TabsContent>
+        <TabsContent value="wishes" className="mt-6">
+          <WishesWallTab guests={guests} />
         </TabsContent>
         <TabsContent value="scanner" className="mt-6">
           <ErrorBoundary title="تعذّر تشغيل ماسح QR">
