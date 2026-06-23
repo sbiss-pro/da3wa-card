@@ -46,7 +46,6 @@ function Index() {
           </Link>
           <nav className="flex items-center gap-2">
             <Link to="/auth"><Button variant="ghost">تسجيل الدخول</Button></Link>
-            <Link to="/auth"><Button className="gold-gradient text-primary-foreground hover:opacity-90">ابدأ مجاناً</Button></Link>
           </nav>
         </div>
       </header>
@@ -60,11 +59,7 @@ function Index() {
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
             صمم بطاقتك، استورد قائمة المدعوين من Excel، تتبع الردود لحظياً، وسجّل الحضور بمسح QR — كل ذلك في مكان واحد.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link to="/auth"><Button size="lg" className="gold-gradient text-primary-foreground hover:opacity-90">أنشئ فعاليتك الآن</Button></Link>
-            <Link to="/auth"><Button size="lg" variant="outline">عندي حساب</Button></Link>
-          </div>
-          <div className="mt-14 flex flex-wrap items-center justify-center gap-4">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
             {eventTypes.map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm">
                 <Icon className="h-4 w-4 text-gold" />
@@ -90,14 +85,6 @@ function Index() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="border-t border-border bg-card/50">
-        <div className="mx-auto max-w-4xl px-4 py-20 text-center">
-          <h2 className="font-display text-4xl font-bold">ابدأ بدعوتك الأولى مجاناً</h2>
-          <p className="mt-3 text-muted-foreground">أنشئ حسابك خلال دقيقة وابدأ بإرسال الدعوات لمدعويك.</p>
-          <Link to="/auth"><Button size="lg" className="mt-8 gold-gradient text-primary-foreground hover:opacity-90">إنشاء حساب جديد</Button></Link>
         </div>
       </section>
 

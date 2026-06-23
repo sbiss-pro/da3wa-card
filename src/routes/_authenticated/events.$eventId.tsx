@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -105,6 +105,7 @@ function EventDetails() {
             <TabsTrigger value="automation">التذكيرات</TabsTrigger>
             <TabsTrigger value="coordinators">المنسقون</TabsTrigger>
             <TabsTrigger value="integrations">التكاملات</TabsTrigger>
+            <TabsTrigger value="wishes">حائط التهاني والاعتذارات</TabsTrigger>
             <TabsTrigger value="scanner">مسح QR</TabsTrigger>
           </TabsList>
         </div>
@@ -126,6 +127,9 @@ function EventDetails() {
         </TabsContent>
         <TabsContent value="integrations" className="mt-6">
           <EventIntegrationsTab eventId={event.id} />
+        </TabsContent>
+        <TabsContent value="wishes" className="mt-6">
+          <WishesWallTab guests={guests} />
         </TabsContent>
         <TabsContent value="scanner" className="mt-6">
           <ErrorBoundary title="تعذّر تشغيل ماسح QR">
@@ -237,6 +241,8 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
 
   const [importing, setImporting] = useState(false);
   const [waSending, setWaSending] = useState(false);
+  const [waProgress, setWaProgress] = useState<{ processed: number; total: number; sent: number; failed: number; skipped: number; currentName: string; etaSeconds: number } | null>(null);
+  const waAbortRef = useRef<AbortController | null>(null);
 
   const handleFile = (file: File) => {
     const lower = file.name.toLowerCase();
@@ -332,15 +338,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
       return;
     }
     setWaSending(true);
-    const id = toast.loading(`جارٍ إرسال ${recipients.length} دعوة عبر WhatsApp...`);
+    setWaProgress({ processed: 0, total: recipients.length, sent: 0, failed: 0, skipped: 0, currentName: "", etaSeconds: recipients.length * 7 });
+    const ac = new AbortController();
+    waAbortRef.current = ac;
     try {
-      const r = await simulateWhatsAppBlast(cfg, recipients);
-      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`, { id });
+      const r = await simulateWhatsAppBlast(cfg, recipients, {
+        minDelayMs: 5000,
+        maxDelayMs: 10000,
+        signal: ac.signal,
+        onProgress: (p) => setWaProgress(p),
+      });
+      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال", { id });
+      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال");
     } finally {
       setWaSending(false);
+      waAbortRef.current = null;
+      // keep progress card visible briefly so the user sees the final state
+      setTimeout(() => setWaProgress(null), 4000);
     }
+  };
+
+  const cancelWhatsApp = () => {
+    waAbortRef.current?.abort();
+    toast.message("تم إيقاف الإرسال");
   };
 
   const remove = async (id: string) => {
@@ -391,6 +412,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
           <AddGuestDialog eventId={event.id} onAdded={reload} />
         </div>
       </div>
+
+      {waProgress ? (
+        <Card className="border-emerald-500/40 bg-emerald-500/5 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+              {waSending ? "جاري المعالجة..." : "اكتملت العملية"} — تم إرسال {waProgress.processed} من أصل {waProgress.total}
+            </p>
+            {waSending ? (
+              <Button variant="ghost" size="sm" onClick={cancelWhatsApp}>إيقاف</Button>
+            ) : null}
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-500/15">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((waProgress.processed / Math.max(1, waProgress.total)) * 100)}%` }}
+            />
+          </div>
+          <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>الحالي: <span className="font-medium text-foreground">{waProgress.currentName || "—"}</span></span>
+            <span>نجح {waProgress.sent} · فشل {waProgress.failed} · تخطّينا {waProgress.skipped}</span>
+            <span>الوقت المتبقي تقريباً: {waProgress.etaSeconds > 60 ? `${Math.floor(waProgress.etaSeconds / 60)} د ${waProgress.etaSeconds % 60} ث` : `${waProgress.etaSeconds} ث`}</span>
+          </p>
+        </Card>
+      ) : null}
 
       {guests[0] ? (
         <Card className="flex items-center justify-between gap-3 border-primary/30 bg-primary/5 p-4">
@@ -1163,6 +1208,72 @@ function BackgroundControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: 
         </div>
         <Switch checked={!!cfg.bg_blur} onCheckedChange={(v) => setCfg({ ...cfg, bg_blur: v })} />
       </div>
+    </div>
+  );
+}
+/* ---------------- Wishes wall (congratulations + apologies) ---------------- */
+function WishesWallTab({ guests }: { guests: Guest[] }) {
+  const wished = useMemo(
+    () => guests.filter(g => (g.notes || "").trim().length > 0),
+    [guests],
+  );
+  const declinedWithWishes = wished.filter(g => g.rsvp_status === "declined");
+  const otherWithNotes = wished.filter(g => g.rsvp_status !== "declined");
+
+  if (wished.length === 0) {
+    return (
+      <Card className="p-10 text-center">
+        <Heart className="mx-auto h-10 w-10 text-gold" />
+        <p className="mt-3 font-display text-lg font-bold">لا توجد تبريكات بعد</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          ستظهر هنا كل التبريكات والاعتذارات الراقية التي يرسلها المدعوون.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {declinedWithWishes.length > 0 ? (
+        <section>
+          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات ({declinedWithWishes.length})</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {declinedWithWishes.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <Card key={g.id} className="relative overflow-hidden border-gold/40 bg-gradient-to-br from-amber-50/40 via-card to-card p-5">
+                  <Heart className="absolute -right-3 -top-3 h-16 w-16 rotate-12 text-gold/15" />
+                  <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                    {g.notes}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+      {otherWithNotes.length > 0 ? (
+        <section>
+          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني أخرى ({otherWithNotes.length})</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {otherWithNotes.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <Card key={g.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                    <Badge variant="outline" className="text-[10px]">{RSVP_LABELS[g.rsvp_status]}</Badge>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {g.notes}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

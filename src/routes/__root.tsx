@@ -142,6 +142,30 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Global safety net: catch otherwise-unhandled errors / promise rejections and
+  // surface an Arabic toast instead of letting the UI go blank.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let lastAt = 0;
+    const notify = (err: unknown) => {
+      const now = Date.now();
+      if (now - lastAt < 1500) return;
+      lastAt = now;
+      console.error("[global]", err);
+      import("sonner").then(({ toast }) => {
+        toast.error("حدث خطأ غير متوقع، يرجى المحاولة لاحقاً");
+      }).catch(() => {});
+    };
+    const onError = (e: ErrorEvent) => notify(e.error || e.message);
+    const onRejection = (e: PromiseRejectionEvent) => notify(e.reason);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

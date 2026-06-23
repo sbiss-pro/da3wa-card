@@ -10,12 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle } from "lucide-react";
+import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
 import { getCoordinatorContext, coordinatorCheckIn, coordinatorCheckInById, coordinatorUpdateGuest } from "@/lib/coordinator.functions";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate } from "@/lib/event-utils";
+import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQueue, clearQueueItem } from "@/lib/coord-offline";
 
 export const Route = createFileRoute("/c/event")({
   ssr: false,
@@ -34,6 +35,8 @@ function CoordinatorEvent() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean>(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   const signOut = useCallback(() => {
     clearCoordSession();
@@ -44,8 +47,23 @@ function CoordinatorEvent() {
     try {
       const r = await getCoordinatorContext({ data: { coordinator_id: s.coordinator_id, session_token: s.session_token } });
       setEvent(r.event as EventLite);
-      setGuests((r.guests || []) as Guest[]);
+      const list = (r.guests || []) as Guest[];
+      setGuests(list);
+      if (r.event?.id) cacheGuests(r.event.id, list);
     } catch (e) {
+      // Offline fallback — use last cached snapshot if available.
+      try {
+        const lastEv = localStorage.getItem("dawati_coord_last_event");
+        if (lastEv) {
+          const cached = readCachedGuests(lastEv);
+          if (cached.length) {
+            setGuests(cached as Guest[]);
+            toast.warning("أنت في وضع عدم الاتصال — يتم استخدام النسخة المحفوظة");
+            setLoading(false);
+            return;
+          }
+        }
+      } catch { /* ignore */ }
       toast.error(e instanceof Error ? e.message : "تعذر التحميل");
       clearCoordSession();
       navigate({ to: "/c/login" });
@@ -60,6 +78,41 @@ function CoordinatorEvent() {
     setSession(s);
     load(s);
   }, [load, navigate]);
+
+  useEffect(() => {
+    if (event?.id) { try { localStorage.setItem("dawati_coord_last_event", event.id); } catch { /* ignore */ } }
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (!session || !event) return;
+    const refreshPending = () => setPendingCount(readQueue(event.id).length);
+    refreshPending();
+    const flush = async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      const queue = readQueue(event.id);
+      if (!queue.length) return;
+      for (const item of queue) {
+        try {
+          await coordinatorCheckIn({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_token: item.guest_token } });
+        } catch { /* ignore individual failures */ }
+        clearQueueItem(event.id, item.guest_token);
+      }
+      refreshPending();
+      toast.success("تمت مزامنة عمليات التسجيل المؤجلة");
+      load(session);
+    };
+    const onOnline = () => { setOnline(true); void flush(); };
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    void flush();
+    const t = setInterval(refreshPending, 5000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      clearInterval(t);
+    };
+  }, [session, event, load]);
 
   const filtered = useMemo(
     () => guests.filter(g =>
@@ -76,14 +129,20 @@ function CoordinatorEvent() {
       toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
       return;
     }
+    const stamp = new Date().toISOString();
+    setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: stamp } : x));
+    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: stamp });
     try {
       await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id } });
-      setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
       toast.success(`تم تسجيل حضور ${g.name}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذر التسجيل");
+    } catch {
+      if (event) {
+        enqueueCheckin(event.id, { guest_id: g.id, guest_token: g.token, offline_at: stamp });
+        setPendingCount(c => c + 1);
+      }
+      toast.warning(`تم تسجيل ${g.name} محلياً، ستتم المزامنة عند عودة الاتصال`);
     }
-  }, [session]);
+  }, [session, event]);
 
   const [editing, setEditing] = useState<Guest | null>(null);
   const changeStatus = useCallback(async (g: Guest, status: string) => {
@@ -128,7 +187,14 @@ function CoordinatorEvent() {
             <span className="grid h-8 w-8 place-items-center rounded-full gold-gradient text-primary-foreground font-bold">د</span>
             <span className="font-display text-lg font-bold">منسق · {session.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${online ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700"}`}>
+              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {online ? "متصل" : "غير متصل"}
+              {pendingCount > 0 ? ` · ${pendingCount} بانتظار المزامنة` : ""}
+            </span>
+            <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
+          </div>
         </div>
       </header>
 
@@ -222,6 +288,7 @@ function CoordinatorEvent() {
             <ErrorBoundary title="تعذّر تشغيل ماسح QR">
               <CoordinatorScanner
                 session={session}
+                eventId={event.id}
                 guests={guests}
                 onCheckIn={(g) => {
                   setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
@@ -273,7 +340,7 @@ function EditGuestDialog({ guest, onClose, onSave }: { guest: Guest | null; onCl
   );
 }
 
-function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { session: CoordSession; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void; onSaveNotes: (g: Guest, notes: string) => void }) {
+function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void; onSaveNotes: (g: Guest, notes: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const [last, setLast] = useState<Guest | null>(null);
   const [notes, setNotes] = useState("");
@@ -301,6 +368,28 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
               const now = Date.now();
               if (token === lastToken && now - lastAt < 2500) return;
               lastToken = token; lastAt = now;
+              // Offline-first: validate locally before hitting network.
+              const localGuest = guests.find(x => x.token === token);
+              if (!localGuest) {
+                toast.error("الرمز غير معروف في هذه الفعالية");
+                return;
+              }
+              if (localGuest.rsvp_status === "attended") {
+                setLast(localGuest); setNotes(localGuest.notes || "");
+                toast.warning(`هذا الرمز تم استخدامه بالفعل! ${localGuest.checked_in_at ? "وقت التسجيل: " + formatArabicDate(localGuest.checked_in_at) : ""}`);
+                return;
+              }
+              const offline = typeof navigator !== "undefined" && !navigator.onLine;
+              if (offline) {
+                const stamp = new Date().toISOString();
+                const merged = { ...localGuest, rsvp_status: "attended", checked_in_at: stamp };
+                setLast(merged); setNotes(merged.notes || "");
+                updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                onCheckIn({ id: localGuest.id, name: localGuest.name });
+                toast.warning(`تم تسجيل ${localGuest.name} محلياً (سيتم المزامنة لاحقاً)`);
+                return;
+              }
               try {
                 const r = await coordinatorCheckIn({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_token: token } });
                 const g = guests.find(x => x.token === token);
@@ -316,7 +405,12 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
                   if (g) { setLast(g); setNotes(g.notes || ""); }
                   toast.warning(msg);
                 } else {
-                  toast.error(msg);
+                  // network blip → queue and update cache locally
+                  const stamp = new Date().toISOString();
+                  updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                  enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                  onCheckIn({ id: localGuest.id, name: localGuest.name });
+                  toast.warning(`تم التسجيل محلياً، سيتم المزامنة لاحقاً`);
                 }
               }
             } catch (e) {
@@ -335,7 +429,7 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
       stopped = true;
       scanner?.stop().then(() => scanner?.clear()).catch(() => {});
     };
-  }, [scanning, session, onCheckIn, guests]);
+  }, [scanning, session, onCheckIn, guests, eventId]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

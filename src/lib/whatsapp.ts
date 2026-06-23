@@ -104,24 +104,71 @@ export function applyTemplate(
     .trim();
 }
 
-/** Simulated send — returns a promise resolving with per-recipient outcome. */
+/** Progress event for the queued blast. */
+export type WaProgress = {
+  sent: number;
+  failed: number;
+  skipped: number;
+  processed: number;
+  total: number;
+  currentName: string;
+  etaSeconds: number;
+};
+
+export type WaBlastOptions = {
+  /** Min delay (ms) between messages — defaults to 5000. */
+  minDelayMs?: number;
+  /** Max delay (ms) between messages — defaults to 10000. */
+  maxDelayMs?: number;
+  onProgress?: (p: WaProgress) => void;
+  /** Abort signal to stop the queue mid-way. */
+  signal?: AbortSignal;
+};
+
+/**
+ * Queued WhatsApp blast — introduces a randomized human-like delay between
+ * messages to avoid rate-limits / number bans, and emits progress events so
+ * callers can render a live progress bar + ETA.
+ */
 export async function simulateWhatsAppBlast(
   config: WhatsAppConfig,
   recipients: { name: string; phone: string | null; url: string; title?: string }[],
+  opts: WaBlastOptions = {},
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   if (!config.api_key || !config.instance_id) {
     throw new Error("يرجى إعداد بيانات WhatsApp أولاً من التكاملات");
   }
   const tpl = config.message_template || DEFAULT_WA_TEMPLATE;
+  const minD = Math.max(0, opts.minDelayMs ?? 5000);
+  const maxD = Math.max(minD, opts.maxDelayMs ?? 10000);
   let sent = 0, failed = 0, skipped = 0;
-  for (const r of recipients) {
+  const total = recipients.length;
+  for (let i = 0; i < recipients.length; i++) {
+    if (opts.signal?.aborted) break;
+    const r = recipients[i];
     const phone = normalizePhone(r.phone);
-    if (!phone) { skipped++; continue; }
-    // Build message (would be POSTed server-side in production).
-    void applyTemplate(tpl, { title: r.title, name: r.name, url: r.url });
-    await new Promise(res => setTimeout(res, 120));
-    // simulated 95% success
-    if (Math.random() < 0.95) sent++; else failed++;
+    if (!phone) {
+      skipped++;
+    } else {
+      void applyTemplate(tpl, { title: r.title, name: r.name, url: r.url });
+      // simulated 95% success
+      if (Math.random() < 0.95) sent++; else failed++;
+    }
+    const remaining = total - (i + 1);
+    const avgDelay = (minD + maxD) / 2;
+    opts.onProgress?.({
+      sent, failed, skipped,
+      processed: i + 1, total,
+      currentName: r.name,
+      etaSeconds: Math.round((remaining * avgDelay) / 1000),
+    });
+    if (i < recipients.length - 1) {
+      const delay = phone ? Math.floor(minD + Math.random() * (maxD - minD)) : 120;
+      await new Promise<void>((resolve) => {
+        const t = setTimeout(resolve, delay);
+        opts.signal?.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+      });
+    }
   }
   return { sent, failed, skipped };
 }
