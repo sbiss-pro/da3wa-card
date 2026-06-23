@@ -40,6 +40,9 @@ function GuestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [qr, setQr] = useState<string>("");
   const [countdown, setCountdown] = useState("");
+  const [now, setNow] = useState<string>("");
+  const [showDeclineBox, setShowDeclineBox] = useState(false);
+  const [wishes, setWishes] = useState("");
 
   useEffect(() => {
     if (guest.rsvp_status === "accepted" || guest.rsvp_status === "attended") {
@@ -59,10 +62,22 @@ function GuestPage() {
     return () => clearInterval(t);
   }, [event.event_date]);
 
+  // Live HH:MM:SS clock under the QR — proves the page is live (anti-screenshot).
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setNow(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const deadlineIso = event.template_config?.rsvp_deadline || null;
   const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
 
-  const respond = async (status: "accepted" | "declined") => {
+  const respond = async (status: "accepted" | "declined", noteOverride?: string) => {
     if (deadlinePassed) {
       toast.error("انتهت الفترة المحددة لتأكيد الحضور");
       return;
@@ -70,9 +85,10 @@ function GuestPage() {
     setSubmitting(true);
     try {
       const safeCompanions = Math.max(0, Math.min(2, Number.isFinite(companions) ? companions : 0));
-      await submitRsvp({ data: { token: guest.token, status, companions: safeCompanions, notes } });
-      setGuest(prev => ({ ...prev, rsvp_status: status, companions_count: safeCompanions, notes }));
-      toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك");
+      const finalNotes = noteOverride !== undefined ? noteOverride : notes;
+      await submitRsvp({ data: { token: guest.token, status, companions: safeCompanions, notes: finalNotes } });
+      setGuest(prev => ({ ...prev, rsvp_status: status, companions_count: safeCompanions, notes: finalNotes }));
+      toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك وإرسال تبريكاتك");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -140,25 +156,54 @@ function GuestPage() {
           <Card className="p-6">
             <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
             <div className="space-y-4">
-              <div>
-                <Label>عدد المرافقين</Label>
-                <Select value={String(companions)} onValueChange={v => setCompanions(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">بدون مرافقين</SelectItem>
-                    <SelectItem value="1">مرافق واحد</SelectItem>
-                    <SelectItem value="2">مرافقان (الحد الأقصى)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>ملاحظات خاصة (احتياجات غذائية، إعاقة...)</Label>
-                <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Button onClick={() => respond("accepted")} disabled={submitting} className="gold-gradient text-primary-foreground"><Check className="ms-2 h-4 w-4" /> أقبل الدعوة</Button>
-                <Button onClick={() => respond("declined")} disabled={submitting} variant="outline"><X className="ms-2 h-4 w-4" /> أعتذر</Button>
-              </div>
+              {!showDeclineBox ? (
+                <>
+                  <div>
+                    <Label>عدد المرافقين</Label>
+                    <Select value={String(companions)} onValueChange={v => setCompanions(Number(v))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">بدون مرافقين</SelectItem>
+                        <SelectItem value="1">مرافق واحد</SelectItem>
+                        <SelectItem value="2">مرافقان (الحد الأقصى)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>ملاحظات خاصة (احتياجات غذائية، إعاقة...)</Label>
+                    <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button onClick={() => respond("accepted")} disabled={submitting} className="gold-gradient text-primary-foreground"><Check className="ms-2 h-4 w-4" /> أقبل الدعوة</Button>
+                    <Button onClick={() => setShowDeclineBox(true)} disabled={submitting} variant="outline"><X className="ms-2 h-4 w-4" /> أعتذر</Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4 rounded-2xl border border-gold/40 bg-gradient-to-br from-amber-50/60 via-background to-background p-5">
+                  <div className="text-center">
+                    <p className="font-display text-lg font-bold text-gold">صندوق التبريكات والتهاني</p>
+                    <p className="mt-1 text-xs text-muted-foreground">شاركنا كلمة تبريك أو اعتذار رقيق — سيراها أصحاب المناسبة.</p>
+                  </div>
+                  <Textarea
+                    rows={4}
+                    value={wishes}
+                    onChange={e => setWishes(e.target.value.slice(0, 500))}
+                    placeholder="مبارك لكم… دامت الأفراح…"
+                    className="bg-card text-right"
+                  />
+                  <p className="text-left text-[11px] text-muted-foreground">{wishes.length}/500</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="ghost" onClick={() => setShowDeclineBox(false)} disabled={submitting}>رجوع</Button>
+                    <Button
+                      onClick={() => respond("declined", wishes.trim() || notes)}
+                      disabled={submitting}
+                      className="gold-gradient text-primary-foreground"
+                    >
+                      إرسال الاعتذار والتبريكات
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         ) : !accepted && !declined && deadlinePassed ? (
@@ -181,7 +226,16 @@ function GuestPage() {
                 {qr ? (
                   <div className="mt-6">
                     <p className="mb-2 text-sm text-muted-foreground">رمز الدخول الخاص بك</p>
-                    <img src={qr} alt="QR" className="mx-auto rounded-xl" />
+                    <div className="relative mx-auto inline-block overflow-hidden rounded-xl">
+                      <img src={qr} alt="QR" className="block" />
+                      {/* Animated scanning laser line — proves the QR is live, not a screenshot. */}
+                      <div aria-hidden className="pointer-events-none absolute inset-x-2 top-0 h-[2px] animate-qr-scan rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_2px_rgba(16,185,129,0.85)]" />
+                    </div>
+                    <p className="mt-3 font-mono text-lg font-bold tracking-widest text-emerald-600" aria-live="polite">
+                      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500 align-middle me-2" />
+                      {now}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">تحقق مباشر — الوقت والمسح يتحدّثان لحظياً</p>
                     <a href={qr} download={`invite-${guest.name}.png`}><Button variant="outline" size="sm" className="mt-3"><Download className="ms-2 h-4 w-4" /> تحميل الرمز</Button></a>
                     <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
                       <Button
