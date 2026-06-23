@@ -409,6 +409,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         </div>
       </div>
 
+      {waProgress ? (
+        <Card className="border-emerald-500/40 bg-emerald-500/5 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+              {waSending ? "جاري المعالجة..." : "اكتملت العملية"} — تم إرسال {waProgress.processed} من أصل {waProgress.total}
+            </p>
+            {waSending ? (
+              <Button variant="ghost" size="sm" onClick={cancelWhatsApp}>إيقاف</Button>
+            ) : null}
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-500/15">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((waProgress.processed / Math.max(1, waProgress.total)) * 100)}%` }}
+            />
+          </div>
+          <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>الحالي: <span className="font-medium text-foreground">{waProgress.currentName || "—"}</span></span>
+            <span>نجح {waProgress.sent} · فشل {waProgress.failed} · تخطّينا {waProgress.skipped}</span>
+            <span>الوقت المتبقي تقريباً: {waProgress.etaSeconds > 60 ? `${Math.floor(waProgress.etaSeconds / 60)} د ${waProgress.etaSeconds % 60} ث` : `${waProgress.etaSeconds} ث`}</span>
+          </p>
+        </Card>
+      ) : null}
+
       {guests[0] ? (
         <Card className="flex items-center justify-between gap-3 border-primary/30 bg-primary/5 p-4">
           <div className="flex items-center gap-3">
