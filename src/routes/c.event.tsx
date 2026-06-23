@@ -288,6 +288,7 @@ function CoordinatorEvent() {
             <ErrorBoundary title="تعذّر تشغيل ماسح QR">
               <CoordinatorScanner
                 session={session}
+                eventId={event.id}
                 guests={guests}
                 onCheckIn={(g) => {
                   setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
@@ -339,7 +340,7 @@ function EditGuestDialog({ guest, onClose, onSave }: { guest: Guest | null; onCl
   );
 }
 
-function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { session: CoordSession; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void; onSaveNotes: (g: Guest, notes: string) => void }) {
+function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void; onSaveNotes: (g: Guest, notes: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const [last, setLast] = useState<Guest | null>(null);
   const [notes, setNotes] = useState("");
@@ -367,6 +368,28 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
               const now = Date.now();
               if (token === lastToken && now - lastAt < 2500) return;
               lastToken = token; lastAt = now;
+              // Offline-first: validate locally before hitting network.
+              const localGuest = guests.find(x => x.token === token);
+              if (!localGuest) {
+                toast.error("الرمز غير معروف في هذه الفعالية");
+                return;
+              }
+              if (localGuest.rsvp_status === "attended") {
+                setLast(localGuest); setNotes(localGuest.notes || "");
+                toast.warning(`هذا الرمز تم استخدامه بالفعل! ${localGuest.checked_in_at ? "وقت التسجيل: " + formatArabicDate(localGuest.checked_in_at) : ""}`);
+                return;
+              }
+              const offline = typeof navigator !== "undefined" && !navigator.onLine;
+              if (offline) {
+                const stamp = new Date().toISOString();
+                const merged = { ...localGuest, rsvp_status: "attended", checked_in_at: stamp };
+                setLast(merged); setNotes(merged.notes || "");
+                updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                onCheckIn({ id: localGuest.id, name: localGuest.name });
+                toast.warning(`تم تسجيل ${localGuest.name} محلياً (سيتم المزامنة لاحقاً)`);
+                return;
+              }
               try {
                 const r = await coordinatorCheckIn({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_token: token } });
                 const g = guests.find(x => x.token === token);
@@ -382,7 +405,12 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
                   if (g) { setLast(g); setNotes(g.notes || ""); }
                   toast.warning(msg);
                 } else {
-                  toast.error(msg);
+                  // network blip → queue and update cache locally
+                  const stamp = new Date().toISOString();
+                  updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                  enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                  onCheckIn({ id: localGuest.id, name: localGuest.name });
+                  toast.warning(`تم التسجيل محلياً، سيتم المزامنة لاحقاً`);
                 }
               }
             } catch (e) {
@@ -401,7 +429,7 @@ function CoordinatorScanner({ session, guests, onCheckIn, onSaveNotes }: { sessi
       stopped = true;
       scanner?.stop().then(() => scanner?.clear()).catch(() => {});
     };
-  }, [scanning, session, onCheckIn, guests]);
+  }, [scanning, session, onCheckIn, guests, eventId]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
