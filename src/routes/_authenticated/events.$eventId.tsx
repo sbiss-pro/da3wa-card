@@ -1211,3 +1211,69 @@ function BackgroundControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: 
     </div>
   );
 }
+/* ---------------- Wishes wall (congratulations + apologies) ---------------- */
+function WishesWallTab({ guests }: { guests: Guest[] }) {
+  const wished = useMemo(
+    () => guests.filter(g => (g.notes || "").trim().length > 0),
+    [guests],
+  );
+  const declinedWithWishes = wished.filter(g => g.rsvp_status === "declined");
+  const otherWithNotes = wished.filter(g => g.rsvp_status !== "declined");
+
+  if (wished.length === 0) {
+    return (
+      <Card className="p-10 text-center">
+        <Heart className="mx-auto h-10 w-10 text-gold" />
+        <p className="mt-3 font-display text-lg font-bold">لا توجد تبريكات بعد</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          ستظهر هنا كل التبريكات والاعتذارات الراقية التي يرسلها المدعوون.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {declinedWithWishes.length > 0 ? (
+        <section>
+          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات ({declinedWithWishes.length})</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {declinedWithWishes.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <Card key={g.id} className="relative overflow-hidden border-gold/40 bg-gradient-to-br from-amber-50/40 via-card to-card p-5">
+                  <Heart className="absolute -right-3 -top-3 h-16 w-16 rotate-12 text-gold/15" />
+                  <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                    {g.notes}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+      {otherWithNotes.length > 0 ? (
+        <section>
+          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني أخرى ({otherWithNotes.length})</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {otherWithNotes.map(g => {
+              const { title, name } = splitTitleName(g.name);
+              return (
+                <Card key={g.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                    <Badge variant="outline" className="text-[10px]">{RSVP_LABELS[g.rsvp_status]}</Badge>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {g.notes}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
