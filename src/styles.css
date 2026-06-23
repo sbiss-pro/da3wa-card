@@ -181,3 +181,15 @@
 @media (prefers-reduced-motion: reduce) {
   .blob-a, .blob-b, .blob-c { animation: none; }
 }
+
+@keyframes qr-scan {
+  0%   { transform: translateY(0); opacity: 0.2; }
+  50%  { transform: translateY(220px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.2; }
+}
+@utility animate-qr-scan {
+  animation: qr-scan 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-qr-scan { animation: none; }
+}
