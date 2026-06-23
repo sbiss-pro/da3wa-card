@@ -237,6 +237,8 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
 
   const [importing, setImporting] = useState(false);
   const [waSending, setWaSending] = useState(false);
+  const [waProgress, setWaProgress] = useState<{ processed: number; total: number; sent: number; failed: number; skipped: number; currentName: string; etaSeconds: number } | null>(null);
+  const waAbortRef = useRef<AbortController | null>(null);
 
   const handleFile = (file: File) => {
     const lower = file.name.toLowerCase();
@@ -332,15 +334,30 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
       return;
     }
     setWaSending(true);
-    const id = toast.loading(`جارٍ إرسال ${recipients.length} دعوة عبر WhatsApp...`);
+    setWaProgress({ processed: 0, total: recipients.length, sent: 0, failed: 0, skipped: 0, currentName: "", etaSeconds: recipients.length * 7 });
+    const ac = new AbortController();
+    waAbortRef.current = ac;
     try {
-      const r = await simulateWhatsAppBlast(cfg, recipients);
-      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`, { id });
+      const r = await simulateWhatsAppBlast(cfg, recipients, {
+        minDelayMs: 5000,
+        maxDelayMs: 10000,
+        signal: ac.signal,
+        onProgress: (p) => setWaProgress(p),
+      });
+      toast.success(`تم الإرسال · نجح ${r.sent}${r.failed ? ` · فشل ${r.failed}` : ""}${r.skipped ? ` · تخطّينا ${r.skipped}` : ""}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال", { id });
+      toast.error(e instanceof Error ? e.message : "تعذّر الإرسال");
     } finally {
       setWaSending(false);
+      waAbortRef.current = null;
+      // keep progress card visible briefly so the user sees the final state
+      setTimeout(() => setWaProgress(null), 4000);
     }
+  };
+
+  const cancelWhatsApp = () => {
+    waAbortRef.current?.abort();
+    toast.message("تم إيقاف الإرسال");
   };
 
   const remove = async (id: string) => {
