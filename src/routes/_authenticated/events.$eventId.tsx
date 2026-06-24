@@ -1089,14 +1089,61 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
         </div>
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
         <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف.</p>
-        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">معاينة الرسالة</p>
-          <pre className="whitespace-pre-wrap break-words text-sm leading-loose font-sans">{preview}</pre>
-        </div>
+        <WhatsAppPreview message={preview} />
         <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> حفظ القالب
         </Button>
       </Card>
+    </div>
+  );
+}
+
+function WhatsAppPreview({ message }: { message: string }) {
+  const time = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  // Render the message with auto-linkified URLs.
+  const parts = message.split(/(https?:\/\/\S+)/g);
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-medium text-muted-foreground">معاينة الرسالة على واتساب</p>
+      <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[28px] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl">
+        {/* status bar */}
+        <div className="flex items-center justify-between bg-[#075E54] px-4 py-1 text-[10px] text-white/90" dir="ltr">
+          <span>{time}</span>
+          <span>•••</span>
+        </div>
+        {/* header */}
+        <div className="flex items-center gap-2 bg-[#075E54] px-3 py-2 text-white">
+          <div className="grid h-8 w-8 place-items-center rounded-full bg-white/20 text-sm font-bold">د</div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">دعوتي</p>
+            <p className="text-[10px] text-white/70">متصل الآن</p>
+          </div>
+        </div>
+        {/* chat body */}
+        <div
+          className="min-h-[260px] px-3 py-4"
+          style={{
+            backgroundColor: "#ECE5DD",
+            backgroundImage:
+              "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
+            backgroundSize: "12px 12px",
+          }}
+          dir="rtl"
+        >
+          <div className="relative ms-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-[#DCF8C6] px-3 py-2 text-[13px] leading-relaxed text-neutral-900 shadow">
+            <p className="whitespace-pre-wrap break-words">
+              {parts.map((part, i) =>
+                /^https?:\/\//.test(part) ? (
+                  <span key={i} className="text-[#0e7c98] underline" dir="ltr">{part}</span>
+                ) : (
+                  <span key={i}>{part}</span>
+                ),
+              )}
+            </p>
+            <p className="mt-1 text-end text-[10px] text-neutral-500" dir="ltr">{time} ✓✓</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
