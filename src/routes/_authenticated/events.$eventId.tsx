@@ -528,13 +528,17 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
 
 function AddGuestDialog({ eventId, onAdded }: { eventId: string; onAdded: () => void }) {
   const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const submit = async () => {
     if (!name.trim()) return;
-    const { error } = await supabase.from("guests").insert({ event_id: eventId, name, phone: phone || null, email: email || null });
-    if (error) toast.error(error.message); else { toast.success("تمت الإضافة"); setName(""); setPhone(""); setEmail(""); setOpen(false); onAdded(); }
+    const cleanTitle = title.trim();
+    const cleanName = name.trim();
+    const fullName = cleanTitle ? `${cleanTitle} / ${cleanName}`.slice(0, 160) : cleanName.slice(0, 120);
+    const { error } = await supabase.from("guests").insert({ event_id: eventId, name: fullName, phone: phone || null, email: email || null });
+    if (error) toast.error(error.message); else { toast.success("تمت الإضافة"); setTitle(""); setName(""); setPhone(""); setEmail(""); setOpen(false); onAdded(); }
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -542,6 +546,7 @@ function AddGuestDialog({ eventId, onAdded }: { eventId: string; onAdded: () => 
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>إضافة مدعو</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          <div><Label>اللقب (اختياري)</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="الشيخ / الدكتور / الأستاذ" /></div>
           <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
           <div><Label>رقم الهاتف</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
           <div><Label>البريد الإلكتروني (اختياري)</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
