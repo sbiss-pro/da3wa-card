@@ -2,6 +2,8 @@ export const EVENT_TYPES = [
   { value: "wedding", label: "زفاف" },
   { value: "engagement", label: "خطوبة" },
   { value: "birthday", label: "عيد ميلاد" },
+  { value: "graduation", label: "حفل تخرج" },
+  { value: "bachelor", label: "توديع عزوبية" },
   { value: "corporate", label: "فعالية مؤسسية" },
   { value: "meeting", label: "اجتماع" },
   { value: "other", label: "أخرى" },
