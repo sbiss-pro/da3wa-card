@@ -27,7 +27,6 @@ function NewEvent() {
     location_url: "",
     description: "",
   });
-  const [customType, setCustomType] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -41,13 +40,10 @@ function NewEvent() {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("غير مسجل");
       const date = new Date(`${form.event_date}T${form.event_time}`);
-      const finalType = form.event_type === "other" && customType.trim()
-        ? customType.trim().slice(0, 60)
-        : form.event_type;
       const { data, error } = await supabase.from("events").insert({
         host_id: u.user.id,
         name: form.name,
-        event_type: finalType,
+        event_type: form.event_type,
         event_date: date.toISOString(),
         location: form.location || null,
         location_url: form.location_url || null,
@@ -80,15 +76,6 @@ function NewEvent() {
                   {EVENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {form.event_type === "other" ? (
-                <Input
-                  className="mt-2"
-                  value={customType}
-                  onChange={e => setCustomType(e.target.value)}
-                  placeholder="أخرى (اكتب نوع الفعالية)"
-                  maxLength={60}
-                />
-              ) : null}
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="تاريخ الفعالية" id="date">

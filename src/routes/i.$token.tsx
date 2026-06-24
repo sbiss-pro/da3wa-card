@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Calendar, MapPin, Download, Apple, Clock } from "lucide-react";
+import { Check, X, Calendar, MapPin, Download, Apple, Wallet, Clock } from "lucide-react";
 import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -40,6 +40,7 @@ function GuestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [qr, setQr] = useState<string>("");
   const [countdown, setCountdown] = useState("");
+  const [now, setNow] = useState<string>("");
   const [showDeclineBox, setShowDeclineBox] = useState(false);
   const [wishes, setWishes] = useState("");
 
@@ -61,14 +62,20 @@ function GuestPage() {
     return () => clearInterval(t);
   }, [event.event_date]);
 
+  // Live HH:MM:SS clock under the QR — proves the page is live (anti-screenshot).
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setNow(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const deadlineIso = event.template_config?.rsvp_deadline || null;
   const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
-  const maxCompanions = Math.max(
-    0,
-    Math.min(10, Number.isFinite(event.template_config?.max_companions as number)
-      ? Number(event.template_config?.max_companions)
-      : 2),
-  );
 
   const respond = async (status: "accepted" | "declined", noteOverride?: string) => {
     if (deadlinePassed) {
@@ -77,7 +84,7 @@ function GuestPage() {
     }
     setSubmitting(true);
     try {
-      const safeCompanions = Math.max(0, Math.min(maxCompanions, Number.isFinite(companions) ? companions : 0));
+      const safeCompanions = Math.max(0, Math.min(2, Number.isFinite(companions) ? companions : 0));
       const finalNotes = noteOverride !== undefined ? noteOverride : notes;
       await submitRsvp({ data: { token: guest.token, status, companions: safeCompanions, notes: finalNotes } });
       setGuest(prev => ({ ...prev, rsvp_status: status, companions_count: safeCompanions, notes: finalNotes }));
@@ -98,6 +105,30 @@ function GuestPage() {
 
   const accepted = guest.rsvp_status === "accepted" || guest.rsvp_status === "attended";
   const declined = guest.rsvp_status === "declined";
+
+  const downloadPass = (wallet: "apple" | "google") => {
+    const lines = [
+      "DAWATI DIGITAL PASS",
+      "===================",
+      `Wallet: ${wallet === "apple" ? "Apple Wallet" : "Google Wallet"}`,
+      `Event:  ${event.name}`,
+      `Date:   ${formatArabicDate(event.event_date)}`,
+      `Guest:  ${guest.name}`,
+      `Companions: ${guest.companions_count}`,
+      `Token:  ${guest.token}`,
+      event.location ? `Place:  ${event.location}` : "",
+      "",
+      "(عرض تجريبي لبطاقة المحفظة الرقمية)",
+    ].filter(Boolean).join("\n");
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dawati-pass-${guest.token}.${wallet === "apple" ? "pkpass.txt" : "gpass.txt"}`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(wallet === "apple" ? "تم تجهيز بطاقة Apple Wallet" : "تم تجهيز بطاقة Google Wallet");
+  };
 
   return (
     <div dir="rtl" className="min-h-screen bg-background px-4 py-8">
@@ -132,11 +163,9 @@ function GuestPage() {
                     <Select value={String(companions)} onValueChange={v => setCompanions(Number(v))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: maxCompanions + 1 }, (_, i) => (
-                          <SelectItem key={i} value={String(i)}>
-                            {i === 0 ? "بدون مرافقين" : `${i} ${i === 1 ? "مرافق" : i === 2 ? "مرافقان" : "مرافقين"}${i === maxCompanions ? " (الحد الأقصى)" : ""}`}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="0">بدون مرافقين</SelectItem>
+                        <SelectItem value="1">مرافق واحد</SelectItem>
+                        <SelectItem value="2">مرافقان (الحد الأقصى)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -197,10 +226,33 @@ function GuestPage() {
                 {qr ? (
                   <div className="mt-6">
                     <p className="mb-2 text-sm text-muted-foreground">رمز الدخول الخاص بك</p>
-                    <div className="mx-auto inline-block overflow-hidden rounded-xl">
+                    <div className="relative mx-auto inline-block overflow-hidden rounded-xl">
                       <img src={qr} alt="QR" className="block" />
+                      {/* Animated scanning laser line — proves the QR is live, not a screenshot. */}
+                      <div aria-hidden className="pointer-events-none absolute inset-x-2 top-0 h-[2px] animate-qr-scan rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_2px_rgba(16,185,129,0.85)]" />
                     </div>
+                    <p className="mt-3 font-mono text-lg font-bold tracking-widest text-emerald-600" aria-live="polite">
+                      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500 align-middle me-2" />
+                      {now}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">تحقق مباشر — الوقت والمسح يتحدّثان لحظياً</p>
                     <a href={qr} download={`invite-${guest.name}.png`}><Button variant="outline" size="sm" className="mt-3"><Download className="ms-2 h-4 w-4" /> تحميل الرمز</Button></a>
+                    <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <Button
+                        onClick={() => downloadPass("apple")}
+                        className="w-full bg-black text-white hover:bg-black/90"
+                      >
+                        <Apple className="ms-2 h-4 w-4" /> إضافة إلى محفظة Apple
+                      </Button>
+                      <Button
+                        onClick={() => downloadPass("google")}
+                        className="w-full"
+                        style={{ background: "#1a73e8", color: "#fff" }}
+                      >
+                        <Wallet className="ms-2 h-4 w-4" /> إضافة إلى محفظة Google
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">عرض تجريبي — يتم تنزيل ملف بطاقة معاينة.</p>
                   </div>
                 ) : null}
               </>

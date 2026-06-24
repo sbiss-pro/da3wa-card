@@ -17,14 +17,6 @@ export type TemplateConfig = {
   bg_blur?: boolean;
   text_align?: "right" | "center" | "left";
   text_size?: "sm" | "md" | "lg" | "xl";
-  max_companions?: number;
-  labels?: {
-    eyebrow?: string;
-    greeting_prefix?: string;
-    date_override?: string;
-    location_override?: string;
-  };
-  positions?: Record<string, { x: number; y: number }>;
 };
 
 const FONT_MAP: Record<string, string> = {
@@ -54,24 +46,6 @@ export function InvitationCard({
   const align = config.text_align || "center";
   const sizeClass = config.text_size === "sm" ? "text-sm" : config.text_size === "lg" ? "text-lg" : config.text_size === "xl" ? "text-xl" : "text-base";
   const blurredBg = config.image_url && config.bg_blur;
-  const pos = config.positions || {};
-  const lbl = config.labels || {};
-  const eyebrow = lbl.eyebrow ?? "دعوة كريمة";
-  const greetingPrefix = lbl.greeting_prefix ?? "يسرّنا دعوتك يا";
-  const dateText = lbl.date_override?.trim() ? lbl.date_override : formatArabicDate(eventDate);
-  const locText = lbl.location_override?.trim() ? lbl.location_override : (location || "");
-  const hasPositions = pos && Object.keys(pos).length > 0;
-  const overlayStyle = (key: string): React.CSSProperties | undefined => {
-    const p = pos[key];
-    if (!p) return undefined;
-    return {
-      position: "absolute",
-      left: `${p.x}%`,
-      top: `${p.y}%`,
-      transform: "translate(-50%, -50%)",
-      maxWidth: "90%",
-    };
-  };
   return (
     <div
       className={`relative overflow-hidden rounded-3xl border shadow-2xl text-${align}`}
@@ -87,46 +61,33 @@ export function InvitationCard({
           <div className="absolute inset-0 backdrop-blur-md bg-black/30" aria-hidden />
         </>
       ) : config.image_url ? (
-        hasPositions ? (
-          <div className="absolute inset-0">
-            <img src={config.image_url} alt="" className="h-full w-full object-cover" />
-          </div>
-        ) : (
-          <div className="h-48 w-full overflow-hidden">
-            <img src={config.image_url} alt="" className="h-full w-full object-cover" />
-          </div>
-        )
+        <div className="h-48 w-full overflow-hidden">
+          <img src={config.image_url} alt="" className="h-full w-full object-cover" />
+        </div>
       ) : null}
-      <div
-        className={`relative px-8 py-12 ${sizeClass}`}
-        style={{
-          textAlign: align,
-          color: blurredBg ? "#fff" : text,
-          minHeight: hasPositions ? 540 : undefined,
-        }}
-      >
+      <div className={`relative px-8 py-12 ${sizeClass}`} style={{ textAlign: align, color: blurredBg ? "#fff" : text }}>
         <div className="mx-auto mb-6 h-px w-20" style={{ background: accent }} />
-        <p className="text-sm tracking-widest uppercase" style={{ color: accent, ...overlayStyle("eyebrow") }}>
-          {eyebrow}
+        <p className="text-sm tracking-widest uppercase" style={{ color: accent }}>
+          دعوة كريمة
         </p>
-        <h1 className="mt-3 text-4xl font-bold leading-tight md:text-5xl" style={overlayStyle("title")}>
+        <h1 className="mt-3 text-4xl font-bold leading-tight md:text-5xl">
           {config.custom_title || eventName}
         </h1>
         {guestName ? (
-          <p className="mt-6 text-lg" style={overlayStyle("greeting")}>
-            {greetingPrefix} <span className="font-bold" style={{ color: accent }}>{guestName}</span>
+          <p className="mt-6 text-lg">
+            يسرّنا دعوتك يا <span className="font-bold" style={{ color: accent }}>{guestName}</span>
           </p>
         ) : null}
         {config.custom_message ? (
-          <p className="mx-auto mt-4 max-w-md leading-loose opacity-90 whitespace-pre-wrap" style={overlayStyle("message")}>
+          <p className="mx-auto mt-4 max-w-md leading-loose opacity-90 whitespace-pre-wrap">
             {config.custom_message}
           </p>
         ) : null}
-        {!hasPositions ? <div className="mx-auto mt-8 h-px w-20" style={{ background: accent }} /> : null}
-        <p className="mt-6 text-lg font-medium" style={overlayStyle("date")}>{dateText}</p>
-        {locText ? <p className="mt-2 text-sm opacity-80" style={overlayStyle("location")}>{locText}</p> : null}
+        <div className="mx-auto mt-8 h-px w-20" style={{ background: accent }} />
+        <p className="mt-6 text-lg font-medium">{formatArabicDate(eventDate)}</p>
+        {location ? <p className="mt-2 text-sm opacity-80">{location}</p> : null}
         {config.timeline && config.timeline.length > 0 ? (
-          <div className="mx-auto mt-8 max-w-md" style={overlayStyle("timeline")}>
+          <div className="mx-auto mt-8 max-w-md">
             <div className="mx-auto mb-4 h-px w-16" style={{ background: accent }} />
             <p className="mb-3 text-sm tracking-widest" style={{ color: accent }}>
               الجدول الزمني
