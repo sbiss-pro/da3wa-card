@@ -23,6 +23,8 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { InvitationDesigner } from "@/components/invitation-designer";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -212,14 +214,34 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             </Select>
           </div>
           <BackgroundControls cfg={cfg} setCfg={setCfg} />
+          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+            <Label className="flex items-center gap-2">
+              الحد الأقصى لعدد المرافقين لكل ضيف:
+              <span className="font-bold text-gold">{cfg.max_companions ?? 2}</span>
+            </Label>
+            <Slider
+              value={[cfg.max_companions ?? 2]}
+              min={0}
+              max={10}
+              step={1}
+              onValueChange={([v]) => setCfg({ ...cfg, max_companions: v })}
+            />
+            <p className="text-xs text-muted-foreground">الضيف لا يستطيع تجاوز هذا الحد على صفحة الدعوة.</p>
+          </div>
           <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
             <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
           </Button>
         </div>
       </Card>
       <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-sm text-muted-foreground">معاينة مباشرة</p>
-        <InvitationCard config={cfg} eventName={event.name} eventDate={event.event_date} location={event.location} guestName="ضيفنا الكريم" />
+        <p className="mb-2 text-sm text-muted-foreground">المعاينة والمحرر المتقدم — اسحب أي عنصر لإعادة تموضعه</p>
+        <InvitationDesigner
+          config={cfg}
+          setConfig={setCfg}
+          eventName={event.name}
+          eventDate={event.event_date}
+          location={event.location}
+        />
       </div>
     </div>
   );
