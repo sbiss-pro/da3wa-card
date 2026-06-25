@@ -257,6 +257,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
   const [waSending, setWaSending] = useState(false);
   const [waProgress, setWaProgress] = useState<{ processed: number; total: number; sent: number; failed: number; skipped: number; currentName: string; etaSeconds: number } | null>(null);
   const waAbortRef = useRef<AbortController | null>(null);
+  const [editing, setEditing] = useState<Guest | null>(null);
 
   const handleFile = (file: File) => {
     const lower = file.name.toLowerCase();
@@ -473,16 +474,17 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
             <TableRow>
               <TableHead>اللقب</TableHead>
               <TableHead>الاسم</TableHead>
-              <TableHead>رقم الهاتف</TableHead>
+              <TableHead>رقم الجوال</TableHead>
+              <TableHead>المرافقين</TableHead>
               <TableHead>حالة الدعوة</TableHead>
               <TableHead>الملاحظات</TableHead>
               <TableHead>الدعوة</TableHead>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-24">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">لا يوجد مدعوون</TableCell></TableRow>
             ) : paged.map(g => {
               const { title, name } = splitTitleName(g.name);
               return (
@@ -490,6 +492,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                   <TableCell className="text-sm text-muted-foreground">{title || "—"}</TableCell>
                   <TableCell className="font-medium">{name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground" dir="ltr">{g.phone || "—"}</TableCell>
+                  <TableCell className="text-sm tabular-nums">{g.companions_count || 0}</TableCell>
                   <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
                   <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
                   <TableCell>
@@ -497,7 +500,16 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                       <Copy className="ms-1 h-3 w-3" /> نسخ
                     </Button>
                   </TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => remove(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" title="تعديل" onClick={() => setEditing(g)}>
+                        <Pencil className="h-4 w-4 text-gold" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="حذف" onClick={() => remove(g.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -505,6 +517,8 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
         </Table>
         </div>
       </Card>
+
+      <EditGuestDialog guest={editing} onClose={() => setEditing(null)} onSaved={reload} />
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{filtered.length} مدعو</span>
