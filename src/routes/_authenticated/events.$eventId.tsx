@@ -24,6 +24,8 @@ import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalize
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 import { Switch } from "@/components/ui/switch";
 import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
+import { Slider } from "@/components/ui/slider";
+import { Music } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
