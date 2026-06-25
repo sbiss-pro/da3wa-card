@@ -193,6 +193,19 @@ function GuestPage() {
       >
         {audioOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
       </button>
+      {/* Hidden audio sources controlled by the floating toggle */}
+      {audioCfg?.mode === "youtube" && ytId ? (
+        <iframe
+          ref={ytRef}
+          title="bg-audio"
+          width="1" height="1"
+          allow="autoplay"
+          style={{ position: "fixed", inset: 0, opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
+          src=""
+        />
+      ) : (audioCfg?.mode === "url" || audioCfg?.mode === "file") ? (
+        <audio ref={audioElRef} preload="none" />
+      ) : null}
 
       {/* Screenshot guard overlay */}
       {screenHidden ? (
