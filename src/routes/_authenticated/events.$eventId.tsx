@@ -12,9 +12,9 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart, Users as UsersIcon, Palette as PaletteIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -22,10 +22,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
-import { Switch } from "@/components/ui/switch";
 import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
-import { Slider } from "@/components/ui/slider";
-import { Music } from "lucide-react";
+import { extractPalette, readableTextOn } from "@/lib/palette";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
