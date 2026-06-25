@@ -23,6 +23,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 import { Switch } from "@/components/ui/switch";
+import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -1062,9 +1063,8 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
         </div>
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
         <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف.</p>
-        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">معاينة الرسالة</p>
-          <pre className="whitespace-pre-wrap break-words text-sm leading-loose font-sans">{preview}</pre>
+        <div className="mt-5">
+          <WhatsAppMobilePreview message={preview} />
         </div>
         <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> حفظ القالب
