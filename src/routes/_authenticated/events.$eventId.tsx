@@ -216,6 +216,27 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
             <div className="space-y-2"><Label>اللون المميز</Label><Input type="color" value={cfg.accent_color || "#c9a24a"} onChange={e => setCfg({ ...cfg, accent_color: e.target.value })} /></div>
           </div>
+          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+            <Label>لون خلفية صفحة الدعوة (المنطقة المحيطة بالبطاقة)</Label>
+            <div className="flex items-center gap-2">
+              <Input type="color" value={cfg.page_bg || "#1a1410"} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} className="h-10 w-16 p-1" />
+              <Input value={cfg.page_bg || ""} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} placeholder="مثال: #1a1410 أو linear-gradient(...)" dir="ltr" />
+              {cfg.page_bg ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, page_bg: "" })}>إعادة</Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">يُطبَّق على كامل الصفحة الخارجية لرابط الدعوة، وليس داخل البطاقة.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>نص العنوان العلوي</Label>
+              <Input value={cfg.intro_label ?? ""} onChange={e => setCfg({ ...cfg, intro_label: e.target.value })} placeholder="دعوة كريمة" />
+            </div>
+            <div className="space-y-2">
+              <Label>عبارة الترحيب قبل اسم المدعو</Label>
+              <Input value={cfg.greeting_prefix ?? ""} onChange={e => setCfg({ ...cfg, greeting_prefix: e.target.value })} placeholder="يسرّنا دعوتك يا" />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>الخط</Label>
             <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
