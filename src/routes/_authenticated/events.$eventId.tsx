@@ -1480,3 +1480,112 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
     </div>
   );
 }
+
+/* ---------------- Typography Controls (per-element sizes & alignment) ---------------- */
+function TypographyControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
+  const aligns: Array<{ v: "right" | "center" | "left"; label: string }> = [
+    { v: "right", label: "يمين" },
+    { v: "center", label: "وسط" },
+    { v: "left", label: "يسار" },
+  ];
+  const row = (
+    key: "title" | "message" | "guest_name" | "date",
+    label: string,
+    defVal: number,
+    min: number,
+    max: number,
+    withAlign: boolean,
+  ) => {
+    const sizeKey = `${key}_size` as keyof TemplateConfig;
+    const alignKey = `${key}_align` as keyof TemplateConfig;
+    const value = (cfg[sizeKey] as number | undefined) ?? defVal;
+    const align = (cfg[alignKey] as "right" | "center" | "left" | undefined) || cfg.text_align || "center";
+    return (
+      <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">{label}</Label>
+          <span className="text-xs tabular-nums text-muted-foreground">{value}px</span>
+        </div>
+        <Slider
+          min={min} max={max} step={1} value={[value]}
+          onValueChange={(v) => setCfg({ ...cfg, [sizeKey]: v[0] } as TemplateConfig)}
+        />
+        {withAlign ? (
+          <div className="flex gap-1">
+            {aligns.map(a => (
+              <Button key={a.v} type="button" size="sm"
+                variant={align === a.v ? "default" : "outline"}
+                className={align === a.v ? "gold-gradient text-primary-foreground" : ""}
+                onClick={() => setCfg({ ...cfg, [alignKey]: a.v } as TemplateConfig)}>
+                {a.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+      <Label className="flex items-center gap-2"><Pencil className="h-4 w-4 text-gold" /> الخطوط والمحاذاة لكل عنصر</Label>
+      <p className="text-xs text-muted-foreground">تكيّف تلقائياً مع شاشات اللابتوب، الآيباد، والآيفون.</p>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {row("title", "عنوان البطاقة", 40, 20, 72, true)}
+        {row("guest_name", "اسم المدعو", 18, 12, 32, false)}
+        {row("message", "نص الدعوة", 16, 12, 28, true)}
+        {row("date", "التاريخ", 18, 12, 32, false)}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Audio Controls (background music) ---------------- */
+function AudioControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const audio = cfg.audio || null;
+  const setMode = (mode: "youtube" | "url" | "file") => setCfg({ ...cfg, audio: { mode, src: "" } });
+  const setSrc = (src: string) => setCfg({ ...cfg, audio: { mode: audio?.mode || "url", src } });
+  const clear = () => setCfg({ ...cfg, audio: null });
+
+  const onFile = (f: File) => {
+    if (!/^audio\//.test(f.type)) { toast.error("صيغة الملف يجب أن تكون صوتية (MP3/WAV)"); return; }
+    if (f.size > 4 * 1024 * 1024) { toast.error("حجم الملف كبير جداً (الحد الأقصى 4MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => setCfg({ ...cfg, audio: { mode: "file", src: String(reader.result || "") } });
+    reader.readAsDataURL(f);
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-2"><Music className="h-4 w-4 text-gold" /> الصوتيات / خلفية الموسيقى</Label>
+        {audio ? <Button type="button" variant="ghost" size="sm" onClick={clear}><XIcon className="ms-1 h-3 w-3" /> إزالة</Button> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(["youtube", "url", "file"] as const).map(m => (
+          <Button key={m} type="button" size="sm"
+            variant={audio?.mode === m ? "default" : "outline"}
+            className={audio?.mode === m ? "gold-gradient text-primary-foreground" : ""}
+            onClick={() => setMode(m)}>
+            {m === "youtube" ? "رابط يوتيوب" : m === "url" ? "رابط صوتي" : "رفع ملف"}
+          </Button>
+        ))}
+      </div>
+      {audio?.mode === "youtube" ? (
+        <Input value={audio.src} onChange={e => setSrc(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." dir="ltr" />
+      ) : audio?.mode === "url" ? (
+        <Input value={audio.src} onChange={e => setSrc(e.target.value)} placeholder="https://example.com/song.mp3" dir="ltr" />
+      ) : audio?.mode === "file" ? (
+        <div className="space-y-2">
+          <input ref={inputRef} type="file" accept="audio/*" hidden onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+            <Upload className="ms-1 h-3 w-3" /> اختيار ملف MP3/WAV
+          </Button>
+          {audio.src ? <p className="text-xs text-emerald-600">تم رفع الملف بنجاح ✓</p> : null}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">اختر مصدر الصوت لربطه بأيقونة التشغيل في بطاقة الضيف.</p>
+      )}
+    </div>
+  );
+}
