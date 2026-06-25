@@ -150,11 +150,33 @@ export const getCoordinatorContext = createServerFn({ method: "POST" })
       .single();
     const { data: guests } = await supabaseAdmin
       .from("guests")
-      .select("id,name,phone,rsvp_status,companions_count,notes,token,checked_in_at")
+      .select("id,name,title,phone,rsvp_status,companions_count,notes,notes_seen_at,token,checked_in_at")
       .eq("event_id", row.event_id)
       .order("name", { ascending: true });
-    return { coordinator: { id: row.id, name: row.name }, event, guests: guests ?? [] };
+    // Strict RBAC: hide notes from declined guests (wishes wall is host-only).
+    const sanitized = (guests ?? []).map((g) => {
+      if (g.rsvp_status === "declined") return { ...g, notes: null, notes_seen_at: null };
+      return g;
+    });
+    return { coordinator: { id: row.id, name: row.name }, event, guests: sanitized };
   });
+
+async function logScan(opts: {
+  event_id: string;
+  coordinator_id: string;
+  coordinator_name: string;
+  guest_id: string;
+  guest_name: string;
+}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("scan_logs").insert({
+    event_id: opts.event_id,
+    coordinator_id: opts.coordinator_id,
+    coordinator_name: opts.coordinator_name,
+    guest_id: opts.guest_id,
+    guest_name: opts.guest_name,
+  });
+}
 
 export const coordinatorCheckIn = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
@@ -169,6 +191,9 @@ export const coordinatorCheckIn = createServerFn({ method: "POST" })
       .eq("event_id", row.event_id)
       .maybeSingle();
     if (!guest) throw new Error("المدعو غير موجود في هذه الفعالية");
+    if (guest.rsvp_status === "declined") {
+      throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+    }
     if (guest.rsvp_status === "attended") {
       const err = new Error(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${guest.checked_in_at ?? "—"}`);
       (err as Error & { code?: string; guest?: unknown }).code = "ALREADY_CHECKED_IN";
@@ -179,6 +204,7 @@ export const coordinatorCheckIn = createServerFn({ method: "POST" })
       .from("guests")
       .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() })
       .eq("id", guest.id);
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name });
     return { ...guest, rsvp_status: "attended" };
   });
 
@@ -195,6 +221,9 @@ export const coordinatorCheckInById = createServerFn({ method: "POST" })
       .eq("event_id", row.event_id)
       .maybeSingle();
     if (!guest) throw new Error("المدعو غير موجود");
+    if (guest.rsvp_status === "declined") {
+      throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+    }
     if (guest.rsvp_status === "attended") {
       throw new Error(`هذا المدعو مسجّل سابقاً (${guest.checked_in_at ?? "—"})`);
     }
@@ -202,34 +231,29 @@ export const coordinatorCheckInById = createServerFn({ method: "POST" })
       .from("guests")
       .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() })
       .eq("id", guest.id);
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name });
     return { ...guest, rsvp_status: "attended" };
   });
 
-export const coordinatorUpdateGuest = createServerFn({ method: "POST" })
+/**
+ * Strict-RBAC coordinator action: toggle whether the guest's note has been
+ * reviewed by the team. The master note text is never altered.
+ */
+export const coordinatorMarkNoteSeen = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     sessionSchema.extend({
       guest_id: z.string().uuid(),
-      rsvp_status: z.enum(["pending", "accepted", "declined", "attended"]).optional(),
-      companions_count: z.number().int().min(0).max(10).optional(),
-      notes: z.string().max(500).nullable().optional(),
+      seen: z.boolean(),
     }).parse(d),
   )
   .handler(async ({ data }) => {
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
-    const patch: { rsvp_status?: string; companions_count?: number; notes?: string | null; checked_in_at?: string | null } = {};
-    if (data.rsvp_status !== undefined) {
-      patch.rsvp_status = data.rsvp_status;
-      if (data.rsvp_status === "attended") patch.checked_in_at = new Date().toISOString();
-      else patch.checked_in_at = null;
-    }
-    if (data.companions_count !== undefined) patch.companions_count = data.companions_count;
-    if (data.notes !== undefined) patch.notes = data.notes;
     const { data: updated, error } = await supabaseAdmin
       .from("guests")
-      .update(patch)
+      .update({ notes_seen_at: data.seen ? new Date().toISOString() : null })
       .eq("id", data.guest_id)
       .eq("event_id", row.event_id)
-      .select("id,name,phone,rsvp_status,companions_count,notes,token,checked_in_at")
+      .select("id,name,title,phone,rsvp_status,companions_count,notes,notes_seen_at,token,checked_in_at")
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("المدعو غير موجود");
