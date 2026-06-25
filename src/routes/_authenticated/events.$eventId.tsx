@@ -38,7 +38,20 @@ type EventRow = {
 type Guest = {
   id: string; event_id: string; token: string; name: string; phone: string | null;
   email: string | null; rsvp_status: string; companions_count: number; notes: string | null;
+  original_rsvp_status?: string | null;
 };
+
+const TITLE_OPTIONS = [
+  "المكرم","المكرمة","الأستاذ","الأستاذة","الدكتور","الدكتورة",
+  "الشيخ","الشيخة","المهندس","المهندسة","الأمير","الأميرة",
+];
+const MAX_COMPANIONS = 11;
+
+function joinTitleName(title: string, name: string): string {
+  const t = (title || "").trim();
+  const n = (name || "").trim();
+  return t ? `${t} / ${n}`.slice(0, 160) : n.slice(0, 120);
+}
 
 const PRESETS = [
   { name: "ذهبي كلاسيكي", config: { template: "gold", bg_color: "#f7f1e6", text_color: "#1a1410", accent_color: "#c9a24a", font: "amiri" } },
