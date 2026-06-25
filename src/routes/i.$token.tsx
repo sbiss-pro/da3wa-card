@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Calendar, MapPin, Download, Apple, Clock, Users, Volume2, VolumeX } from "lucide-react";
+import { Check, X, MapPin, Clock, Users, Volume2, VolumeX } from "lucide-react";
 import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -43,6 +43,15 @@ function GuestPage() {
   const [screenHidden, setScreenHidden] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const audioCtxRef = useRef<{ ctx: AudioContext; nodes: OscillatorNode[]; gain: GainNode } | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const ytRef = useRef<HTMLIFrameElement | null>(null);
+
+  const audioCfg = event.template_config?.audio || null;
+  const ytId = (() => {
+    if (audioCfg?.mode !== "youtube" || !audioCfg.src) return "";
+    const m = audioCfg.src.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{6,})/);
+    return m ? m[1] : "";
+  })();
 
   // Screenshot protection — blur whenever the tab/app loses focus or visibility changes.
   useEffect(() => {
@@ -59,9 +68,31 @@ function GuestPage() {
     };
   }, []);
 
-  // Synthesized ambient drone — no external assets required.
+  // Audio toggle — uses host-configured source (YouTube/URL/upload) when provided,
+  // otherwise falls back to a synthesized ambient drone.
   const toggleAudio = async () => {
     try {
+      // ---- Configured source path ----
+      if (audioCfg && audioCfg.src) {
+        if (audioOn) {
+          if (audioElRef.current) { audioElRef.current.pause(); }
+          if (ytRef.current) { ytRef.current.src = ""; }
+          setAudioOn(false);
+          return;
+        }
+        if (audioCfg.mode === "youtube" && ytId) {
+          if (ytRef.current) {
+            ytRef.current.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0`;
+          }
+        } else if (audioElRef.current) {
+          audioElRef.current.src = audioCfg.src;
+          audioElRef.current.loop = true;
+          await audioElRef.current.play();
+        }
+        setAudioOn(true);
+        return;
+      }
+      // ---- Fallback synthesized drone ----
       if (audioOn && audioCtxRef.current) {
         audioCtxRef.current.gain.gain.linearRampToValueAtTime(0, audioCtxRef.current.ctx.currentTime + 0.4);
         setTimeout(() => { audioCtxRef.current?.ctx.close(); audioCtxRef.current = null; }, 500);
