@@ -1050,10 +1050,10 @@ function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: 
 }
 
 function downloadGuestTemplate() {
-  const headers = ["اللقب", "الاسم", "رقم الجوال"];
+  const headers = ["اللقب", "الاسم", "رقم الجوال", "المرافقين"];
   const sample = [
-    ["المكرم", "محمد بن سعيد", "+966500000000"],
-    ["المكرمة", "فاطمة بنت أحمد", "0551234567"],
+    ["المكرم", "محمد بن سعيد", "+966500000000", "2"],
+    ["المكرمة", "فاطمة بنت أحمد", "0551234567", "0"],
   ];
   const safe = (c: string) => {
     const v = c || "";
