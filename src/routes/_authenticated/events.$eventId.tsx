@@ -153,6 +153,7 @@ function EventDetails() {
 function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
   const [cfg, setCfg] = useState<TemplateConfig>(event.template_config || {});
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const save = async () => {
     setSaving(true);
@@ -161,95 +162,126 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
     if (error) toast.error(error.message); else { toast.success("تم حفظ التصميم"); onSaved(); }
   };
 
+  const autoExtract = async (url: string) => {
+    if (!url) return;
+    setExtracting(true);
+    try {
+      const colors = await extractPalette(url, 4);
+      setCfg((prev) => ({ ...prev, palette: colors }));
+      toast.success("تم استخراج لوحة الألوان تلقائياً");
+    } catch {
+      toast.error("تعذّر استخراج الألوان — تأكد من أن الرابط يدعم CORS");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const palette = cfg.palette && cfg.palette.length >= 4 ? cfg.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
+  const updateColor = (i: number, hex: string) => {
+    const next = [...palette];
+    next[i] = hex;
+    setCfg({ ...cfg, palette: next });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">القوالب الجاهزة</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {PRESETS.map(p => (
-            <button key={p.name} onClick={() => setCfg({ ...cfg, ...p.config })}
-              className="rounded-xl border border-border p-3 text-right transition hover:border-primary">
-              <div className="mb-2 h-12 rounded" style={{ background: p.config.bg_color, borderColor: p.config.accent_color, borderWidth: 1 }} />
-              <p className="text-sm font-medium">{p.name}</p>
-            </button>
-          ))}
-        </div>
-        <div className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label>عنوان مخصص</Label>
-            <Input value={cfg.custom_title || ""} onChange={e => setCfg({ ...cfg, custom_title: e.target.value })} placeholder={event.name} />
-          </div>
-          <div className="space-y-2">
-            <Label>رسالة الدعوة</Label>
-            <Textarea rows={3} value={cfg.custom_message || ""} onChange={e => setCfg({ ...cfg, custom_message: e.target.value })} placeholder="يسرّنا دعوتكم لمشاركتنا فرحة..." />
-          </div>
-          <TimelineEditor
-            items={cfg.timeline || []}
-            onChange={(items: TimelineItem[]) => setCfg({ ...cfg, timeline: items })}
+      <Card className="space-y-6 p-6">
+        {/* --- صورة الدعوة --- */}
+        <section className="space-y-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <ImageIcon className="h-4 w-4 text-gold" /> صورة بطاقة الدعوة
+          </Label>
+          <Input
+            value={cfg.invitation_image_url || ""}
+            onChange={(e) => setCfg({ ...cfg, invitation_image_url: e.target.value })}
+            placeholder="https://example.com/invitation.jpg"
+            dir="ltr"
           />
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> مهلة تأكيد الحضور (اختياري)</Label>
-            <Input
-              type="datetime-local"
-              value={cfg.rsvp_deadline ? toLocalInput(cfg.rsvp_deadline) : ""}
-              onChange={e => setCfg({ ...cfg, rsvp_deadline: e.target.value ? new Date(e.target.value).toISOString() : null })}
-              dir="ltr"
-            />
-            <p className="text-xs text-muted-foreground">بعد هذا الموعد لن يتمكن المدعوون من تأكيد أو الاعتذار عن الحضور.</p>
-            {cfg.rsvp_deadline ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, rsvp_deadline: null })}>
-                إزالة المهلة
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!cfg.invitation_image_url || extracting}
+              onClick={() => cfg.invitation_image_url && autoExtract(cfg.invitation_image_url)}
+            >
+              <PaletteIcon className="ms-1 h-3 w-3" /> {extracting ? "..." : "استخراج الألوان من الصورة"}
+            </Button>
+            {cfg.invitation_image_url ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, invitation_image_url: "" })}>
+                <XIcon className="ms-1 h-3 w-3" /> إزالة
               </Button>
             ) : null}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>اللون المميز</Label><Input type="color" value={cfg.accent_color || "#c9a24a"} onChange={e => setCfg({ ...cfg, accent_color: e.target.value })} /></div>
+          <p className="text-xs text-muted-foreground">
+            ألصق رابطاً مباشراً للصورة. لاستخراج الألوان تلقائياً يجب أن يدعم الرابط CORS.
+          </p>
+        </section>
+
+        {/* --- لوحة الألوان --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2"><PaletteIcon className="h-4 w-4 text-gold" /> ألوان الصفحة</Label>
+          <p className="text-xs text-muted-foreground">يمكنك تعديل أي لون يدوياً. اللون الأول = الخلفية الرئيسية.</p>
+          <div className="grid grid-cols-4 gap-2">
+            {palette.map((c, i) => (
+              <div key={i} className="space-y-1">
+                <Input type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-12 w-full p-1" />
+                <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground" dir="ltr">{c}</p>
+              </div>
+            ))}
           </div>
-          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-            <Label>لون خلفية صفحة الدعوة (المنطقة المحيطة بالبطاقة)</Label>
-            <div className="flex items-center gap-2">
-              <Input type="color" value={cfg.page_bg || "#1a1410"} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} className="h-10 w-16 p-1" />
-              <Input value={cfg.page_bg || ""} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} placeholder="مثال: #1a1410 أو linear-gradient(...)" dir="ltr" />
-              {cfg.page_bg ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, page_bg: "" })}>إعادة</Button>
-              ) : null}
-            </div>
-            <p className="text-xs text-muted-foreground">يُطبَّق على كامل الصفحة الخارجية لرابط الدعوة، وليس داخل البطاقة.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>نص العنوان العلوي</Label>
-              <Input value={cfg.intro_label ?? ""} onChange={e => setCfg({ ...cfg, intro_label: e.target.value })} placeholder="دعوة كريمة" />
-            </div>
-            <div className="space-y-2">
-              <Label>عبارة الترحيب قبل اسم المدعو</Label>
-              <Input value={cfg.greeting_prefix ?? ""} onChange={e => setCfg({ ...cfg, greeting_prefix: e.target.value })} placeholder="يسرّنا دعوتك يا" />
-            </div>
+        </section>
+
+        {/* --- وقت البداية والنهاية --- */}
+        <section className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> بداية الحفل</Label>
+            <Input
+              type="datetime-local"
+              value={toLocalInput(event.event_date)}
+              onChange={async (e) => {
+                if (!e.target.value) return;
+                const iso = new Date(e.target.value).toISOString();
+                const { error } = await supabase.from("events").update({ event_date: iso }).eq("id", event.id);
+                if (error) toast.error(error.message); else { toast.success("تم تحديث وقت البداية"); onSaved(); }
+              }}
+              dir="ltr"
+            />
           </div>
           <div className="space-y-2">
-            <Label>الخط</Label>
-            <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cairo">Cairo (النسخ)</SelectItem>
-                <SelectItem value="tajawal">Tajawal (الرقعة)</SelectItem>
-                <SelectItem value="amiri">Amiri (الديواني)</SelectItem>
-                <SelectItem value="reem-kufi">Reem Kufi (الكوفي)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> نهاية الحفل</Label>
+            <Input
+              type="datetime-local"
+              value={cfg.event_end_date ? toLocalInput(cfg.event_end_date) : ""}
+              onChange={(e) => setCfg({ ...cfg, event_end_date: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              dir="ltr"
+            />
           </div>
-          <BackgroundControls cfg={cfg} setCfg={setCfg} />
-          <TypographyControls cfg={cfg} setCfg={setCfg} />
-          <AudioControls cfg={cfg} setCfg={setCfg} />
-          <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
-            <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
-          </Button>
-        </div>
+        </section>
+
+        {/* --- الحد الأقصى للمرافقين --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2"><UsersIcon className="h-4 w-4 text-gold" /> الحد الأقصى للمرافقين لكل ضيف</Label>
+          <Input
+            type="number"
+            min={0}
+            max={MAX_COMPANIONS}
+            value={cfg.max_companions ?? 0}
+            onChange={(e) => {
+              const n = Math.max(0, Math.min(MAX_COMPANIONS, parseInt(e.target.value || "0", 10) || 0));
+              setCfg({ ...cfg, max_companions: n });
+            }}
+          />
+          <p className="text-xs text-muted-foreground">إذا كانت القيمة صفر، لن يستطيع الضيف اختيار مرافقين. الحد الأقصى: {MAX_COMPANIONS}.</p>
+        </section>
+
+        <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
+          <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ"}
+        </Button>
       </Card>
+
       <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-sm text-muted-foreground">معاينة مباشرة</p>
+        <p className="mb-2 text-sm text-muted-foreground">معاينة الصورة</p>
         <InvitationCard config={cfg} eventName={event.name} eventDate={event.event_date} location={event.location} guestName="ضيفنا الكريم" />
       </div>
     </div>
