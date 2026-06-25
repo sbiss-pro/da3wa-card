@@ -17,6 +17,8 @@ export type TemplateConfig = {
   bg_blur?: boolean;
   text_align?: "right" | "center" | "left";
   text_size?: "sm" | "md" | "lg" | "xl";
+  // End date/time of the event (start is on the event row itself)
+  event_end?: string | null;
   // Per-element typographic control (responsive base, scales down on mobile via CSS clamp)
   title_size?: number; // base px
   title_align?: "right" | "center" | "left";
