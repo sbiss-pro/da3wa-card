@@ -21,6 +21,7 @@ function NewEvent() {
   const [form, setForm] = useState({
     name: "",
     event_type: "wedding",
+    custom_event_type: "",
     event_date: "",
     event_time: "20:00",
     location: "",
@@ -40,10 +41,13 @@ function NewEvent() {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("غير مسجل");
       const date = new Date(`${form.event_date}T${form.event_time}`);
+      const finalType = form.event_type === "other"
+        ? (form.custom_event_type.trim() || "أخرى")
+        : form.event_type;
       const { data, error } = await supabase.from("events").insert({
         host_id: u.user.id,
         name: form.name,
-        event_type: form.event_type,
+        event_type: finalType,
         event_date: date.toISOString(),
         location: form.location || null,
         location_url: form.location_url || null,
@@ -77,6 +81,11 @@ function NewEvent() {
                 </SelectContent>
               </Select>
             </Field>
+            {form.event_type === "other" ? (
+              <Field label="أخرى (اكتب نوع الفعالية)" id="custom_type">
+                <Input id="custom_type" required value={form.custom_event_type} onChange={e => setForm({ ...form, custom_event_type: e.target.value })} placeholder="مثال: حفل تخرج، أمسية شعرية..." />
+              </Field>
+            ) : null}
             <div className="grid grid-cols-2 gap-4">
               <Field label="تاريخ الفعالية" id="date">
                 <Input id="date" type="date" required value={form.event_date} onChange={e => setForm({ ...form, event_date: e.target.value })} />

@@ -164,7 +164,7 @@ function CoordinatorEvent() {
   const accepted = guests.filter(g => g.rsvp_status === "accepted").length;
   const pending = guests.filter(g => g.rsvp_status === "pending").length;
   const declined = guests.filter(g => g.rsvp_status === "declined").length;
-  const specialGuests = guests.filter(g => (g.notes || "").trim().length > 0);
+  const specialGuests = guests.filter(g => (g.notes || "").trim().length > 0 && !g.notes_seen_at);
 
   const toggleFilter = (s: string) => setStatusFilter(prev => prev === s ? null : s);
 
