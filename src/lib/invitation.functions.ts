@@ -63,9 +63,12 @@ export const submitRsvp = createServerFn({ method: "POST" })
       notes: string | null;
       original_rsvp_status?: string;
       original_companions_count?: number;
+      status_overridden_by_host?: boolean;
     } = {
       rsvp_status: data.status,
       notes: data.notes ? data.notes : null,
+      // Guest is the source of truth when they submit — clear any host override flag.
+      status_overridden_by_host: false,
     };
     if (!existing.original_rsvp_status) {
       patch.original_rsvp_status = data.status;
