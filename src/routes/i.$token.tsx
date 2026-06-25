@@ -60,7 +60,6 @@ function GuestPage() {
   const { guest: initialGuest, event } = Route.useLoaderData() as LoaderData;
   const [guest, setGuest] = useState(initialGuest);
   const [notes, setNotes] = useState(guest.notes || "");
-  const [companions, setCompanions] = useState<number>(guest.companions_count || 0);
   const [companionNames, setCompanionNames] = useState<string[]>(guest.companion_names ?? []);
   const [wishes, setWishes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +78,9 @@ function GuestPage() {
   const startMs = useMemo(() => new Date(event.event_date).getTime(), [event.event_date]);
   const endMs = useMemo(() => (tc.event_end_date ? new Date(tc.event_end_date).getTime() : startMs + 4 * 3600 * 1000), [tc.event_end_date, startMs]);
   const phase: "before" | "during" | "after" = now < startMs ? "before" : now < endMs ? "during" : "after";
-  const maxCompanions = Math.max(0, Math.min(11, tc.max_companions ?? 0));
+  // Companion count is set by the host only. The guest sees it read-only
+  // and may fill in companion names accordingly.
+  const hostCompanions = Math.max(0, Math.min(11, guest.companions_count || 0));
 
   // Build countdown parts
   let cd = { d: 0, h: 0, m: 0, s: 0 };
@@ -100,14 +101,14 @@ function GuestPage() {
     QRCode.toDataURL(`${window.location.origin}/i/${guest.token}`, { width: 320, margin: 2, color: { dark: "#1a1410", light: "#f7f1e6" } }).then(setQr);
   }, [guest.rsvp_status, guest.token, phase]);
 
-  // Keep companion_names array in sync with count
+  // Keep companion_names array in sync with host-defined count
   useEffect(() => {
     setCompanionNames((prev) => {
       const next = [...prev];
-      while (next.length < companions) next.push("");
-      return next.slice(0, companions);
+      while (next.length < hostCompanions) next.push("");
+      return next.slice(0, hostCompanions);
     });
-  }, [companions]);
+  }, [hostCompanions]);
 
   const respond = async (status: "accepted" | "declined") => {
     setSubmitting(true);
@@ -118,7 +119,7 @@ function GuestPage() {
         notes: status === "declined" ? wishes.trim() : notes,
       };
       if (status === "accepted") {
-        payload.companions_count = companions;
+        payload.companions_count = hostCompanions;
         payload.companion_names = companionNames.map((s) => s.trim()).filter(Boolean);
       }
       const r = await submitRsvp({ data: payload });
