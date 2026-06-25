@@ -119,7 +119,7 @@ function EventDetails() {
         </div>
 
         <TabsContent value="builder" className="mt-6">
-          <BuilderTab event={event} onSaved={load} />
+          <BuilderTab event={event} onSaved={load} guests={guests} inviteUrl={inviteUrl} />
         </TabsContent>
         <TabsContent value="guests" className="mt-6">
           <GuestsTab event={event} guests={guests} reload={load} inviteUrl={inviteUrl} />
@@ -150,7 +150,7 @@ function EventDetails() {
 }
 
 /* ---------------- Builder ---------------- */
-function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
+function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; onSaved: () => void; guests: Guest[]; inviteUrl: (t: string) => string }) {
   const [cfg, setCfg] = useState<TemplateConfig>(event.template_config || {});
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -280,10 +280,39 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
         </Button>
       </Card>
 
-      <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-sm text-muted-foreground">معاينة الصورة</p>
-        <InvitationCard config={cfg} eventName={event.name} eventDate={event.event_date} location={event.location} guestName="ضيفنا الكريم" />
+      <GuestPagePreview event={event} guests={guests} inviteUrl={inviteUrl} />
+    </div>
+  );
+}
+
+/* ---------------- Guest Page Live Preview ---------------- */
+function GuestPagePreview({ event, guests, inviteUrl }: { event: EventRow; guests: Guest[]; inviteUrl: (t: string) => string }) {
+  const sample = guests[0];
+  const url = sample ? inviteUrl(sample.token) : null;
+  return (
+    <div className="lg:sticky lg:top-24 lg:self-start">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">معاينة كاملة لصفحة المدعو</p>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
+        ) : null}
       </div>
+      {url ? (
+        <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
+          <div className="flex items-center justify-center bg-foreground/5 py-1.5">
+            <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+          </div>
+          <iframe
+            src={url}
+            title="معاينة صفحة المدعو"
+            className="block h-[720px] w-full bg-white"
+          />
+        </div>
+      ) : (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          أضف مدعواً واحداً على الأقل من تبويب «المدعوون» لمشاهدة المعاينة الكاملة لصفحته هنا.
+        </Card>
+      )}
     </div>
   );
 }
