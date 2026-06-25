@@ -426,6 +426,17 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
           <div className="rounded-xl border border-primary/40 p-4 text-center">
             <p className="font-display text-xl font-bold">{last.title ? `${last.title} ` : ""}{last.name}</p>
             <p className="mt-1 text-sm">المرافقون: <span className="font-bold text-gold">{last.companions_count}</span></p>
+            {last.companion_names && last.companion_names.length > 0 ? (
+              <div className="mt-3 rounded-lg border border-gold/30 bg-gold/5 p-3 text-right text-sm">
+                <Label className="text-xs">أسماء المرافقين</Label>
+                <ul className="mt-1 space-y-0.5 text-foreground/90">
+                  {last.companion_names.map((n, i) => <li key={i}>• {n || "—"}</li>)}
+                </ul>
+              </div>
+            ) : null}
+            {last.attended_count != null ? (
+              <p className="mt-2 text-xs text-muted-foreground">عدد من دخل من المجموعة: <span className="font-bold text-foreground">{last.attended_count}</span> / {(last.companions_count ?? 0) + 1}</p>
+            ) : null}
             {last.notes && last.rsvp_status !== "declined" ? (
               <div className="mt-3 rounded-lg bg-muted/40 p-3 text-right text-sm">
                 <Label className="text-xs">ملاحظات الضيف (قراءة فقط)</Label>
