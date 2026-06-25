@@ -229,12 +229,12 @@ function GuestPage() {
           ref={ytRef}
           title="bg-audio"
           width="1" height="1"
-          allow="autoplay"
+          allow="autoplay; encrypted-media"
           style={{ position: "fixed", inset: 0, opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
           src=""
         />
       ) : (audioCfg?.mode === "url" || audioCfg?.mode === "file") ? (
-        <audio ref={audioElRef} preload="none" />
+        <audio ref={audioElRef} preload="auto" playsInline />
       ) : null}
 
       {/* Screenshot guard overlay */}
