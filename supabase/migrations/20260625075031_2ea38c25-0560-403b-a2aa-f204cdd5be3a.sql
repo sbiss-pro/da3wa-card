@@ -1,0 +1,1 @@
+ALTER TABLE public.guests ADD COLUMN IF NOT EXISTS status_overridden_by_host boolean NOT NULL DEFAULT false;

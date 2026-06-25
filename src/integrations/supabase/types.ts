@@ -122,6 +122,7 @@ export type Database = {
           original_rsvp_status: string | null
           phone: string | null
           rsvp_status: string
+          status_overridden_by_host: boolean
           title: string | null
           token: string
           updated_at: string
@@ -141,6 +142,7 @@ export type Database = {
           original_rsvp_status?: string | null
           phone?: string | null
           rsvp_status?: string
+          status_overridden_by_host?: boolean
           title?: string | null
           token?: string
           updated_at?: string
@@ -160,6 +162,7 @@ export type Database = {
           original_rsvp_status?: string | null
           phone?: string | null
           rsvp_status?: string
+          status_overridden_by_host?: boolean
           title?: string | null
           token?: string
           updated_at?: string
