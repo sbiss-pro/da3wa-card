@@ -1397,7 +1397,7 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
     [guests],
   );
   const declinedWithWishes = wished.filter(g => g.rsvp_status === "declined");
-  const otherWithNotes = wished.filter(g => g.rsvp_status !== "declined");
+  const attendingWithNotes = wished.filter(g => g.rsvp_status === "accepted" || g.rsvp_status === "attended");
 
   if (wished.length === 0) {
     return (
@@ -1415,14 +1415,17 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
     <div className="space-y-6">
       {declinedWithWishes.length > 0 ? (
         <section>
-          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات ({declinedWithWishes.length})</h3>
+          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات المعتذرين ({declinedWithWishes.length})</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {declinedWithWishes.map(g => {
               const { title, name } = splitTitleName(g.name);
               return (
                 <Card key={g.id} className="relative overflow-hidden border-gold/40 bg-gradient-to-br from-amber-50/40 via-card to-card p-5">
                   <Heart className="absolute -right-3 -top-3 h-16 w-16 rotate-12 text-gold/15" />
-                  <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                    {g.phone ? <p className="text-xs tabular-nums text-muted-foreground" dir="ltr">{g.phone}</p> : null}
+                  </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                     {g.notes}
                   </p>
@@ -1432,16 +1435,19 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
           </div>
         </section>
       ) : null}
-      {otherWithNotes.length > 0 ? (
+      {attendingWithNotes.length > 0 ? (
         <section>
-          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني أخرى ({otherWithNotes.length})</h3>
+          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني الحاضرين ({attendingWithNotes.length})</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {otherWithNotes.map(g => {
+            {attendingWithNotes.map(g => {
               const { title, name } = splitTitleName(g.name);
               return (
                 <Card key={g.id} className="p-5">
                   <div className="flex items-center justify-between">
-                    <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                    <div>
+                      <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                      {g.phone ? <p className="mt-0.5 text-xs tabular-nums text-muted-foreground" dir="ltr">{g.phone}</p> : null}
+                    </div>
                     <Badge variant="outline" className="text-[10px]">{RSVP_LABELS[g.rsvp_status]}</Badge>
                   </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
