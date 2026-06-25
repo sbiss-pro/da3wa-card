@@ -309,30 +309,9 @@ function StatCard({ icon: Icon, label, value, color, active, onClick }: { icon: 
   );
 }
 
-function EditGuestDialog({ guest, onClose, onSave }: { guest: Guest | null; onClose: () => void; onSave: (g: Guest, notes: string) => void }) {
-  const [notes, setNotes] = useState("");
-  useEffect(() => { if (guest) setNotes(guest.notes || ""); }, [guest]);
-  return (
-    <Dialog open={!!guest} onOpenChange={v => !v && onClose()}>
-      <DialogContent dir="rtl">
-        <DialogHeader><DialogTitle>تعديل ملاحظات: {guest?.name}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <Label>ملاحظات الضيف</Label>
-          <Textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder="احتياجات خاصة، طلبات، ملاحظات..." />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button className="gold-gradient text-primary-foreground" onClick={() => guest && onSave(guest, notes)}>حفظ</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void; onSaveNotes: (g: Guest, notes: string) => void }) {
+function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void }) {
   const [scanning, setScanning] = useState(false);
   const [last, setLast] = useState<Guest | null>(null);
-  const [notes, setNotes] = useState("");
   const elId = "coord-qr-reader";
 
   useEffect(() => {
@@ -363,8 +342,13 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }
                 toast.error("الرمز غير معروف في هذه الفعالية");
                 return;
               }
+              if (localGuest.rsvp_status === "declined") {
+                setLast(localGuest);
+                toast.error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+                return;
+              }
               if (localGuest.rsvp_status === "attended") {
-                setLast(localGuest); setNotes(localGuest.notes || "");
+                setLast(localGuest);
                 toast.warning(`هذا الرمز تم استخدامه بالفعل! ${localGuest.checked_in_at ? "وقت التسجيل: " + formatArabicDate(localGuest.checked_in_at) : ""}`);
                 return;
               }
@@ -372,7 +356,7 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }
               if (offline) {
                 const stamp = new Date().toISOString();
                 const merged = { ...localGuest, rsvp_status: "attended", checked_in_at: stamp };
-                setLast(merged); setNotes(merged.notes || "");
+                setLast(merged);
                 updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
                 enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
                 onCheckIn({ id: localGuest.id, name: localGuest.name });
@@ -384,15 +368,16 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }
                 const g = guests.find(x => x.token === token);
                 const merged = { ...(g || {} as Guest), ...r, rsvp_status: "attended" } as Guest;
                 setLast(merged);
-                setNotes(merged.notes || "");
                 toast.success(`أهلاً ${r.name}`);
                 onCheckIn({ id: r.id, name: r.name });
               } catch (err) {
                 const msg = err instanceof Error ? err.message : "تعذّر التسجيل";
                 if (msg.includes("بالفعل")) {
                   const g = guests.find(x => x.token === token);
-                  if (g) { setLast(g); setNotes(g.notes || ""); }
+                  if (g) { setLast(g); }
                   toast.warning(msg);
+                } else if (msg.includes("معتذِر")) {
+                  toast.error(msg);
                 } else {
                   // network blip → queue and update cache locally
                   const stamp = new Date().toISOString();
@@ -440,13 +425,17 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn, onSaveNotes }
         <h3 className="mb-3 font-display text-lg font-bold">آخر تسجيل</h3>
         {last ? (
           <div className="rounded-xl border border-primary/40 p-4 text-center">
-            <p className="font-display text-xl font-bold">{last.name}</p>
+            <p className="font-display text-xl font-bold">{last.title ? `${last.title} ` : ""}{last.name}</p>
             <p className="mt-1 text-sm">المرافقون: <span className="font-bold text-gold">{last.companions_count}</span></p>
-            <div className="mt-3 text-right">
-              <Label className="text-xs">ملاحظات الضيف</Label>
-              <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
-              <Button size="sm" className="mt-2 w-full" variant="outline" onClick={() => onSaveNotes(last, notes)}>حفظ الملاحظات</Button>
-            </div>
+            {last.notes && last.rsvp_status !== "declined" ? (
+              <div className="mt-3 rounded-lg bg-muted/40 p-3 text-right text-sm">
+                <Label className="text-xs">ملاحظات الضيف (قراءة فقط)</Label>
+                <p className="mt-1 whitespace-pre-wrap text-foreground/90">{last.notes}</p>
+              </div>
+            ) : null}
+            {last.rsvp_status === "declined" ? (
+              <Badge className="mt-3 bg-rose-600 text-white"><Ban className="ms-1 h-3 w-3" /> معتذِر — لا يُسمح بتسجيل الحضور</Badge>
+            ) : null}
           </div>
         ) : <p className="text-sm text-muted-foreground">لم يتم تسجيل أحد بعد</p>}
       </Card>
