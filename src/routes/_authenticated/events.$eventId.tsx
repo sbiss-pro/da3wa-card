@@ -54,13 +54,6 @@ function joinTitleName(title: string, name: string): string {
   return t ? `${t} / ${n}`.slice(0, 160) : n.slice(0, 120);
 }
 
-const PRESETS = [
-  { name: "ذهبي كلاسيكي", config: { template: "gold", bg_color: "#f7f1e6", text_color: "#1a1410", accent_color: "#c9a24a", font: "amiri" } },
-  { name: "أسود فاخر", config: { template: "noir", bg_color: "#0d0d0d", text_color: "#f5f0e0", accent_color: "#d4af37", font: "amiri" } },
-  { name: "وردي ناعم", config: { template: "rose", bg_color: "#fdf2f4", text_color: "#3a2e2a", accent_color: "#c9a0a8", font: "tajawal" } },
-  { name: "أخضر زيتي", config: { template: "olive", bg_color: "#f5f7f0", text_color: "#2b3624", accent_color: "#6b7f5a", font: "amiri" } },
-];
-
 function EventDetails() {
   const { eventId } = Route.useParams();
   const navigate = useNavigate();
