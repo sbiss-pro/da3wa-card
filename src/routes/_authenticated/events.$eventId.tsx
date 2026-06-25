@@ -211,10 +211,20 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
               </Button>
             ) : null}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>اللون المميز</Label><Input type="color" value={cfg.accent_color || "#c9a24a"} onChange={e => setCfg({ ...cfg, accent_color: e.target.value })} /></div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> تاريخ ووقت نهاية الحفل</Label>
+            <Input
+              type="datetime-local"
+              value={cfg.event_end ? toLocalInput(cfg.event_end) : ""}
+              onChange={e => setCfg({ ...cfg, event_end: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              dir="ltr"
+            />
+            <p className="text-xs text-muted-foreground">يُستخدم في العداد الذكي بصفحة الضيف للتنقل بين «قبل / أثناء / بعد» الحفل.</p>
+            {cfg.event_end ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, event_end: null })}>
+                إزالة وقت النهاية
+              </Button>
+            ) : null}
           </div>
           <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
             <Label>لون خلفية صفحة الدعوة (المنطقة المحيطة بالبطاقة)</Label>
