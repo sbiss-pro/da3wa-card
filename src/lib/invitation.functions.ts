@@ -58,7 +58,12 @@ export const submitRsvp = createServerFn({ method: "POST" })
     }
     // Snapshot the guest's original selection only the first time the guest
     // submits — preserves their initial choice for the override-history UI.
-    const patch: Record<string, unknown> = {
+    const patch: {
+      rsvp_status: string;
+      notes: string | null;
+      original_rsvp_status?: string;
+      original_companions_count?: number;
+    } = {
       rsvp_status: data.status,
       notes: data.notes ? data.notes : null,
     };
