@@ -289,10 +289,11 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
               if (!r || typeof r !== "object") return [];
               const keys = Object.keys(r);
               const k = (...names: string[]) => keys.find(x => names.some(n => x.toLowerCase().includes(n))) || "";
-              // Strict 3-column structure: A=اللقب, B=اسم الضيف, C=رقم الجوال
+              // Strict 4-column structure: A=اللقب, B=اسم الضيف, C=رقم الجوال, D=المرافقين
               const titleRaw = String(r[k("اللقب", "title", "لقب")] || "").trim();
               const nameRaw = String(r[k("اسم الضيف", "اسم", "name")] || "").trim();
               const phoneRaw = String(r[k("جوال", "هاتف", "phone", "mobile")] || "").trim();
+              const compRaw = String(r[k("مرافق", "companion", "guests")] || "").trim();
               const cleanName = sanitizeCell(nameRaw);
               const cleanTitle = sanitizeCell(titleRaw);
               if (!cleanName) { skippedNoName++; return []; }
@@ -302,7 +303,8 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                 const norm = normalizePhone(phoneRaw);
                 if (!norm) { skippedBadPhone++; phone = null; } else phone = norm;
               }
-              return [{ event_id: event.id, name: fullName, phone, email: null }];
+              const compNum = Math.max(0, Math.min(MAX_COMPANIONS, parseInt(compRaw.replace(/[^\d]/g, ""), 10) || 0));
+              return [{ event_id: event.id, name: fullName, phone, email: null, companions_count: compNum }];
             });
             if (!rows.length) {
               toast.error("لم يتم العثور على أسماء صالحة في الملف");
