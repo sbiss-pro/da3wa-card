@@ -53,28 +53,42 @@ export function saveWhatsAppConfig(c: WhatsAppConfig, eventId?: string) {
   } catch { /* ignore */ }
 }
 
-/** Phone normalizer + validator with Saudi-friendly defaults. */
+/**
+ * Phone normalizer + validator.
+ * Rule: if the incoming number ALREADY carries an international prefix
+ * (starts with "+" or "00"), preserve that country code as-is.
+ * Otherwise (local format) automatically default to Saudi Arabia (+966).
+ */
 export function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  let s = String(raw).trim().replace(/[\s\-()._]/g, "");
+  // Normalize Eastern Arabic-Indic digits first, then strip separators.
+  const eastern = "٠١٢٣٤٥٦٧٨٩";
+  const persian = "۰۱۲۳۴۵۶۷۸۹";
+  let s = String(raw)
+    .replace(/[٠-٩]/g, (d) => String(eastern.indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String(persian.indexOf(d)))
+    .trim()
+    .replace(/[\s\-()._]/g, "");
   if (!s) return null;
-  // already E.164
+
+  // Explicit international prefix → preserve as-is.
   if (s.startsWith("+")) {
     const d = s.slice(1).replace(/\D/g, "");
     if (d.length < 8 || d.length > 15) return null;
     return "+" + d;
   }
-  let digits = s.replace(/\D/g, "");
+  if (s.startsWith("00")) {
+    const d = s.slice(2).replace(/\D/g, "");
+    if (d.length < 8 || d.length > 15) return null;
+    return "+" + d;
+  }
+
+  // No prefix → treat as Saudi local.
+  const digits = s.replace(/\D/g, "");
   if (!digits) return null;
-  // 00xxx international prefix → drop the 00
-  if (digits.startsWith("00")) digits = digits.slice(2);
-  // Saudi local (leading 0 e.g. 05XXXXXXXX) → keep Saudi default
-  if (/^0\d{8,}$/.test(digits)) return "+966" + digits.slice(1);
-  // Excel-stripped leading zero for Saudi mobile: 5XXXXXXXX
+  if (/^0\d{8,9}$/.test(digits)) return "+966" + digits.slice(1);
   if (/^5\d{8}$/.test(digits)) return "+966" + digits;
-  // Anything else: preserve the imported country code as-is, just prepend "+"
-  // (e.g. 967xxxx → +967xxxx, 1xxxx → +1xxxx, 9665xxxx → +9665xxxx)
-  if (digits.length >= 8 && digits.length <= 15) return "+" + digits;
+  if (digits.length >= 8 && digits.length <= 12) return "+966" + digits;
   return null;
 }
 

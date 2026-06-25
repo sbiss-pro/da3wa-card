@@ -39,6 +39,18 @@ export function toArabicDigits(input: string | number): string {
 }
 
 /**
+ * Normalize Eastern Arabic-Indic digits (٠–٩ Arabic and ۰–۹ Persian) into
+ * standard Western Arabic numerals (0–9). Used at every import boundary
+ * (CSV/Excel + manual entry) to prevent database/regex parsing errors.
+ */
+export function easternToWestern(input: string | number | null | undefined): string {
+  if (input == null) return "";
+  return String(input)
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+}
+
+/**
  * Format an "HH:MM" 24h string as 12-hour Eastern Arabic numerals with ص/م,
  * e.g. "21:00" -> "٠٩:٠٠ م".
  */

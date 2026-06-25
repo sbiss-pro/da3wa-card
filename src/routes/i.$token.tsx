@@ -4,17 +4,16 @@ import { InvitationCard, type TemplateConfig } from "@/components/invitation-car
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Calendar, MapPin, Download, Apple, Wallet, Clock } from "lucide-react";
+import { Check, X, Calendar, MapPin, Download, Apple, Clock, Users } from "lucide-react";
 import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { getInvitation, submitRsvp } from "@/lib/invitation.functions";
 
 type LoaderData = {
-  guest: { id: string; token: string; name: string; rsvp_status: string; companions_count: number; notes: string | null };
+  guest: { id: string; token: string; name: string; title?: string | null; rsvp_status: string; companions_count: number; notes: string | null };
   event: { id: string; name: string; event_type: string; event_date: string; location: string | null; location_url: string | null; description: string | null; template_config: TemplateConfig };
 };
 
@@ -35,12 +34,10 @@ export const Route = createFileRoute("/i/$token")({
 function GuestPage() {
   const { guest: initialGuest, event } = Route.useLoaderData() as LoaderData;
   const [guest, setGuest] = useState(initialGuest);
-  const [companions, setCompanions] = useState(guest.companions_count);
   const [notes, setNotes] = useState(guest.notes || "");
   const [submitting, setSubmitting] = useState(false);
   const [qr, setQr] = useState<string>("");
   const [countdown, setCountdown] = useState("");
-  const [now, setNow] = useState<string>("");
   const [showDeclineBox, setShowDeclineBox] = useState(false);
   const [wishes, setWishes] = useState("");
 
@@ -58,21 +55,9 @@ function GuestPage() {
       const h = Math.floor((diff % 86400000) / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       setCountdown(`${d} يوم · ${h} ساعة · ${m} دقيقة`);
-    }, 1000);
+    }, 30000);
     return () => clearInterval(t);
   }, [event.event_date]);
-
-  // Live HH:MM:SS clock under the QR — proves the page is live (anti-screenshot).
-  useEffect(() => {
-    const tick = () => {
-      const d = new Date();
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setNow(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
-    };
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
-  }, []);
 
   const deadlineIso = event.template_config?.rsvp_deadline || null;
   const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
@@ -84,10 +69,9 @@ function GuestPage() {
     }
     setSubmitting(true);
     try {
-      const safeCompanions = Math.max(0, Math.min(2, Number.isFinite(companions) ? companions : 0));
       const finalNotes = noteOverride !== undefined ? noteOverride : notes;
-      await submitRsvp({ data: { token: guest.token, status, companions: safeCompanions, notes: finalNotes } });
-      setGuest(prev => ({ ...prev, rsvp_status: status, companions_count: safeCompanions, notes: finalNotes }));
+      await submitRsvp({ data: { token: guest.token, status, notes: finalNotes } });
+      setGuest(prev => ({ ...prev, rsvp_status: status, notes: finalNotes }));
       toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك وإرسال تبريكاتك");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
@@ -106,30 +90,6 @@ function GuestPage() {
   const accepted = guest.rsvp_status === "accepted" || guest.rsvp_status === "attended";
   const declined = guest.rsvp_status === "declined";
 
-  const downloadPass = (wallet: "apple" | "google") => {
-    const lines = [
-      "DAWATI DIGITAL PASS",
-      "===================",
-      `Wallet: ${wallet === "apple" ? "Apple Wallet" : "Google Wallet"}`,
-      `Event:  ${event.name}`,
-      `Date:   ${formatArabicDate(event.event_date)}`,
-      `Guest:  ${guest.name}`,
-      `Companions: ${guest.companions_count}`,
-      `Token:  ${guest.token}`,
-      event.location ? `Place:  ${event.location}` : "",
-      "",
-      "(عرض تجريبي لبطاقة المحفظة الرقمية)",
-    ].filter(Boolean).join("\n");
-    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `dawati-pass-${guest.token}.${wallet === "apple" ? "pkpass.txt" : "gpass.txt"}`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success(wallet === "apple" ? "تم تجهيز بطاقة Apple Wallet" : "تم تجهيز بطاقة Google Wallet");
-  };
-
   return (
     <div dir="rtl" className="min-h-screen bg-background px-4 py-8">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -138,13 +98,28 @@ function GuestPage() {
           eventName={event.name}
           eventDate={event.event_date}
           location={event.location}
-          guestName={guest.name}
+          guestName={guest.title ? `${guest.title} ${guest.name}` : guest.name}
         />
 
         <Card className="p-6 text-center">
           <p className="text-sm text-muted-foreground">يبدأ خلال</p>
           <p className="mt-2 font-display text-2xl font-bold text-gold">{countdown}</p>
         </Card>
+
+        {guest.companions_count > 0 ? (
+          <Card className="flex items-center justify-between gap-3 border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full gold-gradient text-primary-foreground">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">عدد المرافقين المخصّص لك</p>
+                <p className="font-display text-lg font-bold">{guest.companions_count}</p>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-xs">من قِبَل المضيف</Badge>
+          </Card>
+        ) : null}
 
         {safeHttpUrl(event.location_url) ? (
           <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer">
@@ -159,18 +134,7 @@ function GuestPage() {
               {!showDeclineBox ? (
                 <>
                   <div>
-                    <Label>عدد المرافقين</Label>
-                    <Select value={String(companions)} onValueChange={v => setCompanions(Number(v))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">بدون مرافقين</SelectItem>
-                        <SelectItem value="1">مرافق واحد</SelectItem>
-                        <SelectItem value="2">مرافقان (الحد الأقصى)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>ملاحظات خاصة (احتياجات غذائية، إعاقة...)</Label>
+                    <Label>ملاحظات خاصة (اختياري — احتياجات غذائية، إعاقة…)</Label>
                     <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -195,7 +159,7 @@ function GuestPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <Button variant="ghost" onClick={() => setShowDeclineBox(false)} disabled={submitting}>رجوع</Button>
                     <Button
-                      onClick={() => respond("declined", wishes.trim() || notes)}
+                      onClick={() => respond("declined", wishes.trim())}
                       disabled={submitting}
                       className="gold-gradient text-primary-foreground"
                     >
@@ -226,33 +190,10 @@ function GuestPage() {
                 {qr ? (
                   <div className="mt-6">
                     <p className="mb-2 text-sm text-muted-foreground">رمز الدخول الخاص بك</p>
-                    <div className="relative mx-auto inline-block overflow-hidden rounded-xl">
+                    <div className="mx-auto inline-block overflow-hidden rounded-xl">
                       <img src={qr} alt="QR" className="block" />
-                      {/* Animated scanning laser line — proves the QR is live, not a screenshot. */}
-                      <div aria-hidden className="pointer-events-none absolute inset-x-2 top-0 h-[2px] animate-qr-scan rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_2px_rgba(16,185,129,0.85)]" />
                     </div>
-                    <p className="mt-3 font-mono text-lg font-bold tracking-widest text-emerald-600" aria-live="polite">
-                      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500 align-middle me-2" />
-                      {now}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">تحقق مباشر — الوقت والمسح يتحدّثان لحظياً</p>
                     <a href={qr} download={`invite-${guest.name}.png`}><Button variant="outline" size="sm" className="mt-3"><Download className="ms-2 h-4 w-4" /> تحميل الرمز</Button></a>
-                    <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <Button
-                        onClick={() => downloadPass("apple")}
-                        className="w-full bg-black text-white hover:bg-black/90"
-                      >
-                        <Apple className="ms-2 h-4 w-4" /> إضافة إلى محفظة Apple
-                      </Button>
-                      <Button
-                        onClick={() => downloadPass("google")}
-                        className="w-full"
-                        style={{ background: "#1a73e8", color: "#fff" }}
-                      >
-                        <Wallet className="ms-2 h-4 w-4" /> إضافة إلى محفظة Google
-                      </Button>
-                    </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">عرض تجريبي — يتم تنزيل ملف بطاقة معاينة.</p>
                   </div>
                 ) : null}
               </>

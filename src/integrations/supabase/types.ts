@@ -113,11 +113,16 @@ export type Database = {
           created_at: string
           email: string | null
           event_id: string
+          host_overridden: boolean
           id: string
           name: string
           notes: string | null
+          notes_seen_at: string | null
+          original_companions_count: number | null
+          original_rsvp_status: string | null
           phone: string | null
           rsvp_status: string
+          title: string | null
           token: string
           updated_at: string
         }
@@ -127,11 +132,16 @@ export type Database = {
           created_at?: string
           email?: string | null
           event_id: string
+          host_overridden?: boolean
           id?: string
           name: string
           notes?: string | null
+          notes_seen_at?: string | null
+          original_companions_count?: number | null
+          original_rsvp_status?: string | null
           phone?: string | null
           rsvp_status?: string
+          title?: string | null
           token?: string
           updated_at?: string
         }
@@ -141,11 +151,16 @@ export type Database = {
           created_at?: string
           email?: string | null
           event_id?: string
+          host_overridden?: boolean
           id?: string
           name?: string
           notes?: string | null
+          notes_seen_at?: string | null
+          original_companions_count?: number | null
+          original_rsvp_status?: string | null
           phone?: string | null
           rsvp_status?: string
+          title?: string | null
           token?: string
           updated_at?: string
         }
@@ -155,6 +170,61 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scan_logs: {
+        Row: {
+          coordinator_id: string | null
+          coordinator_name: string
+          event_id: string
+          guest_id: string | null
+          guest_name: string
+          id: string
+          scanned_at: string
+          status: string
+        }
+        Insert: {
+          coordinator_id?: string | null
+          coordinator_name: string
+          event_id: string
+          guest_id?: string | null
+          guest_name: string
+          id?: string
+          scanned_at?: string
+          status?: string
+        }
+        Update: {
+          coordinator_id?: string | null
+          coordinator_name?: string
+          event_id?: string
+          guest_id?: string | null
+          guest_name?: string
+          id?: string
+          scanned_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_logs_coordinator_id_fkey"
+            columns: ["coordinator_id"]
+            isOneToOne: false
+            referencedRelation: "coordinators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scan_logs_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
             referencedColumns: ["id"]
           },
         ]
