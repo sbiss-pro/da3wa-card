@@ -145,6 +145,24 @@ function CoordinatorEvent() {
     }
   }, [session, event]);
 
+  const checkInPartial = useCallback(async (g: Guest) => {
+    if (!session) return;
+    if (g.rsvp_status === "declined" || g.rsvp_status === "attended") return;
+    const groupSize = (g.companions_count ?? 0) + 1;
+    const raw = window.prompt(`أدخل عدد الحضور الفعلي من المجموعة (الحد الأقصى: ${groupSize})`, String(groupSize));
+    if (!raw) return;
+    const n = Math.max(1, Math.min(groupSize, parseInt(raw, 10) || groupSize));
+    const stamp = new Date().toISOString();
+    setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: stamp, attended_count: n } : x));
+    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: stamp });
+    try {
+      await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, attended_count: n } });
+      toast.success(`تم تسجيل ${n} من أصل ${groupSize}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التسجيل");
+    }
+  }, [session, event]);
+
   const toggleNoteSeen = useCallback(async (g: Guest) => {
     if (!session) return;
     const next = !g.notes_seen_at;
@@ -262,10 +280,15 @@ function CoordinatorEvent() {
                         ) : "—"}
                       </TableCell>
                       <TableCell className="text-left">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Button size="sm" variant={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "outline" : "default"} disabled={g.rsvp_status === "attended" || g.rsvp_status === "declined"} onClick={() => checkInGuest(g)} className={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "" : "gold-gradient text-primary-foreground"}>
-                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? "حضر" : g.rsvp_status === "declined" ? "معتذر" : "تسجيل"}
+                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? `حضر${g.attended_count ? ` (${g.attended_count}/${(g.companions_count ?? 0) + 1})` : ""}` : g.rsvp_status === "declined" ? "معتذر" : "كامل"}
                           </Button>
+                          {g.rsvp_status !== "attended" && g.rsvp_status !== "declined" && (g.companions_count ?? 0) > 0 ? (
+                            <Button size="sm" variant="outline" onClick={() => checkInPartial(g)} title="دخول مجزأ">
+                              <Users className="ms-1 h-3 w-3" /> مجزأ
+                            </Button>
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>
