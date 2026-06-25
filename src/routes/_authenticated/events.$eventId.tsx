@@ -39,6 +39,7 @@ type Guest = {
   id: string; event_id: string; token: string; name: string; phone: string | null;
   email: string | null; rsvp_status: string; companions_count: number; notes: string | null;
   original_rsvp_status?: string | null;
+  status_overridden_by_host?: boolean | null;
 };
 
 const TITLE_OPTIONS = [
