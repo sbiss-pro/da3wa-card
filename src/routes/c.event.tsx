@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { LogOut, Search, ScanLine, Check, Pencil, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import { LogOut, Search, ScanLine, Check, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
-import { getCoordinatorContext, coordinatorCheckIn, coordinatorCheckInById, coordinatorUpdateGuest } from "@/lib/coordinator.functions";
+import { getCoordinatorContext, coordinatorCheckIn, coordinatorCheckInById, coordinatorMarkNoteSeen } from "@/lib/coordinator.functions";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate } from "@/lib/event-utils";
 import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQueue, clearQueueItem } from "@/lib/coord-offline";
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/c/event")({
   component: CoordinatorEvent,
 });
 
-type Guest = { id: string; name: string; phone: string | null; rsvp_status: string; companions_count: number; notes: string | null; token: string; checked_in_at: string | null };
+type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
 type EventLite = { id: string; name: string; event_type: string; event_date: string; location: string | null };
 
 function CoordinatorEvent() {
@@ -124,6 +124,10 @@ function CoordinatorEvent() {
 
   const checkInGuest = useCallback(async (g: Guest) => {
     if (!session) return;
+    if (g.rsvp_status === "declined") {
+      toast.error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+      return;
+    }
     if (g.rsvp_status === "attended") {
       const when = g.checked_in_at ? formatArabicDate(g.checked_in_at) : "—";
       toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
@@ -144,27 +148,15 @@ function CoordinatorEvent() {
     }
   }, [session, event]);
 
-  const [editing, setEditing] = useState<Guest | null>(null);
-  const changeStatus = useCallback(async (g: Guest, status: string) => {
+  const toggleNoteSeen = useCallback(async (g: Guest) => {
     if (!session) return;
+    const next = !g.notes_seen_at;
     try {
-      const u = await coordinatorUpdateGuest({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, rsvp_status: status as "pending" | "accepted" | "declined" | "attended" } });
+      const u = await coordinatorMarkNoteSeen({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, seen: next } });
       setGuests(prev => prev.map(x => x.id === g.id ? { ...x, ...u } as Guest : x));
-      toast.success("تم تحديث الحالة");
+      toast.success(next ? "تم تعليم الملاحظة كمطّلع عليها" : "أُلغي تعليم الملاحظة");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر التحديث");
-    }
-  }, [session]);
-
-  const saveNotes = useCallback(async (g: Guest, notes: string) => {
-    if (!session) return;
-    try {
-      const u = await coordinatorUpdateGuest({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, notes: notes || null } });
-      setGuests(prev => prev.map(x => x.id === g.id ? { ...x, ...u } as Guest : x));
-      toast.success("تم حفظ الملاحظات");
-      setEditing(null);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
     }
   }, [session]);
 
@@ -248,33 +240,34 @@ function CoordinatorEvent() {
                     <TableRow key={g.id}>
                       <TableCell className="font-medium">
                         <span className="inline-flex items-center gap-2">
-                          {g.notes ? (
+                          {g.notes && !g.notes_seen_at ? (
                             <span className="relative inline-flex h-2.5 w-2.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
                               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
                             </span>
                           ) : null}
-                          {g.name}
+                          {g.title ? <span className="text-muted-foreground">{g.title}</span> : null}
+                          <span>{g.name}</span>
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Select value={g.rsvp_status} onValueChange={(v) => changeStatus(g, v)}>
-                          <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">لم يرد</SelectItem>
-                            <SelectItem value="accepted">مقبول</SelectItem>
-                            <SelectItem value="declined">اعتذر</SelectItem>
-                            <SelectItem value="attended">حضر</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge>
                       </TableCell>
                       <TableCell className="text-center">{g.companions_count}</TableCell>
-                      <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
+                      <TableCell className="max-w-[180px] text-sm text-muted-foreground">
+                        {g.notes ? (
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{g.notes}</span>
+                            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => toggleNoteSeen(g)} title={g.notes_seen_at ? "تم الاطلاع" : "تم الاطلاع؟"}>
+                              {g.notes_seen_at ? <Eye className="h-3 w-3 text-emerald-600" /> : <EyeOff className="h-3 w-3" />}
+                            </Button>
+                          </div>
+                        ) : "—"}
+                      </TableCell>
                       <TableCell className="text-left">
                         <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => setEditing(g)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant={g.rsvp_status === "attended" ? "outline" : "default"} disabled={g.rsvp_status === "attended"} onClick={() => checkInGuest(g)} className={g.rsvp_status === "attended" ? "" : "gold-gradient text-primary-foreground"}>
-                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? "حضر" : "تسجيل"}
+                          <Button size="sm" variant={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "outline" : "default"} disabled={g.rsvp_status === "attended" || g.rsvp_status === "declined"} onClick={() => checkInGuest(g)} className={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "" : "gold-gradient text-primary-foreground"}>
+                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? "حضر" : g.rsvp_status === "declined" ? "معتذر" : "تسجيل"}
                           </Button>
                         </div>
                       </TableCell>
@@ -293,13 +286,11 @@ function CoordinatorEvent() {
                 onCheckIn={(g) => {
                   setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
                 }}
-                onSaveNotes={saveNotes}
               />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
       </main>
-      <EditGuestDialog guest={editing} onClose={() => setEditing(null)} onSave={saveNotes} />
     </div>
   );
 }
