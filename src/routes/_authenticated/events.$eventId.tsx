@@ -520,13 +520,27 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
 
 function AddGuestDialog({ eventId, onAdded }: { eventId: string; onAdded: () => void }) {
   const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [titleMode, setTitleMode] = useState<"preset" | "custom">("preset");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [companions, setCompanions] = useState(0);
   const submit = async () => {
     if (!name.trim()) return;
-    const { error } = await supabase.from("guests").insert({ event_id: eventId, name, phone: phone || null, email: email || null });
-    if (error) toast.error(error.message); else { toast.success("تمت الإضافة"); setName(""); setPhone(""); setEmail(""); setOpen(false); onAdded(); }
+    const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
+    const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
+    const { error } = await supabase.from("guests").insert({
+      event_id: eventId,
+      name: joinTitleName(title, name),
+      phone: normPhone,
+      companions_count: c,
+    });
+    if (error) toast.error(error.message);
+    else {
+      toast.success("تمت الإضافة");
+      setTitle(""); setName(""); setPhone(""); setCompanions(0);
+      setOpen(false); onAdded();
+    }
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -534,11 +548,156 @@ function AddGuestDialog({ eventId, onAdded }: { eventId: string; onAdded: () => 
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>إضافة مدعو</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
-          <div><Label>رقم الهاتف</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-          <div><Label>البريد الإلكتروني (اختياري)</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>اللقب</Label>
+              <button type="button" className="text-xs text-gold underline" onClick={() => setTitleMode(titleMode === "preset" ? "custom" : "preset")}>
+                {titleMode === "preset" ? "إدخال يدوي" : "اختيار من القائمة"}
+              </button>
+            </div>
+            {titleMode === "preset" ? (
+              <Select value={title} onValueChange={setTitle}>
+                <SelectTrigger><SelectValue placeholder="اختر اللقب (اختياري)" /></SelectTrigger>
+                <SelectContent>
+                  {TITLE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="مثال: سعادة" />
+            )}
+          </div>
+          <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="اسم المدعو" /></div>
+          <div><Label>رقم الجوال</Label><Input value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" inputMode="tel" placeholder="05xxxxxxxx" /></div>
+          <div>
+            <Label>عدد المرافقين</Label>
+            <Input type="number" min={0} max={MAX_COMPANIONS} value={companions}
+              onChange={e => setCompanions(Math.max(0, Math.min(MAX_COMPANIONS, Number(e.target.value) || 0)))} />
+            <p className="mt-1 text-xs text-muted-foreground">القيمة من 0 إلى {MAX_COMPANIONS}</p>
+          </div>
         </div>
         <DialogFooter><Button onClick={submit} className="gold-gradient text-primary-foreground">إضافة</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onClose: () => void; onSaved: () => void }) {
+  const [title, setTitle] = useState("");
+  const [titleMode, setTitleMode] = useState<"preset" | "custom">("preset");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [companions, setCompanions] = useState(0);
+  const [status, setStatus] = useState("pending");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!guest) return;
+    const { title: t, name: n } = splitTitleName(guest.name);
+    setTitle(t);
+    setTitleMode(t && !TITLE_OPTIONS.includes(t) ? "custom" : "preset");
+    setName(n);
+    setPhone(guest.phone || "");
+    setCompanions(guest.companions_count || 0);
+    setStatus(guest.rsvp_status || "pending");
+    setNotes(guest.notes || "");
+  }, [guest]);
+
+  if (!guest) return null;
+  const originalStatus = guest.original_rsvp_status || null;
+  const isOverridden = originalStatus && originalStatus !== status;
+
+  const save = async () => {
+    if (!name.trim()) { toast.error("الاسم مطلوب"); return; }
+    setSaving(true);
+    const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
+    const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
+    const { error } = await supabase.from("guests").update({
+      name: joinTitleName(title, name),
+      phone: normPhone,
+      companions_count: c,
+      rsvp_status: status,
+      notes: notes.trim() ? notes.trim().slice(0, 500) : null,
+    }).eq("id", guest.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ التعديلات");
+    onSaved();
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!guest} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent dir="rtl" className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>تعديل بيانات المدعو</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>اللقب</Label>
+              <button type="button" className="text-xs text-gold underline" onClick={() => setTitleMode(titleMode === "preset" ? "custom" : "preset")}>
+                {titleMode === "preset" ? "إدخال يدوي" : "اختيار من القائمة"}
+              </button>
+            </div>
+            {titleMode === "preset" ? (
+              <Select value={title} onValueChange={setTitle}>
+                <SelectTrigger><SelectValue placeholder="اختر اللقب" /></SelectTrigger>
+                <SelectContent>
+                  {TITLE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={title} onChange={e => setTitle(e.target.value)} />
+            )}
+          </div>
+          <div><Label>الاسم</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+          <div><Label>رقم الجوال</Label><Input value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" inputMode="tel" /></div>
+          <div>
+            <Label>عدد المرافقين</Label>
+            <Input type="number" min={0} max={MAX_COMPANIONS} value={companions}
+              onChange={e => setCompanions(Math.max(0, Math.min(MAX_COMPANIONS, Number(e.target.value) || 0)))} />
+          </div>
+          <div className="space-y-2">
+            <Label>حالة الدعوة</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">{RSVP_LABELS.pending}</SelectItem>
+                <SelectItem value="accepted">{RSVP_LABELS.accepted}</SelectItem>
+                <SelectItem value="declined">{RSVP_LABELS.declined}</SelectItem>
+                <SelectItem value="attended">{RSVP_LABELS.attended}</SelectItem>
+              </SelectContent>
+            </Select>
+            {originalStatus ? (
+              <div className={`rounded-lg border p-2 text-xs ${isOverridden ? "border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200" : "border-border bg-muted/30 text-muted-foreground"}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    اختيار الضيف الأصلي:{" "}
+                    <span className="font-bold" style={{ color: RSVP_COLORS[originalStatus] }}>
+                      {RSVP_LABELS[originalStatus] || originalStatus}
+                    </span>
+                  </span>
+                  {isOverridden ? (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setStatus(originalStatus)}>
+                      الرجوع لاختيار الضيف
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">لم يقم الضيف بالرد بعد.</p>
+            )}
+          </div>
+          <div>
+            <Label>الملاحظات</Label>
+            <Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} />
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={save} disabled={saving} className="gold-gradient text-primary-foreground">
+            {saving ? "..." : "حفظ"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
