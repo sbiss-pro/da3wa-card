@@ -9,7 +9,7 @@ export const getInvitation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: guest, error: gErr } = await supabaseAdmin
       .from("guests")
-      .select("id,token,name,rsvp_status,companions_count,notes,event_id")
+      .select("id,token,name,title,rsvp_status,companions_count,notes,event_id")
       .eq("token", data.token)
       .maybeSingle();
     if (gErr) {
@@ -32,7 +32,6 @@ export const getInvitation = createServerFn({ method: "GET" })
 const rsvpSchema = z.object({
   token: z.string().min(8).max(64),
   status: z.enum(["accepted", "declined"]),
-  companions: z.number().int().min(0).max(2),
   notes: z.string().max(500).optional().nullable(),
 });
 
@@ -40,10 +39,11 @@ export const submitRsvp = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => rsvpSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Look up guest + event to enforce RSVP deadline server-side.
+    // Look up guest + event to enforce RSVP deadline server-side. Companion
+    // count is host-controlled — guests have ZERO input over it.
     const { data: existing } = await supabaseAdmin
       .from("guests")
-      .select("id,event_id")
+      .select("id,event_id,companions_count,original_rsvp_status")
       .eq("token", data.token)
       .maybeSingle();
     if (!existing) throw new Error("NOT_FOUND");
@@ -56,15 +56,21 @@ export const submitRsvp = createServerFn({ method: "POST" })
     if (deadline && new Date(deadline).getTime() < Date.now()) {
       throw new Error("انتهت الفترة المحددة لتأكيد الحضور");
     }
+    // Snapshot the guest's original selection only the first time the guest
+    // submits — preserves their initial choice for the override-history UI.
+    const patch: Record<string, unknown> = {
+      rsvp_status: data.status,
+      notes: data.notes ? data.notes : null,
+    };
+    if (!existing.original_rsvp_status) {
+      patch.original_rsvp_status = data.status;
+      patch.original_companions_count = existing.companions_count ?? 0;
+    }
     const { data: updated, error } = await supabaseAdmin
       .from("guests")
-      .update({
-        rsvp_status: data.status,
-        companions_count: data.companions,
-        notes: data.notes ? data.notes : null,
-      })
+      .update(patch)
       .eq("token", data.token)
-      .select("id,token,name,rsvp_status,companions_count,notes,event_id")
+      .select("id,token,name,title,rsvp_status,companions_count,notes,event_id")
       .maybeSingle();
     if (error) {
       console.error("[submitRsvp] update failed", error);
