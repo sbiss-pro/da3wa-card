@@ -21,7 +21,7 @@ export const Route = createFileRoute("/c/event")({
   component: CoordinatorEvent,
 });
 
-type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
+type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; companion_names?: string[]; attended_count?: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
 type EventLite = { id: string; name: string; event_type: string; event_date: string; location: string | null };
 
 function CoordinatorEvent() {
