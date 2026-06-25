@@ -227,6 +227,8 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             </Select>
           </div>
           <BackgroundControls cfg={cfg} setCfg={setCfg} />
+          <TypographyControls cfg={cfg} setCfg={setCfg} />
+          <AudioControls cfg={cfg} setCfg={setCfg} />
           <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
             <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
           </Button>
