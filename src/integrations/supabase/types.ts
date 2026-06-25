@@ -108,7 +108,9 @@ export type Database = {
       }
       guests: {
         Row: {
+          attended_count: number
           checked_in_at: string | null
+          companion_names: Json
           companions_count: number
           created_at: string
           email: string | null
@@ -128,7 +130,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attended_count?: number
           checked_in_at?: string | null
+          companion_names?: Json
           companions_count?: number
           created_at?: string
           email?: string | null
@@ -148,7 +152,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attended_count?: number
           checked_in_at?: string | null
+          companion_names?: Json
           companions_count?: number
           created_at?: string
           email?: string | null
@@ -179,32 +185,38 @@ export type Database = {
       }
       scan_logs: {
         Row: {
+          attended_count: number | null
           coordinator_id: string | null
           coordinator_name: string
           event_id: string
           guest_id: string | null
           guest_name: string
           id: string
+          partial: boolean
           scanned_at: string
           status: string
         }
         Insert: {
+          attended_count?: number | null
           coordinator_id?: string | null
           coordinator_name: string
           event_id: string
           guest_id?: string | null
           guest_name: string
           id?: string
+          partial?: boolean
           scanned_at?: string
           status?: string
         }
         Update: {
+          attended_count?: number | null
           coordinator_id?: string | null
           coordinator_name?: string
           event_id?: string
           guest_id?: string | null
           guest_name?: string
           id?: string
+          partial?: boolean
           scanned_at?: string
           status?: string
         }

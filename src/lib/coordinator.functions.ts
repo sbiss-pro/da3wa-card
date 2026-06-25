@@ -150,7 +150,7 @@ export const getCoordinatorContext = createServerFn({ method: "POST" })
       .single();
     const { data: guests } = await supabaseAdmin
       .from("guests")
-      .select("id,name,title,phone,rsvp_status,companions_count,notes,notes_seen_at,token,checked_in_at")
+      .select("id,name,title,phone,rsvp_status,companions_count,companion_names,attended_count,notes,notes_seen_at,token,checked_in_at")
       .eq("event_id", row.event_id)
       .order("name", { ascending: true });
     // Strict RBAC: hide notes from declined guests (wishes wall is host-only).
@@ -167,6 +167,8 @@ async function logScan(opts: {
   coordinator_name: string;
   guest_id: string;
   guest_name: string;
+  attended_count?: number;
+  partial?: boolean;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await supabaseAdmin.from("scan_logs").insert({
@@ -175,6 +177,8 @@ async function logScan(opts: {
     coordinator_name: opts.coordinator_name,
     guest_id: opts.guest_id,
     guest_name: opts.guest_name,
+    attended_count: opts.attended_count ?? null,
+    partial: opts.partial ?? false,
   });
 }
 
@@ -186,7 +190,7 @@ export const coordinatorCheckIn = createServerFn({ method: "POST" })
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
     const { data: guest } = await supabaseAdmin
       .from("guests")
-      .select("id,name,companions_count,notes,event_id,rsvp_status,checked_in_at")
+      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at")
       .eq("token", data.guest_token)
       .eq("event_id", row.event_id)
       .maybeSingle();
@@ -200,23 +204,24 @@ export const coordinatorCheckIn = createServerFn({ method: "POST" })
       (err as Error & { code?: string; guest?: unknown }).guest = guest;
       throw err;
     }
+    const total = (guest.companions_count ?? 0) + 1;
     await supabaseAdmin
       .from("guests")
-      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() })
+      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: total })
       .eq("id", guest.id);
-    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name });
-    return { ...guest, rsvp_status: "attended" };
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial: false });
+    return { ...guest, rsvp_status: "attended", attended_count: total };
   });
 
 export const coordinatorCheckInById = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    sessionSchema.extend({ guest_id: z.string().uuid() }).parse(d),
+    sessionSchema.extend({ guest_id: z.string().uuid(), attended_count: z.number().int().min(1).max(12).optional() }).parse(d),
   )
   .handler(async ({ data }) => {
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
     const { data: guest } = await supabaseAdmin
       .from("guests")
-      .select("id,name,companions_count,notes,event_id,rsvp_status,checked_in_at")
+      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at")
       .eq("id", data.guest_id)
       .eq("event_id", row.event_id)
       .maybeSingle();
@@ -227,12 +232,15 @@ export const coordinatorCheckInById = createServerFn({ method: "POST" })
     if (guest.rsvp_status === "attended") {
       throw new Error(`هذا المدعو مسجّل سابقاً (${guest.checked_in_at ?? "—"})`);
     }
+    const groupSize = (guest.companions_count ?? 0) + 1;
+    const total = Math.max(1, Math.min(groupSize, data.attended_count ?? groupSize));
+    const partial = total < groupSize;
     await supabaseAdmin
       .from("guests")
-      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() })
+      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: total })
       .eq("id", guest.id);
-    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name });
-    return { ...guest, rsvp_status: "attended" };
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial });
+    return { ...guest, rsvp_status: "attended", attended_count: total };
   });
 
 /**

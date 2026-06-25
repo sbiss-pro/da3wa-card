@@ -12,9 +12,9 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig, type TimelineItem } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
-import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart } from "lucide-react";
+import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart, Users as UsersIcon, Palette as PaletteIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -22,10 +22,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
-import { Switch } from "@/components/ui/switch";
 import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
-import { Slider } from "@/components/ui/slider";
-import { Music } from "lucide-react";
+import { extractPalette, readableTextOn } from "@/lib/palette";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -55,13 +53,6 @@ function joinTitleName(title: string, name: string): string {
   const n = (name || "").trim();
   return t ? `${t} / ${n}`.slice(0, 160) : n.slice(0, 120);
 }
-
-const PRESETS = [
-  { name: "ذهبي كلاسيكي", config: { template: "gold", bg_color: "#f7f1e6", text_color: "#1a1410", accent_color: "#c9a24a", font: "amiri" } },
-  { name: "أسود فاخر", config: { template: "noir", bg_color: "#0d0d0d", text_color: "#f5f0e0", accent_color: "#d4af37", font: "amiri" } },
-  { name: "وردي ناعم", config: { template: "rose", bg_color: "#fdf2f4", text_color: "#3a2e2a", accent_color: "#c9a0a8", font: "tajawal" } },
-  { name: "أخضر زيتي", config: { template: "olive", bg_color: "#f5f7f0", text_color: "#2b3624", accent_color: "#6b7f5a", font: "amiri" } },
-];
 
 function EventDetails() {
   const { eventId } = Route.useParams();
@@ -162,6 +153,7 @@ function EventDetails() {
 function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
   const [cfg, setCfg] = useState<TemplateConfig>(event.template_config || {});
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
 
   const save = async () => {
     setSaving(true);
@@ -170,95 +162,126 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
     if (error) toast.error(error.message); else { toast.success("تم حفظ التصميم"); onSaved(); }
   };
 
+  const autoExtract = async (url: string) => {
+    if (!url) return;
+    setExtracting(true);
+    try {
+      const colors = await extractPalette(url, 4);
+      setCfg((prev) => ({ ...prev, palette: colors }));
+      toast.success("تم استخراج لوحة الألوان تلقائياً");
+    } catch {
+      toast.error("تعذّر استخراج الألوان — تأكد من أن الرابط يدعم CORS");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const palette = cfg.palette && cfg.palette.length >= 4 ? cfg.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
+  const updateColor = (i: number, hex: string) => {
+    const next = [...palette];
+    next[i] = hex;
+    setCfg({ ...cfg, palette: next });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">القوالب الجاهزة</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {PRESETS.map(p => (
-            <button key={p.name} onClick={() => setCfg({ ...cfg, ...p.config })}
-              className="rounded-xl border border-border p-3 text-right transition hover:border-primary">
-              <div className="mb-2 h-12 rounded" style={{ background: p.config.bg_color, borderColor: p.config.accent_color, borderWidth: 1 }} />
-              <p className="text-sm font-medium">{p.name}</p>
-            </button>
-          ))}
-        </div>
-        <div className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label>عنوان مخصص</Label>
-            <Input value={cfg.custom_title || ""} onChange={e => setCfg({ ...cfg, custom_title: e.target.value })} placeholder={event.name} />
-          </div>
-          <div className="space-y-2">
-            <Label>رسالة الدعوة</Label>
-            <Textarea rows={3} value={cfg.custom_message || ""} onChange={e => setCfg({ ...cfg, custom_message: e.target.value })} placeholder="يسرّنا دعوتكم لمشاركتنا فرحة..." />
-          </div>
-          <TimelineEditor
-            items={cfg.timeline || []}
-            onChange={(items: TimelineItem[]) => setCfg({ ...cfg, timeline: items })}
+      <Card className="space-y-6 p-6">
+        {/* --- صورة الدعوة --- */}
+        <section className="space-y-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <ImageIcon className="h-4 w-4 text-gold" /> صورة بطاقة الدعوة
+          </Label>
+          <Input
+            value={cfg.invitation_image_url || ""}
+            onChange={(e) => setCfg({ ...cfg, invitation_image_url: e.target.value })}
+            placeholder="https://example.com/invitation.jpg"
+            dir="ltr"
           />
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> مهلة تأكيد الحضور (اختياري)</Label>
-            <Input
-              type="datetime-local"
-              value={cfg.rsvp_deadline ? toLocalInput(cfg.rsvp_deadline) : ""}
-              onChange={e => setCfg({ ...cfg, rsvp_deadline: e.target.value ? new Date(e.target.value).toISOString() : null })}
-              dir="ltr"
-            />
-            <p className="text-xs text-muted-foreground">بعد هذا الموعد لن يتمكن المدعوون من تأكيد أو الاعتذار عن الحضور.</p>
-            {cfg.rsvp_deadline ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, rsvp_deadline: null })}>
-                إزالة المهلة
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!cfg.invitation_image_url || extracting}
+              onClick={() => cfg.invitation_image_url && autoExtract(cfg.invitation_image_url)}
+            >
+              <PaletteIcon className="ms-1 h-3 w-3" /> {extracting ? "..." : "استخراج الألوان من الصورة"}
+            </Button>
+            {cfg.invitation_image_url ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, invitation_image_url: "" })}>
+                <XIcon className="ms-1 h-3 w-3" /> إزالة
               </Button>
             ) : null}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2"><Label>الخلفية</Label><Input type="color" value={cfg.bg_color || "#f7f1e6"} onChange={e => setCfg({ ...cfg, bg_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
-            <div className="space-y-2"><Label>اللون المميز</Label><Input type="color" value={cfg.accent_color || "#c9a24a"} onChange={e => setCfg({ ...cfg, accent_color: e.target.value })} /></div>
+          <p className="text-xs text-muted-foreground">
+            ألصق رابطاً مباشراً للصورة. لاستخراج الألوان تلقائياً يجب أن يدعم الرابط CORS.
+          </p>
+        </section>
+
+        {/* --- لوحة الألوان --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2"><PaletteIcon className="h-4 w-4 text-gold" /> ألوان الصفحة</Label>
+          <p className="text-xs text-muted-foreground">يمكنك تعديل أي لون يدوياً. اللون الأول = الخلفية الرئيسية.</p>
+          <div className="grid grid-cols-4 gap-2">
+            {palette.map((c, i) => (
+              <div key={i} className="space-y-1">
+                <Input type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-12 w-full p-1" />
+                <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground" dir="ltr">{c}</p>
+              </div>
+            ))}
           </div>
-          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-            <Label>لون خلفية صفحة الدعوة (المنطقة المحيطة بالبطاقة)</Label>
-            <div className="flex items-center gap-2">
-              <Input type="color" value={cfg.page_bg || "#1a1410"} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} className="h-10 w-16 p-1" />
-              <Input value={cfg.page_bg || ""} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} placeholder="مثال: #1a1410 أو linear-gradient(...)" dir="ltr" />
-              {cfg.page_bg ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, page_bg: "" })}>إعادة</Button>
-              ) : null}
-            </div>
-            <p className="text-xs text-muted-foreground">يُطبَّق على كامل الصفحة الخارجية لرابط الدعوة، وليس داخل البطاقة.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>نص العنوان العلوي</Label>
-              <Input value={cfg.intro_label ?? ""} onChange={e => setCfg({ ...cfg, intro_label: e.target.value })} placeholder="دعوة كريمة" />
-            </div>
-            <div className="space-y-2">
-              <Label>عبارة الترحيب قبل اسم المدعو</Label>
-              <Input value={cfg.greeting_prefix ?? ""} onChange={e => setCfg({ ...cfg, greeting_prefix: e.target.value })} placeholder="يسرّنا دعوتك يا" />
-            </div>
+        </section>
+
+        {/* --- وقت البداية والنهاية --- */}
+        <section className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> بداية الحفل</Label>
+            <Input
+              type="datetime-local"
+              value={toLocalInput(event.event_date)}
+              onChange={async (e) => {
+                if (!e.target.value) return;
+                const iso = new Date(e.target.value).toISOString();
+                const { error } = await supabase.from("events").update({ event_date: iso }).eq("id", event.id);
+                if (error) toast.error(error.message); else { toast.success("تم تحديث وقت البداية"); onSaved(); }
+              }}
+              dir="ltr"
+            />
           </div>
           <div className="space-y-2">
-            <Label>الخط</Label>
-            <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cairo">Cairo (النسخ)</SelectItem>
-                <SelectItem value="tajawal">Tajawal (الرقعة)</SelectItem>
-                <SelectItem value="amiri">Amiri (الديواني)</SelectItem>
-                <SelectItem value="reem-kufi">Reem Kufi (الكوفي)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> نهاية الحفل</Label>
+            <Input
+              type="datetime-local"
+              value={cfg.event_end_date ? toLocalInput(cfg.event_end_date) : ""}
+              onChange={(e) => setCfg({ ...cfg, event_end_date: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              dir="ltr"
+            />
           </div>
-          <BackgroundControls cfg={cfg} setCfg={setCfg} />
-          <TypographyControls cfg={cfg} setCfg={setCfg} />
-          <AudioControls cfg={cfg} setCfg={setCfg} />
-          <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
-            <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ التصميم"}
-          </Button>
-        </div>
+        </section>
+
+        {/* --- الحد الأقصى للمرافقين --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2"><UsersIcon className="h-4 w-4 text-gold" /> الحد الأقصى للمرافقين لكل ضيف</Label>
+          <Input
+            type="number"
+            min={0}
+            max={MAX_COMPANIONS}
+            value={cfg.max_companions ?? 0}
+            onChange={(e) => {
+              const n = Math.max(0, Math.min(MAX_COMPANIONS, parseInt(e.target.value || "0", 10) || 0));
+              setCfg({ ...cfg, max_companions: n });
+            }}
+          />
+          <p className="text-xs text-muted-foreground">إذا كانت القيمة صفر، لن يستطيع الضيف اختيار مرافقين. الحد الأقصى: {MAX_COMPANIONS}.</p>
+        </section>
+
+        <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
+          <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ"}
+        </Button>
       </Card>
+
       <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-sm text-muted-foreground">معاينة مباشرة</p>
+        <p className="mb-2 text-sm text-muted-foreground">معاينة الصورة</p>
         <InvitationCard config={cfg} eventName={event.name} eventDate={event.event_date} location={event.location} guestName="ضيفنا الكريم" />
       </div>
     </div>
@@ -1055,35 +1078,6 @@ function CoordinatorsTab({ eventId }: { eventId: string }) {
   );
 }
 
-/* ---------------- Helpers added ---------------- */
-
-function TimelineEditor({ items, onChange }: { items: TimelineItem[]; onChange: (items: TimelineItem[]) => void }) {
-  const add = () => onChange([...items, { time: "20:00", title: "" }]);
-  const update = (i: number, patch: Partial<TimelineItem>) =>
-    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
-  return (
-    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> الجدول الزمني للفعالية</Label>
-        <Button type="button" size="sm" variant="outline" onClick={add}><Plus className="ms-1 h-3 w-3" /> إضافة</Button>
-      </div>
-      {items.length === 0 ? (
-        <p className="text-xs text-muted-foreground">أضف فقرات الفعالية (مثل: وقت الزفة 21:00، تناول العشاء 22:30)</p>
-      ) : (
-        <div className="space-y-2">
-          {items.map((it, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input type="time" value={it.time} onChange={e => update(i, { time: e.target.value })} className="w-32" dir="ltr" />
-              <Input value={it.title} onChange={e => update(i, { title: e.target.value })} placeholder="مثال: وقت الزفة" className="flex-1" />
-              <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function downloadGuestTemplate() {
   const headers = ["اللقب", "الاسم", "رقم الجوال", "المرافقين"];
@@ -1396,45 +1390,6 @@ function DeleteAllGuestsDialog({ eventId, count, onDeleted }: { eventId: string;
   );
 }
 
-/* ---------------- Background Controls ---------------- */
-function BackgroundControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onFile = (f: File) => {
-    if (f.size > 3 * 1024 * 1024) { toast.error("الصورة كبيرة جداً (الحد الأقصى 3MB)"); return; }
-    const reader = new FileReader();
-    reader.onload = () => setCfg({ ...cfg, image_url: String(reader.result || "") });
-    reader.readAsDataURL(f);
-  };
-  return (
-    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
-      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-gold" /> خلفية البطاقة</Label>
-      <div className="flex gap-2">
-        <input ref={inputRef} type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
-        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-          <Upload className="ms-1 h-3 w-3" /> رفع صورة
-        </Button>
-        {cfg.image_url ? (
-          <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, image_url: "" })}>
-            <XIcon className="ms-1 h-3 w-3" /> إزالة
-          </Button>
-        ) : null}
-      </div>
-      <Input
-        value={cfg.image_url?.startsWith("data:") ? "" : (cfg.image_url || "")}
-        onChange={e => setCfg({ ...cfg, image_url: e.target.value })}
-        placeholder="أو ألصق رابط صورة https://..."
-        dir="ltr"
-      />
-      <div className="flex items-center justify-between rounded-lg border border-border bg-background p-2">
-        <div>
-          <p className="text-sm font-medium">نمط الخلفية</p>
-          <p className="text-xs text-muted-foreground">{cfg.bg_blur ? "ضبابية أنيقة (Frosted Glass)" : "واضحة"}</p>
-        </div>
-        <Switch checked={!!cfg.bg_blur} onCheckedChange={(v) => setCfg({ ...cfg, bg_blur: v })} />
-      </div>
-    </div>
-  );
-}
 /* ---------------- Wishes wall (congratulations + apologies) ---------------- */
 function WishesWallTab({ guests }: { guests: Guest[] }) {
   const wished = useMemo(
@@ -1502,129 +1457,3 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
   );
 }
 
-/* ---------------- Typography Controls (per-element sizes & alignment) ---------------- */
-function TypographyControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
-  const aligns: Array<{ v: "right" | "center" | "left"; label: string }> = [
-    { v: "right", label: "يمين" },
-    { v: "center", label: "وسط" },
-    { v: "left", label: "يسار" },
-  ];
-  const row = (
-    key: "title" | "message" | "guest_name" | "date",
-    label: string,
-    defVal: number,
-    min: number,
-    max: number,
-    withAlign: boolean,
-  ) => {
-    const sizeKey = `${key}_size` as keyof TemplateConfig;
-    const alignKey = `${key}_align` as keyof TemplateConfig;
-    const value = (cfg[sizeKey] as number | undefined) ?? defVal;
-    const align = (cfg[alignKey] as "right" | "center" | "left" | undefined) || cfg.text_align || "center";
-    return (
-      <div className="space-y-2 rounded-lg border border-border bg-background p-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm">{label}</Label>
-          <span className="text-xs tabular-nums text-muted-foreground">{value}px</span>
-        </div>
-        <Slider
-          min={min} max={max} step={1} value={[value]}
-          onValueChange={(v) => setCfg({ ...cfg, [sizeKey]: v[0] } as TemplateConfig)}
-        />
-        {withAlign ? (
-          <div className="flex gap-1">
-            {aligns.map(a => (
-              <Button key={a.v} type="button" size="sm"
-                variant={align === a.v ? "default" : "outline"}
-                className={align === a.v ? "gold-gradient text-primary-foreground" : ""}
-                onClick={() => setCfg({ ...cfg, [alignKey]: a.v } as TemplateConfig)}>
-                {a.label}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-  return (
-    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
-      <Label className="flex items-center gap-2"><Pencil className="h-4 w-4 text-gold" /> الخطوط والمحاذاة لكل عنصر</Label>
-      <p className="text-xs text-muted-foreground">تكيّف تلقائياً مع شاشات اللابتوب، الآيباد، والآيفون.</p>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {row("title", "عنوان البطاقة", 40, 20, 72, true)}
-        {row("guest_name", "اسم المدعو", 18, 12, 32, false)}
-        {row("message", "نص الدعوة", 16, 12, 28, true)}
-        {row("date", "التاريخ", 18, 12, 32, false)}
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Audio Controls (background music) ---------------- */
-function AudioControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const audio = cfg.audio || null;
-  const setMode = (mode: "youtube" | "url" | "file") => setCfg({ ...cfg, audio: { mode, src: "" } });
-  const setSrc = (src: string) => setCfg({ ...cfg, audio: { mode: audio?.mode || "url", src } });
-  const clear = () => setCfg({ ...cfg, audio: null });
-
-  const onFile = (f: File) => {
-    const okExt = /\.(mp3|wav|m4a|aac|ogg|oga|flac)$/i.test(f.name);
-    const okType = !f.type || /^audio\//.test(f.type) || f.type === "application/octet-stream";
-    if (!okExt && !okType) { toast.error("صيغة الملف يجب أن تكون صوتية (MP3/WAV/M4A)"); return; }
-    if (f.size > 4 * 1024 * 1024) { toast.error("حجم الملف كبير جداً (الحد الأقصى 4MB)"); return; }
-    const reader = new FileReader();
-    reader.onload = () => setCfg({ ...cfg, audio: { mode: "file", src: String(reader.result || "") } });
-    reader.readAsDataURL(f);
-  };
-
-  return (
-    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-2"><Music className="h-4 w-4 text-gold" /> الصوتيات / خلفية الموسيقى</Label>
-        {audio ? <Button type="button" variant="ghost" size="sm" onClick={clear}><XIcon className="ms-1 h-3 w-3" /> إزالة</Button> : null}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {(["youtube", "url", "file"] as const).map(m => (
-          <Button key={m} type="button" size="sm"
-            variant={audio?.mode === m ? "default" : "outline"}
-            className={audio?.mode === m ? "gold-gradient text-primary-foreground" : ""}
-            onClick={() => setMode(m)}>
-            {m === "youtube" ? "رابط يوتيوب" : m === "url" ? "رابط صوتي" : "رفع ملف"}
-          </Button>
-        ))}
-      </div>
-      {audio?.mode === "youtube" ? (
-        <Input value={audio.src} onChange={e => setSrc(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." dir="ltr" />
-      ) : audio?.mode === "url" ? (
-        <Input value={audio.src} onChange={e => setSrc(e.target.value)} placeholder="https://example.com/song.mp3" dir="ltr" />
-      ) : audio?.mode === "file" ? (
-        <div className="space-y-2">
-          <input
-            ref={inputRef}
-            type="file"
-            accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/x-m4a,audio/*,.mp3,.wav,.m4a,.aac"
-            hidden
-            onChange={e => e.target.files?.[0] && onFile(e.target.files[0])}
-          />
-          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-            <Upload className="ms-1 h-3 w-3" /> اختيار ملف MP3/WAV
-          </Button>
-          {audio.src ? <p className="text-xs text-emerald-600">تم رفع الملف بنجاح ✓</p> : null}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">اختر مصدر الصوت لربطه بأيقونة التشغيل في بطاقة الضيف.</p>
-      )}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-background p-2">
-        <div>
-          <p className="text-sm font-medium">وضع الصوت عند فتح الصفحة</p>
-          <p className="text-xs text-muted-foreground">{cfg.audio_default === "unmuted" ? "تشغيل تلقائي (مع أول لمسة إذا منع المتصفح ذلك)" : "مكتوم — يبدأ عند ضغط زر الصوت"}</p>
-        </div>
-        <Switch
-          checked={cfg.audio_default === "unmuted"}
-          onCheckedChange={(v) => setCfg({ ...cfg, audio_default: v ? "unmuted" : "muted" })}
-        />
-      </div>
-    </div>
-  );
-}

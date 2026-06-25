@@ -1,19 +1,21 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
+import { useEffect, useMemo, useState } from "react";
+import { type TemplateConfig } from "@/components/invitation-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, MapPin, Clock, Users, Volume2, VolumeX } from "lucide-react";
-import { buildCalendarLinks, formatArabicDate, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
+import { Check, X, MapPin, Users } from "lucide-react";
+import { buildCalendarLinks, toArabicDigits, RSVP_LABELS, RSVP_COLORS, safeHttpUrl } from "@/lib/event-utils";
+import { readableTextOn } from "@/lib/palette";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { getInvitation, submitRsvp } from "@/lib/invitation.functions";
 
 type LoaderData = {
-  guest: { id: string; token: string; name: string; title?: string | null; rsvp_status: string; companions_count: number; notes: string | null };
+  guest: { id: string; token: string; name: string; title?: string | null; rsvp_status: string; companions_count: number; companion_names?: string[]; notes: string | null };
   event: { id: string; name: string; event_type: string; event_date: string; location: string | null; location_url: string | null; description: string | null; template_config: TemplateConfig };
 };
 
@@ -31,160 +33,98 @@ export const Route = createFileRoute("/i/$token")({
   },
 });
 
+function formatArabicClock12(d: Date): string {
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const period = h >= 12 ? "م" : "ص";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${toArabicDigits(String(h).padStart(2, "0"))}:${toArabicDigits(String(m).padStart(2, "0"))} ${period}`;
+}
+
+function formatArabicFullDate(d: Date): string {
+  const formatted = new Intl.DateTimeFormat("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(d);
+  return formatted;
+}
+
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
 function GuestPage() {
   const { guest: initialGuest, event } = Route.useLoaderData() as LoaderData;
   const [guest, setGuest] = useState(initialGuest);
   const [notes, setNotes] = useState(guest.notes || "");
+  const [companions, setCompanions] = useState<number>(guest.companions_count || 0);
+  const [companionNames, setCompanionNames] = useState<string[]>(guest.companion_names ?? []);
+  const [wishes, setWishes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [qr, setQr] = useState<string>("");
-  const [countdown, setCountdown] = useState("");
-  const [showDeclineBox, setShowDeclineBox] = useState(false);
-  const [wishes, setWishes] = useState("");
-  const [screenHidden, setScreenHidden] = useState(false);
-  const [audioOn, setAudioOn] = useState(false);
-  const audioCtxRef = useRef<{ ctx: AudioContext; nodes: OscillatorNode[]; gain: GainNode } | null>(null);
-  const audioElRef = useRef<HTMLAudioElement | null>(null);
-  const ytRef = useRef<HTMLIFrameElement | null>(null);
+  const [mode, setMode] = useState<null | "accept" | "decline">(null);
+  const now = useNow(1000);
 
-  const audioCfg = event.template_config?.audio || null;
-  const autoplayDefault = (event.template_config?.audio_default || "muted") === "unmuted";
-  const ytId = (() => {
-    if (audioCfg?.mode !== "youtube" || !audioCfg.src) return "";
-    const m = audioCfg.src.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([\w-]{6,})/);
-    return m ? m[1] : "";
-  })();
-  const pageBg = event.template_config?.page_bg || "";
+  const tc = event.template_config || {};
+  const palette = tc.palette && tc.palette.length >= 4 ? tc.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
+  const [bgColor, accent, surface, surface2] = palette;
+  const textColor = readableTextOn(bgColor);
+  const softText = textColor === "#ffffff" ? "rgba(255,255,255,0.75)" : "rgba(26,20,16,0.7)";
+  const cardBg = textColor === "#ffffff" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.6)";
+  const cardBorder = accent + "55";
 
-  // Screenshot protection — blur whenever the tab/app loses focus or visibility changes.
-  useEffect(() => {
-    const hide = () => setScreenHidden(true);
-    const show = () => setScreenHidden(false);
-    const onVis = () => (document.hidden ? hide() : show());
-    window.addEventListener("blur", hide);
-    window.addEventListener("focus", show);
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.removeEventListener("blur", hide);
-      window.removeEventListener("focus", show);
-      document.removeEventListener("visibilitychange", onVis);
+  const startMs = useMemo(() => new Date(event.event_date).getTime(), [event.event_date]);
+  const endMs = useMemo(() => (tc.event_end_date ? new Date(tc.event_end_date).getTime() : startMs + 4 * 3600 * 1000), [tc.event_end_date, startMs]);
+  const phase: "before" | "during" | "after" = now < startMs ? "before" : now < endMs ? "during" : "after";
+  const maxCompanions = Math.max(0, Math.min(11, tc.max_companions ?? 0));
+
+  // Build countdown parts
+  let cd = { d: 0, h: 0, m: 0, s: 0 };
+  if (phase === "before") {
+    const diff = Math.max(0, startMs - now);
+    cd = {
+      d: Math.floor(diff / 86400000),
+      h: Math.floor((diff % 86400000) / 3600000),
+      m: Math.floor((diff % 3600000) / 60000),
+      s: Math.floor((diff % 60000) / 1000),
     };
-  }, []);
+  }
 
-  // Audio toggle — uses host-configured source (YouTube/URL/upload) when provided,
-  // otherwise falls back to a synthesized ambient drone.
-  const toggleAudio = async () => {
-    try {
-      // ---- Configured source path ----
-      if (audioCfg && audioCfg.src) {
-        if (audioOn) {
-          if (audioElRef.current) { audioElRef.current.pause(); }
-          if (ytRef.current) { ytRef.current.src = "about:blank"; }
-          setAudioOn(false);
-          return;
-        }
-        if (audioCfg.mode === "youtube" && ytId) {
-          if (ytRef.current) {
-            ytRef.current.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0&playsinline=1&rel=0&modestbranding=1`;
-          }
-        } else if (audioElRef.current) {
-          if (!audioElRef.current.src) audioElRef.current.src = audioCfg.src;
-          audioElRef.current.loop = true;
-          audioElRef.current.muted = false;
-          audioElRef.current.volume = 1;
-          await audioElRef.current.play();
-        }
-        setAudioOn(true);
-        return;
-      }
-      // ---- Fallback synthesized drone ----
-      if (audioOn && audioCtxRef.current) {
-        audioCtxRef.current.gain.gain.linearRampToValueAtTime(0, audioCtxRef.current.ctx.currentTime + 0.4);
-        setTimeout(() => { audioCtxRef.current?.ctx.close(); audioCtxRef.current = null; }, 500);
-        setAudioOn(false);
-        return;
-      }
-      const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AC();
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      gain.connect(ctx.destination);
-      const freqs = [196, 246.94, 392]; // soft G major triad pad
-      const nodes = freqs.map((f, i) => {
-        const o = ctx.createOscillator();
-        o.type = i === 0 ? "sine" : "triangle";
-        o.frequency.value = f;
-        const g = ctx.createGain();
-        g.gain.value = i === 0 ? 0.18 : 0.08;
-        o.connect(g); g.connect(gain); o.start();
-        return o;
-      });
-      gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 1.2);
-      audioCtxRef.current = { ctx, nodes, gain };
-      setAudioOn(true);
-    } catch {
-      toast.error("تعذّر تشغيل الصوت في هذا المتصفح");
-    }
-  };
-  useEffect(() => () => { audioCtxRef.current?.ctx.close(); }, []);
-
-  // Attempt autoplay on first user interaction (browsers block silent autoplay).
+  // QR — hide after event ended or when declined
   useEffect(() => {
-    if (!autoplayDefault || !audioCfg?.src) return;
-    let done = false;
-    const tryPlay = () => {
-      if (done) return;
-      done = true;
-      toggleAudio();
-      window.removeEventListener("pointerdown", tryPlay);
-      window.removeEventListener("keydown", tryPlay);
-      window.removeEventListener("touchstart", tryPlay);
-    };
-    // First, attempt direct autoplay (works on some browsers when the page has been interacted with already)
-    const t = setTimeout(() => { tryPlay(); }, 400);
-    window.addEventListener("pointerdown", tryPlay, { once: true });
-    window.addEventListener("keydown", tryPlay, { once: true });
-    window.addEventListener("touchstart", tryPlay, { once: true });
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("pointerdown", tryPlay);
-      window.removeEventListener("keydown", tryPlay);
-      window.removeEventListener("touchstart", tryPlay);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplayDefault, audioCfg?.src]);
+    const eligible = (guest.rsvp_status === "accepted" || guest.rsvp_status === "attended") && phase !== "after";
+    if (!eligible) { setQr(""); return; }
+    QRCode.toDataURL(`${window.location.origin}/i/${guest.token}`, { width: 320, margin: 2, color: { dark: "#1a1410", light: "#f7f1e6" } }).then(setQr);
+  }, [guest.rsvp_status, guest.token, phase]);
 
+  // Keep companion_names array in sync with count
   useEffect(() => {
-    if (guest.rsvp_status === "accepted" || guest.rsvp_status === "attended") {
-      QRCode.toDataURL(`${window.location.origin}/i/${guest.token}`, { width: 320, margin: 2, color: { dark: "#1a1410", light: "#f7f1e6" } }).then(setQr);
-    }
-  }, [guest.rsvp_status, guest.token]);
+    setCompanionNames((prev) => {
+      const next = [...prev];
+      while (next.length < companions) next.push("");
+      return next.slice(0, companions);
+    });
+  }, [companions]);
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      const diff = new Date(event.event_date).getTime() - Date.now();
-      if (diff <= 0) { setCountdown("بدأت الفعالية"); return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      setCountdown(`${d} يوم · ${h} ساعة · ${m} دقيقة`);
-    }, 30000);
-    return () => clearInterval(t);
-  }, [event.event_date]);
-
-  const deadlineIso = event.template_config?.rsvp_deadline || null;
-  const deadlinePassed = !!deadlineIso && new Date(deadlineIso).getTime() < Date.now();
-
-  const respond = async (status: "accepted" | "declined", noteOverride?: string) => {
-    if (deadlinePassed) {
-      toast.error("انتهت الفترة المحددة لتأكيد الحضور");
-      return;
-    }
+  const respond = async (status: "accepted" | "declined") => {
     setSubmitting(true);
     try {
-      const finalNotes = noteOverride !== undefined ? noteOverride : notes;
-      await submitRsvp({ data: { token: guest.token, status, notes: finalNotes } });
-      setGuest(prev => ({ ...prev, rsvp_status: status, notes: finalNotes }));
-      toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك وإرسال تبريكاتك");
+      const payload: { token: string; status: "accepted" | "declined"; notes: string; companions_count?: number; companion_names?: string[] } = {
+        token: guest.token,
+        status,
+        notes: status === "declined" ? wishes.trim() : notes,
+      };
+      if (status === "accepted") {
+        payload.companions_count = companions;
+        payload.companion_names = companionNames.map((s) => s.trim()).filter(Boolean);
+      }
+      const r = await submitRsvp({ data: payload });
+      setGuest((prev) => ({ ...prev, ...r } as typeof prev));
+      toast.success(status === "accepted" ? "شكراً لقبول الدعوة" : "تم تسجيل اعتذارك، شكراً لكلماتك");
+      setMode(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -196,193 +136,246 @@ function GuestPage() {
     title: event.name,
     description: event.description || "",
     location: event.location || "",
-    start: new Date(event.event_date),
+    start: new Date(startMs),
+    durationHours: Math.max(1, Math.round((endMs - startMs) / 3600000)),
   });
 
   const accepted = guest.rsvp_status === "accepted" || guest.rsvp_status === "attended";
   const declined = guest.rsvp_status === "declined";
-
-  const accent = event.template_config?.accent_color || "#c9a24a";
+  const fullName = guest.title ? `${guest.title} ${guest.name}` : guest.name;
 
   return (
     <div
       dir="rtl"
-      className={`relative min-h-screen overflow-hidden px-3 py-6 sm:px-4 sm:py-10 ${pageBg ? "" : "bg-gradient-to-b from-[#1a1410] via-[#2a1f17] to-[#0f0a07]"}`}
-      style={{ ["--lux-accent" as string]: accent, ...(pageBg ? { background: pageBg } : {}) } as React.CSSProperties}
+      className="relative min-h-screen overflow-x-hidden"
+      style={{
+        background: `linear-gradient(180deg, ${bgColor} 0%, ${surface2} 60%, ${bgColor} 100%)`,
+        color: textColor,
+      }}
     >
-      {/* Ambient glow */}
-      <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-30" style={{ background: accent }} />
-      <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full blur-3xl opacity-20" style={{ background: accent }} />
+      <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-20" style={{ background: accent }} />
 
-      {/* Floating audio toggle */}
-      <button
-        type="button"
-        onClick={toggleAudio}
-        aria-label={audioOn ? "إيقاف الموسيقى" : "تشغيل الموسيقى"}
-        className="fixed bottom-5 left-5 z-30 grid h-12 w-12 place-items-center rounded-full border border-gold/40 bg-black/60 text-gold shadow-xl backdrop-blur transition hover:scale-105"
-      >
-        {audioOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-      </button>
-      {/* Hidden audio sources controlled by the floating toggle */}
-      {audioCfg?.mode === "youtube" && ytId ? (
-        <iframe
-          ref={ytRef}
-          title="bg-audio"
-          width="1" height="1"
-          allow="autoplay; encrypted-media"
-          style={{ position: "fixed", inset: 0, opacity: 0, pointerEvents: "none", width: 1, height: 1 }}
-          src=""
-        />
-      ) : (audioCfg?.mode === "url" || audioCfg?.mode === "file") ? (
-        <audio ref={audioElRef} preload="auto" playsInline />
-      ) : null}
-
-      {/* Screenshot guard overlay */}
-      {screenHidden ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/80 backdrop-blur-2xl">
-          <div className="text-center text-gold">
-            <p className="font-display text-2xl font-bold">الدعوة مخفية</p>
-            <p className="mt-2 text-sm text-white/70">عُد إلى الصفحة لعرض دعوتك</p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className={`relative mx-auto max-w-2xl space-y-5 ${screenHidden ? "screenshot-guard" : ""}`}>
-        <div className="lux-fade-up [animation-delay:0ms]">
-        <InvitationCard
-          config={event.template_config}
-          eventName={event.name}
-          eventDate={event.event_date}
-          location={event.location}
-          guestName={guest.title ? `${guest.title} ${guest.name}` : guest.name}
-        />
-        </div>
-
-        <Card className="lux-fade-up border-gold/30 bg-black/30 p-6 text-center backdrop-blur [animation-delay:120ms]">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">يبدأ خلال</p>
-          <p className="mt-3 font-display text-3xl font-bold text-gold">{countdown}</p>
-        </Card>
-
-        {guest.companions_count > 0 ? (
-          <Card className="lux-fade-up flex items-center justify-between gap-3 border-gold/30 bg-black/30 p-4 backdrop-blur [animation-delay:200ms]">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full gold-gradient text-primary-foreground">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs text-white/60">عدد المرافقين المخصّص لك</p>
-                <p className="font-display text-lg font-bold text-white">{guest.companions_count}</p>
-              </div>
+      <div className="mx-auto max-w-xl space-y-6 px-4 py-8 sm:py-12">
+        {/* ====== Section 1: Invitation image ====== */}
+        <section className="animate-fade-in">
+          {tc.invitation_image_url ? (
+            <img
+              src={tc.invitation_image_url}
+              alt={event.name}
+              className="block h-auto w-full rounded-3xl shadow-2xl"
+              style={{ border: `1px solid ${cardBorder}` }}
+            />
+          ) : (
+            <div className="grid aspect-[3/4] place-items-center rounded-3xl border border-dashed text-center" style={{ borderColor: cardBorder }}>
+              <p className="font-display text-2xl">{event.name}</p>
             </div>
-            <Badge variant="outline" className="border-gold/50 text-xs text-gold">من قِبَل المضيف</Badge>
-          </Card>
-        ) : null}
+          )}
+          <p className="mt-4 text-center text-sm" style={{ color: softText }}>
+            دعوة موجّهة إلى <span className="font-bold" style={{ color: accent }}>{fullName}</span>
+          </p>
+        </section>
 
-        {safeHttpUrl(event.location_url) ? (
-          <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer" className="lux-fade-up block [animation-delay:260ms]">
-            <Button variant="outline" className="w-full"><MapPin className="ms-2 h-4 w-4" /> فتح الموقع على الخريطة</Button>
-          </a>
-        ) : null}
-
-        {!accepted && !declined && !deadlinePassed ? (
-          <Card className="lux-fade-up border-gold/30 bg-black/40 p-6 text-white backdrop-blur [animation-delay:320ms]">
-            <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
-            <div className="space-y-4">
-              {!showDeclineBox ? (
-                <>
-                  <div>
-                    <Label>ملاحظات خاصة (اختياري — احتياجات غذائية، إعاقة…)</Label>
-                    <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="bg-white/5 text-white" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button onClick={() => respond("accepted")} disabled={submitting} className="gold-gradient text-primary-foreground"><Check className="ms-2 h-4 w-4" /> أقبل الدعوة</Button>
-                    <Button onClick={() => setShowDeclineBox(true)} disabled={submitting} variant="outline" className="border-gold/40 text-white hover:bg-white/10"><X className="ms-2 h-4 w-4" /> أعتذر</Button>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4 rounded-2xl border border-gold/40 bg-black/30 p-5">
-                  <div className="text-center">
-                    <p className="font-display text-lg font-bold text-gold">صندوق التبريكات والتهاني</p>
-                    <p className="mt-1 text-xs text-white/70">شاركنا كلمة تبريك أو اعتذار رقيق — سيراها أصحاب المناسبة.</p>
-                  </div>
-                  <Textarea
-                    rows={4}
-                    value={wishes}
-                    onChange={e => setWishes(e.target.value.slice(0, 500))}
-                    placeholder="مبارك لكم… دامت الأفراح…"
-                    className="bg-white/5 text-right text-white"
-                  />
-                  <p className="text-left text-[11px] text-white/60">{wishes.length}/500</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button variant="ghost" onClick={() => setShowDeclineBox(false)} disabled={submitting} className="text-white hover:bg-white/10">رجوع</Button>
-                    <Button
-                      onClick={() => respond("declined", wishes.trim())}
-                      disabled={submitting}
-                      className="gold-gradient text-primary-foreground"
-                    >
-                      إرسال الاعتذار والتبريكات
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        ) : !accepted && !declined && deadlinePassed ? (
-          <Card className="lux-fade-up border-gold/30 bg-black/40 p-6 text-center text-white backdrop-blur">
-            <Clock className="mx-auto h-10 w-10 text-gold" />
-            <p className="mt-3 font-display text-lg font-bold">نعتذر منك</p>
-            <p className="mt-1 text-sm text-white/70">لقد انتهت الفترة المحددة لتأكيد الحضور.</p>
-            {deadlineIso ? <p className="mt-2 text-xs text-white/60">المهلة: {formatArabicDate(deadlineIso)}</p> : null}
-          </Card>
-        ) : (
-          <Card className="lux-fade-up border-gold/30 bg-black/40 p-6 text-center text-white backdrop-blur [animation-delay:320ms]">
-            <Badge style={{ background: RSVP_COLORS[guest.rsvp_status], color: "#fff" }}>{RSVP_LABELS[guest.rsvp_status]}</Badge>
-            <p className="mt-3 text-white/70">{accepted ? "نتشرف بحضورك" : "نشكر تواصلك"}</p>
-            {accepted ? (
+        {/* ====== Section 2: Smart timer ====== */}
+        <section className="animate-fade-in">
+          <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
+            {phase === "before" ? (
               <>
-                <p className="mt-6 text-xs uppercase tracking-[0.3em] text-white/50">إضافة إلى التقويم</p>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <a
-                    href={cal.google}
-                    target="_blank"
-                    rel="noreferrer"
-                    dir="ltr"
-                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 text-[14px] font-medium leading-none text-[#3c4043] shadow-sm transition hover:bg-[#f8f9fa] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/40"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden className="shrink-0">
-                      <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                      <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                      <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    </svg>
-                    <span className="whitespace-nowrap">Add to Google Calendar</span>
-                  </a>
-                  <a
-                    href={cal.apple}
-                    download={`${event.name}.ics`}
-                    dir="ltr"
-                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/30 bg-black px-4 text-[14px] font-medium leading-none text-white shadow-sm transition hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/30"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
-                      <path d="M16.365 1.43c0 1.14-.49 2.23-1.27 3.03-.83.85-2.18 1.5-3.29 1.41-.13-1.12.43-2.27 1.21-3.05.86-.88 2.31-1.52 3.35-1.39zM20.5 17.46c-.55 1.27-.82 1.84-1.54 2.95-1 1.55-2.41 3.48-4.15 3.5-1.55.02-1.95-1.01-4.06-1-2.11.01-2.55 1.02-4.1 1-1.74-.02-3.07-1.77-4.07-3.32C-.27 17.27-.74 11.86 1.42 8.99c1.5-2.01 3.86-3.18 6.07-3.18 2.27 0 3.69 1.24 5.57 1.24 1.82 0 2.93-1.24 5.55-1.24 1.98 0 4.07 1.08 5.56 2.93-4.89 2.68-4.09 9.66.33 11.72z"/>
-                    </svg>
-                    <span className="whitespace-nowrap">Add to Apple Calendar</span>
-                  </a>
-                </div>
-                {qr ? (
-                  <div className="mt-6">
-                    <p className="mb-2 text-sm text-white/70">رمز الدخول الخاص بك</p>
-                    <div className="mx-auto inline-block overflow-hidden rounded-xl ring-2 ring-gold/40">
-                      <img src={qr} alt="QR" className="block" />
+                <p className="text-xs uppercase tracking-[0.3em]" style={{ color: softText }}>متبقي على بداية الحفل</p>
+                <div dir="ltr" className="mt-4 grid grid-cols-4 gap-2 text-center">
+                  {[
+                    { v: cd.d, l: "يوم" },
+                    { v: cd.h, l: "ساعة" },
+                    { v: cd.m, l: "دقيقة" },
+                    { v: cd.s, l: "ثانية" },
+                  ].map((u, i) => (
+                    <div key={i} className="rounded-xl py-2" style={{ background: accent + "1f", border: `1px solid ${accent}33` }}>
+                      <p className="font-display text-2xl font-bold tabular-nums" style={{ color: accent }}>{toArabicDigits(String(u.v).padStart(2, "0"))}</p>
+                      <p className="text-[10px]" style={{ color: softText }}>{u.l}</p>
                     </div>
+                  ))}
+                </div>
+              </>
+            ) : phase === "during" ? (
+              <p className="font-display text-2xl font-bold" style={{ color: accent }}>بدأ الحفل الآن .. أهلاً ومرحباً بكم</p>
+            ) : (
+              <p className="font-display text-2xl font-bold" style={{ color: accent }}>انتهى الحفل .. شكراً للحضور</p>
+            )}
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm" style={{ color: softText }}>
+              <div className="rounded-lg p-2" style={{ background: accent + "12" }}>
+                <p className="text-[10px]">يبدأ</p>
+                <p className="font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(startMs))}</p>
+              </div>
+              <div className="rounded-lg p-2" style={{ background: accent + "12" }}>
+                <p className="text-[10px]">ينتهي</p>
+                <p className="font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(endMs))}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs" style={{ color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
+          </Card>
+        </section>
+
+        {/* ====== Section 3: Location ====== */}
+        {event.location || event.location_url ? (
+          <section className="animate-fade-in">
+            <Card className="border p-5" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-full" style={{ background: accent, color: surface }}>
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs" style={{ color: softText }}>موقع الحفل</p>
+                  <p className="truncate font-display text-base font-bold">{event.location || "—"}</p>
+                </div>
+              </div>
+              {safeHttpUrl(event.location_url) ? (
+                <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer" className="mt-4 block">
+                  <Button className="w-full" style={{ background: accent, color: surface }}>
+                    <MapPin className="ms-2 h-4 w-4" /> فتح الموقع على الخريطة
+                  </Button>
+                </a>
+              ) : null}
+            </Card>
+          </section>
+        ) : null}
+
+        {/* ====== Section 4: RSVP ====== */}
+        <section className="animate-fade-in">
+          <Card className="border p-6" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
+            {accepted || declined ? (
+              <div className="text-center">
+                <Badge style={{ background: RSVP_COLORS[guest.rsvp_status], color: "#fff" }}>{RSVP_LABELS[guest.rsvp_status]}</Badge>
+                <p className="mt-3" style={{ color: softText }}>{accepted ? "نتشرف بحضورك" : "نشكر تواصلك"}</p>
+
+                {accepted && phase !== "after" ? (
+                  <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <a href={cal.google} target="_blank" rel="noreferrer" dir="ltr"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 text-[14px] font-medium leading-none text-[#3c4043] shadow-sm transition hover:bg-[#f8f9fa]">
+                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden className="shrink-0">
+                        <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                        <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                        <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                      </svg>
+                      <span className="whitespace-nowrap">Add to Google Calendar</span>
+                    </a>
+                    <a href={cal.apple} download={`${event.name}.ics`} dir="ltr"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-black px-4 text-[14px] font-medium leading-none text-white shadow-sm transition hover:bg-neutral-900">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
+                        <path d="M16.365 1.43c0 1.14-.49 2.23-1.27 3.03-.83.85-2.18 1.5-3.29 1.41-.13-1.12.43-2.27 1.21-3.05.86-.88 2.31-1.52 3.35-1.39zM20.5 17.46c-.55 1.27-.82 1.84-1.54 2.95-1 1.55-2.41 3.48-4.15 3.5-1.55.02-1.95-1.01-4.06-1-2.11.01-2.55 1.02-4.1 1-1.74-.02-3.07-1.77-4.07-3.32C-.27 17.27-.74 11.86 1.42 8.99c1.5-2.01 3.86-3.18 6.07-3.18 2.27 0 3.69 1.24 5.57 1.24 1.82 0 2.93-1.24 5.55-1.24 1.98 0 4.07 1.08 5.56 2.93-4.89 2.68-4.09 9.66.33 11.72z" />
+                      </svg>
+                      <span className="whitespace-nowrap">Add to Apple Calendar</span>
+                    </a>
                   </div>
                 ) : null}
-              </>
-            ) : null}
-          </Card>
-        )}
 
-        <p className="lux-fade-up text-center text-xs text-white/60 [animation-delay:420ms]">تاريخ الفعالية: {formatArabicDate(event.event_date)}</p>
+                {accepted && (guest.companion_names?.length ?? 0) > 0 ? (
+                  <div className="mt-4 rounded-lg p-3 text-right" style={{ background: accent + "18" }}>
+                    <p className="text-xs" style={{ color: softText }}>المرافقون ({toArabicDigits(guest.companion_names!.length)})</p>
+                    <ul className="mt-1 space-y-1 text-sm">
+                      {guest.companion_names!.map((n, i) => <li key={i}>• {n || "—"}</li>)}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : phase === "after" ? (
+              <p className="text-center" style={{ color: softText }}>انتهى الحفل، لم يعد بالإمكان تأكيد الحضور.</p>
+            ) : mode === null ? (
+              <div>
+                <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: surface }}>
+                    <Check className="ms-2 h-4 w-4" /> حضور
+                  </Button>
+                  <Button onClick={() => setMode("decline")} variant="outline" style={{ borderColor: accent, color: textColor, background: "transparent" }}>
+                    <X className="ms-2 h-4 w-4" /> اعتذار
+                  </Button>
+                </div>
+              </div>
+            ) : mode === "accept" ? (
+              <div className="space-y-4">
+                <h2 className="text-center font-display text-xl font-bold">تأكيد الحضور</h2>
+                <div>
+                  <Label>ملاحظات (اختياري)</Label>
+                  <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-white/10" style={{ color: textColor }} />
+                </div>
+                {maxCompanions > 0 ? (
+                  <div className="space-y-3 rounded-xl border p-3" style={{ borderColor: cardBorder, background: accent + "10" }}>
+                    <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: accent }} /><Label>هل يوجد مرافقون؟</Label></div>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={maxCompanions}
+                      value={companions}
+                      onChange={(e) => {
+                        const n = Math.max(0, Math.min(maxCompanions, parseInt(e.target.value || "0", 10) || 0));
+                        setCompanions(n);
+                      }}
+                      className="bg-white/10"
+                      style={{ color: textColor }}
+                    />
+                    <p className="text-xs" style={{ color: softText }}>الحد الأقصى المسموح به: {toArabicDigits(maxCompanions)}</p>
+                    {companions > 0 ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: companions }, (_, i) => (
+                          <Input
+                            key={i}
+                            value={companionNames[i] ?? ""}
+                            onChange={(e) => {
+                              const next = [...companionNames];
+                              next[i] = e.target.value;
+                              setCompanionNames(next);
+                            }}
+                            placeholder={`اسم المرافق ${toArabicDigits(i + 1)}`}
+                            className="bg-white/10"
+                            style={{ color: textColor }}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
+                  <Button onClick={() => respond("accepted")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>تأكيد الحضور</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-center font-display text-xl font-bold">رسالة التهنئة والاعتذار</h2>
+                <p className="text-center text-xs" style={{ color: softText }}>شاركنا كلمة بسيطة — سيراها أصحاب المناسبة.</p>
+                <Textarea
+                  rows={5}
+                  value={wishes}
+                  onChange={(e) => setWishes(e.target.value.slice(0, 500))}
+                  placeholder="مبارك لكم… دامت الأفراح…"
+                  className="bg-white/10"
+                  style={{ color: textColor }}
+                />
+                <p className="text-left text-[11px]" style={{ color: softText }}>{toArabicDigits(wishes.length)}/{toArabicDigits(500)}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
+                  <Button onClick={() => respond("declined")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>إرسال</Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </section>
+
+        {/* ====== Section 5: QR ====== */}
+        {qr && !declined && phase !== "after" ? (
+          <section className="animate-fade-in">
+            <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
+              <p className="mb-3 text-xs uppercase tracking-[0.3em]" style={{ color: softText }}>رمز الدخول الخاص بك</p>
+              <div className="mx-auto inline-block overflow-hidden rounded-xl" style={{ boxShadow: `0 0 0 4px ${accent}55` }}>
+                <img src={qr} alt="QR" className="block" />
+              </div>
+              {guest.companions_count > 0 ? (
+                <p className="mt-3 text-xs" style={{ color: softText }}>هذا الرمز يخصّك ومجموعتك ({toArabicDigits(guest.companions_count + 1)} أشخاص)</p>
+              ) : null}
+            </Card>
+          </section>
+        ) : null}
+
       </div>
     </div>
   );

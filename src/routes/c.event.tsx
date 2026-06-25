@@ -21,7 +21,7 @@ export const Route = createFileRoute("/c/event")({
   component: CoordinatorEvent,
 });
 
-type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
+type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; companion_names?: string[]; attended_count?: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
 type EventLite = { id: string; name: string; event_type: string; event_date: string; location: string | null };
 
 function CoordinatorEvent() {
@@ -145,6 +145,24 @@ function CoordinatorEvent() {
     }
   }, [session, event]);
 
+  const checkInPartial = useCallback(async (g: Guest) => {
+    if (!session) return;
+    if (g.rsvp_status === "declined" || g.rsvp_status === "attended") return;
+    const groupSize = (g.companions_count ?? 0) + 1;
+    const raw = window.prompt(`أدخل عدد الحضور الفعلي من المجموعة (الحد الأقصى: ${groupSize})`, String(groupSize));
+    if (!raw) return;
+    const n = Math.max(1, Math.min(groupSize, parseInt(raw, 10) || groupSize));
+    const stamp = new Date().toISOString();
+    setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: stamp, attended_count: n } : x));
+    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: stamp });
+    try {
+      await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, attended_count: n } });
+      toast.success(`تم تسجيل ${n} من أصل ${groupSize}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر التسجيل");
+    }
+  }, [session, event]);
+
   const toggleNoteSeen = useCallback(async (g: Guest) => {
     if (!session) return;
     const next = !g.notes_seen_at;
@@ -262,10 +280,15 @@ function CoordinatorEvent() {
                         ) : "—"}
                       </TableCell>
                       <TableCell className="text-left">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Button size="sm" variant={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "outline" : "default"} disabled={g.rsvp_status === "attended" || g.rsvp_status === "declined"} onClick={() => checkInGuest(g)} className={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "" : "gold-gradient text-primary-foreground"}>
-                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? "حضر" : g.rsvp_status === "declined" ? "معتذر" : "تسجيل"}
+                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? `حضر${g.attended_count ? ` (${g.attended_count}/${(g.companions_count ?? 0) + 1})` : ""}` : g.rsvp_status === "declined" ? "معتذر" : "كامل"}
                           </Button>
+                          {g.rsvp_status !== "attended" && g.rsvp_status !== "declined" && (g.companions_count ?? 0) > 0 ? (
+                            <Button size="sm" variant="outline" onClick={() => checkInPartial(g)} title="دخول مجزأ">
+                              <Users className="ms-1 h-3 w-3" /> مجزأ
+                            </Button>
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -426,6 +449,17 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
           <div className="rounded-xl border border-primary/40 p-4 text-center">
             <p className="font-display text-xl font-bold">{last.title ? `${last.title} ` : ""}{last.name}</p>
             <p className="mt-1 text-sm">المرافقون: <span className="font-bold text-gold">{last.companions_count}</span></p>
+            {last.companion_names && last.companion_names.length > 0 ? (
+              <div className="mt-3 rounded-lg border border-gold/30 bg-gold/5 p-3 text-right text-sm">
+                <Label className="text-xs">أسماء المرافقين</Label>
+                <ul className="mt-1 space-y-0.5 text-foreground/90">
+                  {last.companion_names.map((n, i) => <li key={i}>• {n || "—"}</li>)}
+                </ul>
+              </div>
+            ) : null}
+            {last.attended_count != null ? (
+              <p className="mt-2 text-xs text-muted-foreground">عدد من دخل من المجموعة: <span className="font-bold text-foreground">{last.attended_count}</span> / {(last.companions_count ?? 0) + 1}</p>
+            ) : null}
             {last.notes && last.rsvp_status !== "declined" ? (
               <div className="mt-3 rounded-lg bg-muted/40 p-3 text-right text-sm">
                 <Label className="text-xs">ملاحظات الضيف (قراءة فقط)</Label>

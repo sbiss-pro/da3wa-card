@@ -9,7 +9,7 @@ export const getInvitation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: guest, error: gErr } = await supabaseAdmin
       .from("guests")
-      .select("id,token,name,title,rsvp_status,companions_count,notes,event_id")
+      .select("id,token,name,title,rsvp_status,companions_count,companion_names,notes,event_id")
       .eq("token", data.token)
       .maybeSingle();
     if (gErr) {
@@ -33,6 +33,8 @@ const rsvpSchema = z.object({
   token: z.string().min(8).max(64),
   status: z.enum(["accepted", "declined"]),
   notes: z.string().max(500).optional().nullable(),
+  companions_count: z.number().int().min(0).max(11).optional(),
+  companion_names: z.array(z.string().trim().max(80)).max(11).optional(),
 });
 
 export const submitRsvp = createServerFn({ method: "POST" })
@@ -52,24 +54,36 @@ export const submitRsvp = createServerFn({ method: "POST" })
       .select("template_config")
       .eq("id", existing.event_id)
       .maybeSingle();
-    const deadline = (ev?.template_config as { rsvp_deadline?: string | null } | null)?.rsvp_deadline;
+    const tc = (ev?.template_config ?? {}) as { rsvp_deadline?: string | null; event_end_date?: string | null; max_companions?: number };
+    const deadline = tc.rsvp_deadline || tc.event_end_date;
     if (deadline && new Date(deadline).getTime() < Date.now()) {
       throw new Error("انتهت الفترة المحددة لتأكيد الحضور");
     }
-    // Snapshot the guest's original selection only the first time the guest
-    // submits — preserves their initial choice for the override-history UI.
+    const maxC = Math.max(0, Math.min(11, tc.max_companions ?? 0));
+    let comps = data.companions_count ?? 0;
+    if (comps > maxC) comps = maxC;
+    if (comps < 0) comps = 0;
+    const names = (data.companion_names ?? []).slice(0, comps).map((s) => s.trim()).filter(Boolean);
     const patch: {
       rsvp_status: string;
       notes: string | null;
+      companions_count?: number;
+      companion_names?: string[];
       original_rsvp_status?: string;
       original_companions_count?: number;
       status_overridden_by_host?: boolean;
     } = {
       rsvp_status: data.status,
       notes: data.notes ? data.notes : null,
-      // Guest is the source of truth when they submit — clear any host override flag.
       status_overridden_by_host: false,
     };
+    if (data.status === "accepted") {
+      patch.companions_count = comps;
+      patch.companion_names = names;
+    } else {
+      patch.companions_count = 0;
+      patch.companion_names = [];
+    }
     if (!existing.original_rsvp_status) {
       patch.original_rsvp_status = data.status;
       patch.original_companions_count = existing.companions_count ?? 0;
@@ -78,7 +92,7 @@ export const submitRsvp = createServerFn({ method: "POST" })
       .from("guests")
       .update(patch)
       .eq("token", data.token)
-      .select("id,token,name,title,rsvp_status,companions_count,notes,event_id")
+      .select("id,token,name,title,rsvp_status,companions_count,companion_names,notes,event_id")
       .maybeSingle();
     if (error) {
       console.error("[submitRsvp] update failed", error);
