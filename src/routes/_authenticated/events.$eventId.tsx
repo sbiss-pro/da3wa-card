@@ -216,6 +216,27 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
             <div className="space-y-2"><Label>النص</Label><Input type="color" value={cfg.text_color || "#1a1410"} onChange={e => setCfg({ ...cfg, text_color: e.target.value })} /></div>
             <div className="space-y-2"><Label>اللون المميز</Label><Input type="color" value={cfg.accent_color || "#c9a24a"} onChange={e => setCfg({ ...cfg, accent_color: e.target.value })} /></div>
           </div>
+          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+            <Label>لون خلفية صفحة الدعوة (المنطقة المحيطة بالبطاقة)</Label>
+            <div className="flex items-center gap-2">
+              <Input type="color" value={cfg.page_bg || "#1a1410"} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} className="h-10 w-16 p-1" />
+              <Input value={cfg.page_bg || ""} onChange={e => setCfg({ ...cfg, page_bg: e.target.value })} placeholder="مثال: #1a1410 أو linear-gradient(...)" dir="ltr" />
+              {cfg.page_bg ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, page_bg: "" })}>إعادة</Button>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">يُطبَّق على كامل الصفحة الخارجية لرابط الدعوة، وليس داخل البطاقة.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>نص العنوان العلوي</Label>
+              <Input value={cfg.intro_label ?? ""} onChange={e => setCfg({ ...cfg, intro_label: e.target.value })} placeholder="دعوة كريمة" />
+            </div>
+            <div className="space-y-2">
+              <Label>عبارة الترحيب قبل اسم المدعو</Label>
+              <Input value={cfg.greeting_prefix ?? ""} onChange={e => setCfg({ ...cfg, greeting_prefix: e.target.value })} placeholder="يسرّنا دعوتك يا" />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>الخط</Label>
             <Select value={cfg.font || "amiri"} onValueChange={v => setCfg({ ...cfg, font: v })}>
@@ -1548,7 +1569,9 @@ function AudioControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: Templ
   const clear = () => setCfg({ ...cfg, audio: null });
 
   const onFile = (f: File) => {
-    if (!/^audio\//.test(f.type)) { toast.error("صيغة الملف يجب أن تكون صوتية (MP3/WAV)"); return; }
+    const okExt = /\.(mp3|wav|m4a|aac|ogg|oga|flac)$/i.test(f.name);
+    const okType = !f.type || /^audio\//.test(f.type) || f.type === "application/octet-stream";
+    if (!okExt && !okType) { toast.error("صيغة الملف يجب أن تكون صوتية (MP3/WAV/M4A)"); return; }
     if (f.size > 4 * 1024 * 1024) { toast.error("حجم الملف كبير جداً (الحد الأقصى 4MB)"); return; }
     const reader = new FileReader();
     reader.onload = () => setCfg({ ...cfg, audio: { mode: "file", src: String(reader.result || "") } });
@@ -1577,7 +1600,13 @@ function AudioControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: Templ
         <Input value={audio.src} onChange={e => setSrc(e.target.value)} placeholder="https://example.com/song.mp3" dir="ltr" />
       ) : audio?.mode === "file" ? (
         <div className="space-y-2">
-          <input ref={inputRef} type="file" accept="audio/*" hidden onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+          <input
+            ref={inputRef}
+            type="file"
+            accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/x-m4a,audio/*,.mp3,.wav,.m4a,.aac"
+            hidden
+            onChange={e => e.target.files?.[0] && onFile(e.target.files[0])}
+          />
           <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
             <Upload className="ms-1 h-3 w-3" /> اختيار ملف MP3/WAV
           </Button>
@@ -1586,6 +1615,16 @@ function AudioControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: Templ
       ) : (
         <p className="text-xs text-muted-foreground">اختر مصدر الصوت لربطه بأيقونة التشغيل في بطاقة الضيف.</p>
       )}
+      <div className="flex items-center justify-between rounded-lg border border-border bg-background p-2">
+        <div>
+          <p className="text-sm font-medium">وضع الصوت عند فتح الصفحة</p>
+          <p className="text-xs text-muted-foreground">{cfg.audio_default === "unmuted" ? "تشغيل تلقائي (مع أول لمسة إذا منع المتصفح ذلك)" : "مكتوم — يبدأ عند ضغط زر الصوت"}</p>
+        </div>
+        <Switch
+          checked={cfg.audio_default === "unmuted"}
+          onCheckedChange={(v) => setCfg({ ...cfg, audio_default: v ? "unmuted" : "muted" })}
+        />
+      </div>
     </div>
   );
 }

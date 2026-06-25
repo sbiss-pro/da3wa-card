@@ -29,6 +29,12 @@ export type TemplateConfig = {
     mode: "youtube" | "url" | "file";
     src: string;
   } | null;
+  audio_default?: "muted" | "unmuted";
+  // Outer page background (the area around the card on the guest invitation page)
+  page_bg?: string;
+  // Editable static labels rendered on the card
+  intro_label?: string;       // e.g. "دعوة كريمة"
+  greeting_prefix?: string;   // e.g. "يسرّنا دعوتك يا"
 };
 
 const FONT_MAP: Record<string, string> = {
@@ -80,7 +86,7 @@ export function InvitationCard({
       <div className={`relative px-6 py-12 sm:px-8 ${sizeClass}`} style={{ textAlign: align, color: blurredBg ? "#fff" : text }}>
         <div className="mx-auto mb-6 h-px w-20" style={{ background: accent }} />
         <p className="text-sm tracking-widest uppercase" style={{ color: accent }}>
-          دعوة كريمة
+          {config.intro_label ?? "دعوة كريمة"}
         </p>
         <h1
           className="mt-3 font-bold leading-tight"
@@ -102,7 +108,7 @@ export function InvitationCard({
                 : "clamp(1rem, 3.6vw, 1.2rem)",
             }}
           >
-            يسرّنا دعوتك يا <span className="font-bold" style={{ color: accent }}>{guestName}</span>
+            {config.greeting_prefix ?? "يسرّنا دعوتك يا"} <span className="font-bold" style={{ color: accent }}>{guestName}</span>
           </p>
         ) : null}
         {config.custom_message ? (
