@@ -496,7 +496,14 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                   <TableCell className="font-medium">{name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground" dir="ltr">{g.phone || "—"}</TableCell>
                   <TableCell className="text-sm tabular-nums">{g.companions_count || 0}</TableCell>
-                  <TableCell><Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Badge style={{ background: RSVP_COLORS[g.rsvp_status], color: "#fff" }}>{RSVP_LABELS[g.rsvp_status]}</Badge>
+                      {g.status_overridden_by_host ? (
+                        <span className="text-[10px] text-muted-foreground" title="تم التعديل من قِبل المنظم">(معدل)</span>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(inviteUrl(g.token)); toast.success("تم النسخ"); }}>
