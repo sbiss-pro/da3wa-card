@@ -47,11 +47,13 @@ function GuestPage() {
   const ytRef = useRef<HTMLIFrameElement | null>(null);
 
   const audioCfg = event.template_config?.audio || null;
+  const autoplayDefault = (event.template_config?.audio_default || "muted") === "unmuted";
   const ytId = (() => {
     if (audioCfg?.mode !== "youtube" || !audioCfg.src) return "";
-    const m = audioCfg.src.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{6,})/);
+    const m = audioCfg.src.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/)([\w-]{6,})/);
     return m ? m[1] : "";
   })();
+  const pageBg = event.template_config?.page_bg || "";
 
   // Screenshot protection — blur whenever the tab/app loses focus or visibility changes.
   useEffect(() => {
@@ -76,17 +78,19 @@ function GuestPage() {
       if (audioCfg && audioCfg.src) {
         if (audioOn) {
           if (audioElRef.current) { audioElRef.current.pause(); }
-          if (ytRef.current) { ytRef.current.src = ""; }
+          if (ytRef.current) { ytRef.current.src = "about:blank"; }
           setAudioOn(false);
           return;
         }
         if (audioCfg.mode === "youtube" && ytId) {
           if (ytRef.current) {
-            ytRef.current.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0`;
+            ytRef.current.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&loop=1&playlist=${ytId}&controls=0&playsinline=1&rel=0&modestbranding=1`;
           }
         } else if (audioElRef.current) {
-          audioElRef.current.src = audioCfg.src;
+          if (!audioElRef.current.src) audioElRef.current.src = audioCfg.src;
           audioElRef.current.loop = true;
+          audioElRef.current.muted = false;
+          audioElRef.current.volume = 1;
           await audioElRef.current.play();
         }
         setAudioOn(true);
@@ -122,6 +126,32 @@ function GuestPage() {
     }
   };
   useEffect(() => () => { audioCtxRef.current?.ctx.close(); }, []);
+
+  // Attempt autoplay on first user interaction (browsers block silent autoplay).
+  useEffect(() => {
+    if (!autoplayDefault || !audioCfg?.src) return;
+    let done = false;
+    const tryPlay = () => {
+      if (done) return;
+      done = true;
+      toggleAudio();
+      window.removeEventListener("pointerdown", tryPlay);
+      window.removeEventListener("keydown", tryPlay);
+      window.removeEventListener("touchstart", tryPlay);
+    };
+    // First, attempt direct autoplay (works on some browsers when the page has been interacted with already)
+    const t = setTimeout(() => { tryPlay(); }, 400);
+    window.addEventListener("pointerdown", tryPlay, { once: true });
+    window.addEventListener("keydown", tryPlay, { once: true });
+    window.addEventListener("touchstart", tryPlay, { once: true });
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", tryPlay);
+      window.removeEventListener("keydown", tryPlay);
+      window.removeEventListener("touchstart", tryPlay);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplayDefault, audioCfg?.src]);
 
   useEffect(() => {
     if (guest.rsvp_status === "accepted" || guest.rsvp_status === "attended") {
@@ -177,8 +207,8 @@ function GuestPage() {
   return (
     <div
       dir="rtl"
-      className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#1a1410] via-[#2a1f17] to-[#0f0a07] px-3 py-6 sm:px-4 sm:py-10"
-      style={{ ["--lux-accent" as string]: accent } as React.CSSProperties}
+      className={`relative min-h-screen overflow-hidden px-3 py-6 sm:px-4 sm:py-10 ${pageBg ? "" : "bg-gradient-to-b from-[#1a1410] via-[#2a1f17] to-[#0f0a07]"}`}
+      style={{ ["--lux-accent" as string]: accent, ...(pageBg ? { background: pageBg } : {}) } as React.CSSProperties}
     >
       {/* Ambient glow */}
       <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-30" style={{ background: accent }} />
@@ -312,20 +342,31 @@ function GuestPage() {
               <>
                 <p className="mt-6 text-xs uppercase tracking-[0.3em] text-white/50">إضافة إلى التقويم</p>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <a href={cal.google} target="_blank" rel="noreferrer" className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white text-[14px] font-medium text-[#3c4043] shadow-sm transition hover:bg-[#f8f9fa]">
-                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+                  <a
+                    href={cal.google}
+                    target="_blank"
+                    rel="noreferrer"
+                    dir="ltr"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 text-[14px] font-medium leading-none text-[#3c4043] shadow-sm transition hover:bg-[#f8f9fa] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/40"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden className="shrink-0">
                       <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                       <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
                       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                       <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                     </svg>
-                    إضافة إلى Google
+                    <span className="whitespace-nowrap">Add to Google Calendar</span>
                   </a>
-                  <a href={cal.apple} download={`${event.name}.ics`} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black text-[14px] font-medium text-white shadow-sm transition hover:bg-neutral-800">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <a
+                    href={cal.apple}
+                    download={`${event.name}.ics`}
+                    dir="ltr"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/30 bg-black px-4 text-[14px] font-medium leading-none text-white shadow-sm transition hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/30"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
                       <path d="M16.365 1.43c0 1.14-.49 2.23-1.27 3.03-.83.85-2.18 1.5-3.29 1.41-.13-1.12.43-2.27 1.21-3.05.86-.88 2.31-1.52 3.35-1.39zM20.5 17.46c-.55 1.27-.82 1.84-1.54 2.95-1 1.55-2.41 3.48-4.15 3.5-1.55.02-1.95-1.01-4.06-1-2.11.01-2.55 1.02-4.1 1-1.74-.02-3.07-1.77-4.07-3.32C-.27 17.27-.74 11.86 1.42 8.99c1.5-2.01 3.86-3.18 6.07-3.18 2.27 0 3.69 1.24 5.57 1.24 1.82 0 2.93-1.24 5.55-1.24 1.98 0 4.07 1.08 5.56 2.93-4.89 2.68-4.09 9.66.33 11.72z"/>
                     </svg>
-                    إضافة إلى Apple
+                    <span className="whitespace-nowrap">Add to Apple Calendar</span>
                   </a>
                 </div>
                 {qr ? (
