@@ -119,7 +119,7 @@ function EventDetails() {
         </div>
 
         <TabsContent value="builder" className="mt-6">
-          <BuilderTab event={event} onSaved={load} />
+          <BuilderTab event={event} onSaved={load} guests={guests} inviteUrl={inviteUrl} />
         </TabsContent>
         <TabsContent value="guests" className="mt-6">
           <GuestsTab event={event} guests={guests} reload={load} inviteUrl={inviteUrl} />
@@ -150,7 +150,7 @@ function EventDetails() {
 }
 
 /* ---------------- Builder ---------------- */
-function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
+function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; onSaved: () => void; guests: Guest[]; inviteUrl: (t: string) => string }) {
   const [cfg, setCfg] = useState<TemplateConfig>(event.template_config || {});
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -280,10 +280,39 @@ function BuilderTab({ event, onSaved }: { event: EventRow; onSaved: () => void }
         </Button>
       </Card>
 
-      <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-sm text-muted-foreground">معاينة الصورة</p>
-        <InvitationCard config={cfg} eventName={event.name} eventDate={event.event_date} location={event.location} guestName="ضيفنا الكريم" />
+      <GuestPagePreview event={event} guests={guests} inviteUrl={inviteUrl} />
+    </div>
+  );
+}
+
+/* ---------------- Guest Page Live Preview ---------------- */
+function GuestPagePreview({ event, guests, inviteUrl }: { event: EventRow; guests: Guest[]; inviteUrl: (t: string) => string }) {
+  const sample = guests[0];
+  const url = sample ? inviteUrl(sample.token) : null;
+  return (
+    <div className="lg:sticky lg:top-24 lg:self-start">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">معاينة كاملة لصفحة المدعو</p>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
+        ) : null}
       </div>
+      {url ? (
+        <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
+          <div className="flex items-center justify-center bg-foreground/5 py-1.5">
+            <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+          </div>
+          <iframe
+            src={url}
+            title="معاينة صفحة المدعو"
+            className="block h-[720px] w-full bg-white"
+          />
+        </div>
+      ) : (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          أضف مدعواً واحداً على الأقل من تبويب «المدعوون» لمشاهدة المعاينة الكاملة لصفحته هنا.
+        </Card>
+      )}
     </div>
   );
 }
@@ -1397,7 +1426,7 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
     [guests],
   );
   const declinedWithWishes = wished.filter(g => g.rsvp_status === "declined");
-  const otherWithNotes = wished.filter(g => g.rsvp_status !== "declined");
+  const attendingWithNotes = wished.filter(g => g.rsvp_status === "accepted" || g.rsvp_status === "attended");
 
   if (wished.length === 0) {
     return (
@@ -1415,14 +1444,17 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
     <div className="space-y-6">
       {declinedWithWishes.length > 0 ? (
         <section>
-          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات ({declinedWithWishes.length})</h3>
+          <h3 className="mb-3 font-display text-lg font-bold">اعتذارات وتبريكات المعتذرين ({declinedWithWishes.length})</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {declinedWithWishes.map(g => {
               const { title, name } = splitTitleName(g.name);
               return (
                 <Card key={g.id} className="relative overflow-hidden border-gold/40 bg-gradient-to-br from-amber-50/40 via-card to-card p-5">
                   <Heart className="absolute -right-3 -top-3 h-16 w-16 rotate-12 text-gold/15" />
-                  <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display text-base font-bold text-gold">{title ? `${title} ` : ""}{name}</p>
+                    {g.phone ? <p className="text-xs tabular-nums text-muted-foreground" dir="ltr">{g.phone}</p> : null}
+                  </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                     {g.notes}
                   </p>
@@ -1432,16 +1464,19 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
           </div>
         </section>
       ) : null}
-      {otherWithNotes.length > 0 ? (
+      {attendingWithNotes.length > 0 ? (
         <section>
-          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني أخرى ({otherWithNotes.length})</h3>
+          <h3 className="mb-3 font-display text-lg font-bold">ملاحظات وتهاني الحاضرين ({attendingWithNotes.length})</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {otherWithNotes.map(g => {
+            {attendingWithNotes.map(g => {
               const { title, name } = splitTitleName(g.name);
               return (
                 <Card key={g.id} className="p-5">
                   <div className="flex items-center justify-between">
-                    <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                    <div>
+                      <p className="font-display text-base font-bold">{title ? `${title} ` : ""}{name}</p>
+                      {g.phone ? <p className="mt-0.5 text-xs tabular-nums text-muted-foreground" dir="ltr">{g.phone}</p> : null}
+                    </div>
                     <Badge variant="outline" className="text-[10px]">{RSVP_LABELS[g.rsvp_status]}</Badge>
                   </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
