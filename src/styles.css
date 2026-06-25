@@ -193,3 +193,27 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-qr-scan { animation: none; }
 }
+
+@keyframes lux-fade-up {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@utility lux-fade-up {
+  animation: lux-fade-up 0.9s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes lux-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility lux-shimmer {
+  background: linear-gradient(110deg, transparent 30%, rgba(201,162,74,0.35) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: lux-shimmer 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lux-fade-up, .lux-shimmer { animation: none; }
+}
+@utility screenshot-guard {
+  filter: blur(18px) saturate(120%);
+  transition: filter 0.25s ease;
+}
