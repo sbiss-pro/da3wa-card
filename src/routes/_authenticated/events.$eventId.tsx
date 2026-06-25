@@ -636,11 +636,14 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     setSaving(true);
     const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
     const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
+    // Status is considered "overridden" only when there's a recorded guest choice and the host picked something different.
+    const overridden = !!(guest.original_rsvp_status && guest.original_rsvp_status !== status);
     const { error } = await supabase.from("guests").update({
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
       rsvp_status: status,
+      status_overridden_by_host: overridden,
       notes: notes.trim() ? notes.trim().slice(0, 500) : null,
     }).eq("id", guest.id);
     setSaving(false);
