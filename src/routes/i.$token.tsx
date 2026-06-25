@@ -299,25 +299,14 @@ function GuestPage() {
                   <Label>ملاحظات (اختياري)</Label>
                   <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-white/10" style={{ color: textColor }} />
                 </div>
-                {maxCompanions > 0 ? (
+                {hostCompanions > 0 ? (
                   <div className="space-y-3 rounded-xl border p-3" style={{ borderColor: cardBorder, background: accent + "10" }}>
-                    <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: accent }} /><Label>هل يوجد مرافقون؟</Label></div>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={maxCompanions}
-                      value={companions}
-                      onChange={(e) => {
-                        const n = Math.max(0, Math.min(maxCompanions, parseInt(e.target.value || "0", 10) || 0));
-                        setCompanions(n);
-                      }}
-                      className="bg-white/10"
-                      style={{ color: textColor }}
-                    />
-                    <p className="text-xs" style={{ color: softText }}>الحد الأقصى المسموح به: {toArabicDigits(maxCompanions)}</p>
-                    {companions > 0 ? (
-                      <div className="space-y-2">
-                        {Array.from({ length: companions }, (_, i) => (
+                    <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: accent }} /><Label>مرافقوك ({toArabicDigits(hostCompanions)})</Label></div>
+                    <p className="text-xs" style={{ color: softText }}>
+                      حدّد المنظم لك <span className="font-bold" style={{ color: accent }}>{toArabicDigits(hostCompanions)}</span> مرافق. يرجى كتابة أسمائهم.
+                    </p>
+                    <div className="space-y-2">
+                      {Array.from({ length: hostCompanions }, (_, i) => (
                           <Input
                             key={i}
                             value={companionNames[i] ?? ""}
@@ -330,9 +319,8 @@ function GuestPage() {
                             className="bg-white/10"
                             style={{ color: textColor }}
                           />
-                        ))}
-                      </div>
-                    ) : null}
+                      ))}
+                    </div>
                   </div>
                 ) : null}
                 <div className="grid grid-cols-2 gap-3">
