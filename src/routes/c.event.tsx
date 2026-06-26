@@ -608,18 +608,24 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
   );
 }
 
-function CompanionCountDialog({ pending, onClose, onConfirm }: { pending: PendingScan | null; onClose: () => void; onConfirm: (extras: number) => void | Promise<void> }) {
-  const [extras, setExtras] = useState(0);
+function CompanionCountDialog({ pending, onClose, onConfirm }: { pending: PendingScan | null; onClose: () => void; onConfirm: (r: { includeMain: boolean; companions: number }) => void | Promise<void> }) {
+  const [companions, setCompanions] = useState(0);
+  const [includeMain, setIncludeMain] = useState(true);
   useEffect(() => {
-    if (pending) setExtras(pending.remaining);
+    if (pending) {
+      setCompanions(pending.remainingCompanions);
+      setIncludeMain(!pending.mainAlreadyIn);
+    }
   }, [pending]);
   const guest = pending?.guest;
-  const remaining = pending?.remaining ?? 0;
-  const groupSize = (guest?.companions_count ?? 0) + 1;
+  const remainingCompanions = pending?.remainingCompanions ?? 0;
+  const mainAlreadyIn = pending?.mainAlreadyIn ?? false;
+  const companionsCap = guest?.companions_count ?? 0;
+  const groupSize = companionsCap + 1;
   const already = guest?.attended_count ?? 0;
-  const total = extras + 1; // main guest + extras (when fresh)
-  const isReturn = (guest?.rsvp_status === "attended");
-  const clamp = (n: number) => Math.max(isReturn ? 1 : 0, Math.min(remaining, n));
+  const totalNow = (includeMain && !mainAlreadyIn ? 1 : 0) + companions;
+  const clamp = (n: number) => Math.max(0, Math.min(remainingCompanions, n));
+  const canConfirm = totalNow >= 1 && companions <= remainingCompanions;
   return (
     <Dialog open={pending != null} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent dir="rtl" className="max-w-md">
@@ -633,48 +639,48 @@ function CompanionCountDialog({ pending, onClose, onConfirm }: { pending: Pendin
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-muted p-2"><p className="text-muted-foreground">المسموح</p><p className="font-display text-lg font-bold">{groupSize}</p></div>
             <div className="rounded-lg bg-muted p-2"><p className="text-muted-foreground">دخل سابقاً</p><p className="font-display text-lg font-bold">{already}</p></div>
-            <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300"><p className="opacity-80">المتبقي</p><p className="font-display text-lg font-bold">{remaining}</p></div>
+            <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300"><p className="opacity-80">المتبقي للمرافقين</p><p className="font-display text-lg font-bold">{remainingCompanions}</p></div>
           </div>
 
-          {!isReturn ? (
-            <div className="rounded-lg border border-border bg-card p-3 text-sm">
-              <p className="mb-2 font-bold">الضيف الأساسي</p>
-              <Badge className="bg-emerald-600 text-white"><Check className="ms-1 h-3 w-3" /> سيتم تسجيل دخوله</Badge>
+          {mainAlreadyIn ? (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+              الضيف الأساسي دخل مسبقاً — هذا تسجيل للمرافقين المتأخرين فقط.
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              الضيف الأساسي دخل مسبقاً. يمكنك تسجيل دخول المرافقين المتأخرين فقط.
-            </div>
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-sm">
+              <span className="font-bold">دخول الضيف الأساسي الآن</span>
+              <input type="checkbox" checked={includeMain} onChange={(e) => setIncludeMain(e.target.checked)} className="h-5 w-5 accent-[var(--gold,#c9a14a)]" />
+            </label>
           )}
 
           <div>
             <Label className="mb-2 block text-sm">عدد المرافقين الداخلين الآن</Label>
             <div className="flex items-center justify-center gap-3">
-              <Button type="button" size="icon" variant="outline" onClick={() => setExtras((x) => clamp((isReturn ? x : x) - 1))}>
+              <Button type="button" size="icon" variant="outline" disabled={remainingCompanions === 0} onClick={() => setCompanions((x) => clamp(x - 1))}>
                 <Minus className="h-4 w-4" />
               </Button>
               <div className="grid h-14 w-20 place-items-center rounded-xl border-2 border-primary/40 bg-card font-display text-3xl font-bold">
-                {isReturn ? extras : extras}
+                {companions}
               </div>
-              <Button type="button" size="icon" variant="outline" onClick={() => setExtras((x) => clamp(x + 1))}>
+              <Button type="button" size="icon" variant="outline" disabled={companions >= remainingCompanions} onClick={() => setCompanions((x) => clamp(x + 1))}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              الحد الأقصى المتاح: <span className="font-bold text-foreground">{remaining}</span>
+              الحد الأقصى المتاح للمرافقين: <span className="font-bold text-foreground">{remainingCompanions}</span>
             </p>
           </div>
 
           <div className="rounded-lg bg-primary/5 p-3 text-center text-sm">
-            إجمالي الذين سيدخلون الآن: <span className="font-display text-lg font-bold text-primary">{isReturn ? extras : total}</span>
+            إجمالي الذين سيدخلون الآن: <span className="font-display text-lg font-bold text-primary">{totalNow}</span>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
           <Button
             className="gold-gradient text-primary-foreground"
-            disabled={(isReturn ? extras : extras) > remaining || (isReturn && extras < 1)}
-            onClick={() => onConfirm(isReturn ? extras : extras)}
+            disabled={!canConfirm}
+            onClick={() => onConfirm({ includeMain: includeMain && !mainAlreadyIn, companions })}
           >
             <Check className="ms-1 h-4 w-4" /> تأكيد الدخول
           </Button>
