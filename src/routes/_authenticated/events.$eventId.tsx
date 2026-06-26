@@ -427,39 +427,37 @@ function TypographyControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: 
         {TYPO_SLOTS.map((s) => {
           const slot = (typo[s.key] as TypographySlot | undefined) || {};
           return (
-            <div key={s.key} className="grid grid-cols-1 gap-2 rounded-lg border border-border/60 bg-background/40 p-2 sm:grid-cols-[1fr_auto_auto]">
-              <div className="space-y-1">
+            <div key={s.key} className="space-y-2 rounded-lg border border-border/60 bg-background/40 p-3">
+              <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs font-bold">{s.label}</Label>
-                <select
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                  value={slot.font || ""}
-                  onChange={(e) => updateSlot(s.key, { font: e.target.value || undefined })}
-                >
-                  <option value="">— استخدام الخط الافتراضي —</option>
-                  {ARABIC_FONT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px]">الحجم</Label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={80}
-                  className="h-8 w-20"
-                  value={slot.size ?? s.defaultSize}
-                  onChange={(e) => updateSlot(s.key, { size: Math.max(10, Math.min(80, parseInt(e.target.value || "0", 10) || s.defaultSize)) })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px]">اللون</Label>
                 <Input
                   type="color"
-                  className="h-8 w-12 p-1"
+                  className="h-8 w-12 shrink-0 p-1"
                   value={slot.color || "#1a1410"}
                   onChange={(e) => updateSlot(s.key, { color: e.target.value })}
                 />
+              </div>
+              <select
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                value={slot.font || ""}
+                onChange={(e) => updateSlot(s.key, { font: e.target.value || undefined })}
+              >
+                <option value="">— استخدام الخط الافتراضي —</option>
+                {ARABIC_FONT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-3">
+                <Label className="shrink-0 text-[11px] text-muted-foreground">حجم الخط</Label>
+                <Slider
+                  min={10}
+                  max={80}
+                  step={1}
+                  value={[slot.size ?? s.defaultSize]}
+                  onValueChange={(v) => updateSlot(s.key, { size: v[0] })}
+                  className="flex-1"
+                />
+                <span className="w-10 text-left font-mono text-xs tabular-nums">{slot.size ?? s.defaultSize}px</span>
               </div>
             </div>
           );
