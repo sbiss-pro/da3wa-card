@@ -760,19 +760,35 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     setSaving(true);
     const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
     const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
-    // Status is considered "overridden" only when there's a recorded guest choice and the host picked something different.
-    const overridden = !!(guest.original_rsvp_status && guest.original_rsvp_status !== status);
-    const { error } = await supabase.from("guests").update({
+    // Override flag rules:
+    // - If host returns to the guest's original choice → clear the flag.
+    // - Otherwise: preserve any existing override AND set it true when the
+    //   new status diverges from the original. Marking "attended"
+    //   (check-in semantic) must NEVER erase the "(معدل)" tag.
+    const matchesOriginal = !!guest.original_rsvp_status && guest.original_rsvp_status === status;
+    const diverges = !!guest.original_rsvp_status && guest.original_rsvp_status !== status && status !== "attended";
+    const overridden = matchesOriginal ? false : (!!guest.status_overridden_by_host || diverges);
+    // When host moves the guest OUT of "attended" (e.g. back to "accepted"),
+    // unlock the check-in counters so the coordinator's action button
+    // becomes active again and the QR can be scanned anew.
+    const wasAttended = guest.rsvp_status === "attended";
+    const movingAway = wasAttended && status !== "attended";
+    const patch: Record<string, unknown> = {
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
       rsvp_status: status,
       status_overridden_by_host: overridden,
       notes: notes.trim() ? notes.trim().slice(0, 500) : null,
-    }).eq("id", guest.id);
+    };
+    if (movingAway) {
+      patch.attended_count = 0;
+      patch.checked_in_at = null;
+    }
+    const { error } = await supabase.from("guests").update(patch).eq("id", guest.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم حفظ التعديلات");
+    toast.success(movingAway ? "تم حفظ التعديلات وإعادة تفعيل تسجيل الحضور" : "تم حفظ التعديلات");
     onSaved();
     onClose();
   };
