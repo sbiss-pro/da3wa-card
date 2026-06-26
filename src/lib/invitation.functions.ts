@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const tokenSchema = z.object({ token: z.string().min(8).max(64) });
+const eventIdSchema = z.object({ event_id: z.string().uuid() });
 
 export const getInvitation = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => tokenSchema.parse(data))
@@ -27,6 +28,23 @@ export const getInvitation = createServerFn({ method: "GET" })
       throw new Error("NOT_FOUND");
     }
     return { guest, event };
+  });
+
+/**
+ * Public preview endpoint: returns the event so the organizer can preview the
+ * guest invitation page with dummy data. Does NOT touch the guests table.
+ */
+export const getEventForPreview = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => eventIdSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: event, error } = await supabaseAdmin
+      .from("events")
+      .select("id,name,event_type,event_date,location,location_url,description,template_config")
+      .eq("id", data.event_id)
+      .single();
+    if (error || !event) throw new Error("NOT_FOUND");
+    return event;
   });
 
 const rsvpSchema = z.object({
