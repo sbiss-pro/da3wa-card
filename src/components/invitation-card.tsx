@@ -10,6 +10,7 @@ export type TemplateConfig = {
   max_companions?: number;
   rsvp_deadline?: string | null;
   wa_message_template?: string;
+  use_blurred_bg?: boolean;
 };
 
 export function InvitationCard({
