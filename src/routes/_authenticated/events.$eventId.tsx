@@ -43,6 +43,8 @@ type Guest = {
   email: string | null; rsvp_status: string; companions_count: number; notes: string | null;
   original_rsvp_status?: string | null;
   status_overridden_by_host?: boolean | null;
+  attended_count?: number | null;
+  checked_in_at?: string | null;
 };
 
 const TITLE_OPTIONS = [
@@ -615,6 +617,15 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                       {g.status_overridden_by_host ? (
                         <span className="text-[10px] text-muted-foreground" title="تم التعديل من قِبل المنظم">(معدل)</span>
                       ) : null}
+                      {(() => {
+                        const groupSize = (g.companions_count ?? 0) + 1;
+                        const att = g.attended_count ?? 0;
+                        if (g.rsvp_status !== "attended" || att <= 0) return null;
+                        if (att < groupSize) {
+                          return <Badge variant="outline" className="border-amber-500 text-amber-700 text-[10px]" title="حضور جزئي">جزئي {att}/{groupSize}</Badge>;
+                        }
+                        return <Badge variant="outline" className="border-emerald-500 text-emerald-700 text-[10px]" title="مكتمل">مكتمل {att}/{groupSize}</Badge>;
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{g.notes || "—"}</TableCell>
