@@ -995,15 +995,29 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
               lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
-            if (guest.rsvp_status === "attended") {
+            if (guest.rsvp_status === "declined") {
+              toast.error(`المدعو ${guest.name} معتذر — لا يمكن تسجيل الحضور`);
+              return;
+            }
+            const groupSize = (guest.companions_count ?? 0) + 1;
+            const current = guest.attended_count ?? 0;
+            if (current >= groupSize) {
               const when = guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—";
-              toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
+              toast.warning(`هذا الرمز مستخدم بالكامل (${current}/${groupSize}) — وقت أول تسجيل: ${when}`);
               setLastGuest({ ...guest } as Guest);
               return;
             }
-            await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
-            setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
-            toast.success(`أهلاً ${guest.name}`);
+            const stamp = new Date().toISOString();
+            const firstScan = current === 0;
+            const total = groupSize; // host scan admits the whole group at once
+            const patch = { rsvp_status: "attended", attended_count: total, checked_in_at: firstScan ? stamp : guest.checked_in_at };
+            await supabase.from("guests").update(patch).eq("id", guest.id);
+            await supabase.from("scan_logs").insert({
+              event_id: eventId, guest_id: guest.id, guest_name: guest.name,
+              coordinator_name: "المنظم", attended_count: total, partial: false,
+            });
+            setLastGuest({ ...guest, ...patch } as Guest);
+            toast.success(`أهلاً ${guest.name} — ${total}/${groupSize}`);
             onCheckIn();
             } catch (err) {
               console.error(err);
@@ -1052,6 +1066,9 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
           <p className="text-muted-foreground">لم يتم مسح أي رمز بعد</p>
         )}
       </Card>
+      <div className="lg:col-span-2">
+        <ScanLogFeed eventId={eventId} />
+      </div>
     </div>
   );
 }
