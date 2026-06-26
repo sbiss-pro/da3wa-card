@@ -63,8 +63,8 @@ export function InvitationCard({
   guestName?: string;
 }) {
   const accent = config.palette?.[0] || "#c9a24a";
-  const src = config.invitation_image_url;
-  if (!src) {
+  const raw = config.invitation_image_url;
+  if (!raw) {
     return (
       <div
         className="grid aspect-[3/4] w-full place-items-center rounded-3xl border border-dashed text-center text-sm text-muted-foreground"
@@ -77,12 +77,18 @@ export function InvitationCard({
       </div>
     );
   }
+  const src = /^https?:\/\//i.test(raw) ? `/api/public/proxy?url=${encodeURIComponent(raw)}` : raw;
+  const isPdf = /\.pdf(\?|#|$)/i.test(raw);
   return (
     <div
       className="overflow-hidden rounded-3xl border shadow-2xl"
       style={{ borderColor: accent + "55" }}
     >
-      <img src={src} alt={eventName} className="block h-auto w-full" />
+      {isPdf ? (
+        <iframe src={src} title={eventName} className="block h-[70vh] w-full" style={{ background: "#fff" }} />
+      ) : (
+        <img src={src} alt={eventName} className="block h-auto w-full" />
+      )}
     </div>
   );
 }
