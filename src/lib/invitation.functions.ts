@@ -33,8 +33,8 @@ const rsvpSchema = z.object({
   token: z.string().min(8).max(64),
   status: z.enum(["accepted", "declined"]),
   notes: z.string().max(500).optional().nullable(),
-  companions_count: z.number().int().min(0).max(11).optional(),
-  companion_names: z.array(z.string().trim().max(80)).max(11).optional(),
+  companions_count: z.number().int().min(0).max(10).optional(),
+  companion_names: z.array(z.string().trim().max(80)).max(10).optional(),
 });
 
 export const submitRsvp = createServerFn({ method: "POST" })
@@ -59,7 +59,7 @@ export const submitRsvp = createServerFn({ method: "POST" })
     if (deadline && new Date(deadline).getTime() < Date.now()) {
       throw new Error("انتهت الفترة المحددة لتأكيد الحضور");
     }
-    const maxC = Math.max(0, Math.min(11, tc.max_companions ?? 0));
+    const maxC = Math.max(0, Math.min(10, tc.max_companions ?? 0));
     let comps = data.companions_count ?? 0;
     if (comps > maxC) comps = maxC;
     if (comps < 0) comps = 0;
