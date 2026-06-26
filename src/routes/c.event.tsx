@@ -328,8 +328,8 @@ function CoordinatorEvent() {
                 session={session}
                 eventId={event.id}
                 guests={guests}
-                onCheckIn={(g) => {
-                  setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
+                onCheckIn={(patch) => {
+                  setGuests(prev => prev.map(x => x.id === patch.id ? { ...x, ...patch, rsvp_status: "attended" } : x));
                 }}
               />
             </ErrorBoundary>
