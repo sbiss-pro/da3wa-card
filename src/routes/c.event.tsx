@@ -495,16 +495,29 @@ function CoordinatorEvent() {
                             const full = current >= groupSize;
                             const declined = g.rsvp_status === "declined";
                             const partial = current > 0 && !full;
+                            // ربط الحالة بالإجراء: الزر يتفعّل فقط إذا كانت الحالة "مقبول"
+                            // أو "حضر" بشكل جزئي (لإكمال بقية المجموعة). أي حالة أخرى
+                            // (معلّق/معتذر) تُعطّل الزر.
+                            const allowedStatus = g.rsvp_status === "accepted" || (g.rsvp_status === "attended" && partial);
+                            const disabled = full || declined || !allowedStatus;
+                            const label = declined
+                              ? "معتذر"
+                              : full
+                                ? `مكتمل (${current}/${groupSize})`
+                                : partial
+                                  ? `إكمال (${current}/${groupSize})`
+                                  : g.rsvp_status === "pending"
+                                    ? "بانتظار الرد"
+                                    : groupSize > 1 ? `حضور (0/${groupSize})` : "حضور";
                             return (
                               <Button
                                 size="sm"
-                                variant={full || declined ? "outline" : "default"}
-                                disabled={full || declined}
+                                variant={disabled ? "outline" : "default"}
+                                disabled={disabled}
                                 onClick={() => handleScan(g)}
-                                className={full || declined ? "" : "gold-gradient text-primary-foreground"}
+                                className={disabled ? "" : "gold-gradient text-primary-foreground"}
                               >
-                                <Check className="ms-1 h-3 w-3" />{" "}
-                                {declined ? "معتذر" : full ? `مكتمل (${current}/${groupSize})` : partial ? `إكمال (${current}/${groupSize})` : groupSize > 1 ? `حضور (0/${groupSize})` : "حضور"}
+                                <Check className="ms-1 h-3 w-3" /> {label}
                               </Button>
                             );
                           })()}
