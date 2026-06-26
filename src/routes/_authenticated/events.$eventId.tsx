@@ -26,6 +26,7 @@ import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalize
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
 import { extractPalette, readableTextOn } from "@/lib/palette";
+import { proxied } from "@/lib/proxy";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
   head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
@@ -173,7 +174,8 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
     if (!url) return;
     setExtracting(true);
     try {
-      const colors = await extractPalette(url, 4);
+      // Route through same-origin proxy so canvas isn't tainted by CORS.
+      const colors = await extractPalette(proxied(url), 4);
       setCfg((prev) => ({ ...prev, palette: colors }));
       toast.success("تم استخراج لوحة الألوان تلقائياً");
     } catch {
@@ -236,7 +238,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            ألصق رابطاً مباشراً للصورة. لاستخراج الألوان تلقائياً يجب أن يدعم الرابط CORS.
+            ألصق رابطاً مباشراً للصورة أو ملف PDF. يتم تمرير الرابط عبر خادم آمن لتجاوز قيود CORS تلقائياً.
           </p>
         </section>
 
