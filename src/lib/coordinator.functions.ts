@@ -221,7 +221,7 @@ export const coordinatorCheckInById = createServerFn({ method: "POST" })
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
     const { data: guest } = await supabaseAdmin
       .from("guests")
-      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at")
+      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at,attended_count")
       .eq("id", data.guest_id)
       .eq("event_id", row.event_id)
       .maybeSingle();
@@ -229,18 +229,31 @@ export const coordinatorCheckInById = createServerFn({ method: "POST" })
     if (guest.rsvp_status === "declined") {
       throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
     }
-    if (guest.rsvp_status === "attended") {
-      throw new Error(`هذا المدعو مسجّل سابقاً (${guest.checked_in_at ?? "—"})`);
-    }
     const groupSize = (guest.companions_count ?? 0) + 1;
-    const total = Math.max(1, Math.min(groupSize, data.attended_count ?? groupSize));
-    const partial = total < groupSize;
+    const requested = Math.max(1, Math.min(groupSize, data.attended_count ?? groupSize));
+    if (guest.rsvp_status === "attended") {
+      const current = guest.attended_count ?? groupSize;
+      if (current >= groupSize) {
+        const err = new Error(`اكتمل الحضور لهذا الكود (${current}/${groupSize})`);
+        (err as Error & { code?: string }).code = "ALREADY_FULL";
+        throw err;
+      }
+      const newTotal = Math.max(current, Math.min(groupSize, requested));
+      if (newTotal <= current) throw new Error("لا يوجد مرافقون إضافيون لتسجيلهم");
+      await supabaseAdmin
+        .from("guests")
+        .update({ attended_count: newTotal })
+        .eq("id", guest.id);
+      await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: newTotal, partial: newTotal < groupSize });
+      return { ...guest, rsvp_status: "attended", attended_count: newTotal };
+    }
+    const partial = requested < groupSize;
     await supabaseAdmin
       .from("guests")
-      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: total })
+      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: requested })
       .eq("id", guest.id);
-    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial });
-    return { ...guest, rsvp_status: "attended", attended_count: total };
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: requested, partial });
+    return { ...guest, rsvp_status: "attended", attended_count: requested };
   });
 
 /**
