@@ -773,7 +773,16 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     // becomes active again and the QR can be scanned anew.
     const wasAttended = guest.rsvp_status === "attended";
     const movingAway = wasAttended && status !== "attended";
-    const patch: Record<string, unknown> = {
+    const patch: {
+      name: string;
+      phone: string | null;
+      companions_count: number;
+      rsvp_status: string;
+      status_overridden_by_host: boolean;
+      notes: string | null;
+      attended_count?: number;
+      checked_in_at?: string | null;
+    } = {
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
