@@ -24,6 +24,7 @@ function NewEvent() {
     custom_event_type: "",
     event_date: "",
     event_time: "20:00",
+    event_end_time: "23:30",
     location: "",
     location_url: "",
     description: "",
@@ -41,6 +42,9 @@ function NewEvent() {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("غير مسجل");
       const date = new Date(`${form.event_date}T${form.event_time}`);
+      const endDate = form.event_end_time ? new Date(`${form.event_date}T${form.event_end_time}`) : null;
+      // If end <= start, assume it crosses midnight → push to next day.
+      if (endDate && endDate.getTime() <= date.getTime()) endDate.setDate(endDate.getDate() + 1);
       const finalType = form.event_type === "other"
         ? (form.custom_event_type.trim() || "أخرى")
         : form.event_type;
@@ -52,6 +56,7 @@ function NewEvent() {
         location: form.location || null,
         location_url: form.location_url || null,
         description: form.description || null,
+        template_config: endDate ? { event_end_date: endDate.toISOString() } : {},
       }).select().single();
       if (error) throw error;
       toast.success("تم إنشاء الفعالية");
@@ -86,12 +91,15 @@ function NewEvent() {
                 <Input id="custom_type" required value={form.custom_event_type} onChange={e => setForm({ ...form, custom_event_type: e.target.value })} placeholder="مثال: حفل تخرج، أمسية شعرية..." />
               </Field>
             ) : null}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="تاريخ الفعالية" id="date">
                 <Input id="date" type="date" required value={form.event_date} onChange={e => setForm({ ...form, event_date: e.target.value })} />
               </Field>
-              <Field label="وقت الفعالية" id="time">
+              <Field label="وقت بداية الحفل" id="time">
                 <Input id="time" type="time" required value={form.event_time} onChange={e => setForm({ ...form, event_time: e.target.value })} />
+              </Field>
+              <Field label="وقت نهاية الحفل" id="endtime">
+                <Input id="endtime" type="time" value={form.event_end_time} onChange={e => setForm({ ...form, event_end_time: e.target.value })} />
               </Field>
             </div>
             <Field label="المكان" id="loc">
