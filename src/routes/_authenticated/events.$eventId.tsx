@@ -238,7 +238,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            ألصق رابطاً مباشراً للصورة. لاستخراج الألوان تلقائياً يجب أن يدعم الرابط CORS.
+            ألصق رابطاً مباشراً للصورة أو ملف PDF. يتم تمرير الرابط عبر خادم آمن لتجاوز قيود CORS تلقائياً.
           </p>
         </section>
 
