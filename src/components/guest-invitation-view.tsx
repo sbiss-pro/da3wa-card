@@ -236,7 +236,21 @@ export function GuestInvitationView({
         {/* Invitation image */}
         <section ref={heroRef}>
           {tc.invitation_image_url ? (
-            <img src={tc.invitation_image_url} alt={event.name} className="block h-auto w-full rounded-3xl shadow-2xl" style={{ border: `1px solid ${cardBorder}` }} />
+            (() => {
+              const raw = tc.invitation_image_url;
+              const src = /^https?:\/\//i.test(raw) ? `/api/public/proxy?url=${encodeURIComponent(raw)}` : raw;
+              const isPdf = /\.pdf(\?|#|$)/i.test(raw);
+              return isPdf ? (
+                <iframe
+                  src={src}
+                  title={event.name}
+                  className="block h-[70vh] w-full rounded-3xl shadow-2xl"
+                  style={{ border: `1px solid ${cardBorder}`, background: "#fff" }}
+                />
+              ) : (
+                <img src={src} alt={event.name} className="block h-auto w-full rounded-3xl shadow-2xl" style={{ border: `1px solid ${cardBorder}` }} />
+              );
+            })()
           ) : (
             <div className="grid aspect-[3/4] place-items-center rounded-3xl border border-dashed text-center" style={{ borderColor: cardBorder }}>
               <p className="px-4 font-display text-3xl font-bold" style={{ color: accent }}>{event.name}</p>
