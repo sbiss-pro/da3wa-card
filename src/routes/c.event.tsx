@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { LogOut, Search, ScanLine, Check, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff, Eye, EyeOff, Ban, X, Minus, Plus } from "lucide-react";
+import { LogOut, Search, ScanLine, Check, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff, Eye, EyeOff, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
@@ -328,8 +327,8 @@ function CoordinatorEvent() {
                 session={session}
                 eventId={event.id}
                 guests={guests}
-                onCheckIn={(patch) => {
-                  setGuests(prev => prev.map(x => x.id === patch.id ? { ...x, ...patch, rsvp_status: "attended" } : x));
+                onCheckIn={(g) => {
+                  setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
                 }}
               />
             </ErrorBoundary>
@@ -356,125 +355,10 @@ function StatCard({ icon: Icon, label, value, color, active, onClick }: { icon: 
   );
 }
 
-/** Audio helpers — short alert beeps via Web Audio. */
-function playTone(freq: number, duration: number, type: OscillatorType = "sine", gain = 0.25) {
-  try {
-    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-    const ctx = new AC();
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = type; osc.frequency.value = freq;
-    g.gain.value = gain;
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => { osc.stop(); ctx.close(); }, duration);
-  } catch { /* ignore */ }
-}
-function beepSuccess() { playTone(880, 140, "sine", 0.22); setTimeout(() => playTone(1320, 160, "sine", 0.22), 150); }
-function beepError() {
-  playTone(220, 220, "square", 0.32);
-  setTimeout(() => playTone(180, 260, "square", 0.32), 240);
-  setTimeout(() => playTone(220, 220, "square", 0.32), 520);
-}
-function vibrate(pattern: number | number[]) {
-  try { (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate?.(pattern); } catch { /* ignore */ }
-}
-
-type ScanReason = "declined" | "full" | "unknown";
-/** `remainingCompanions` = companions seats still available (excludes the main guest). */
-type PendingScan = { guest: Guest; remainingCompanions: number; mainAlreadyIn: boolean };
-
-function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (patch: Partial<Guest> & { id: string; name: string }) => void }) {
+function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void }) {
   const [scanning, setScanning] = useState(false);
   const [last, setLast] = useState<Guest | null>(null);
-  const [pending, setPending] = useState<PendingScan | null>(null);
-  const [alert, setAlert] = useState<{ reason: ScanReason; message: string } | null>(null);
   const elId = "coord-qr-reader";
-
-  // Pause decoding while a dialog/alert is showing to avoid re-firing.
-  const paused = pending != null || alert != null;
-
-  const finalizeCheckIn = useCallback(async (guest: Guest, attended_count: number) => {
-    const stamp = guest.checked_in_at ?? new Date().toISOString();
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    if (offline) {
-      updateCachedGuest(eventId, guest.id, { rsvp_status: "attended", checked_in_at: stamp });
-      enqueueCheckin(eventId, { guest_id: guest.id, guest_token: guest.token, offline_at: stamp });
-      const merged = { ...guest, rsvp_status: "attended", checked_in_at: stamp, attended_count } as Guest;
-      setLast(merged);
-      onCheckIn({ id: guest.id, name: guest.name, rsvp_status: "attended", checked_in_at: stamp, attended_count });
-      beepSuccess(); vibrate(80);
-      toast.warning(`تم تسجيل ${guest.name} محلياً (ستتم المزامنة)`);
-      return;
-    }
-    try {
-      const r = await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: guest.id, attended_count } });
-      const merged = { ...guest, ...r, rsvp_status: "attended" } as Guest;
-      setLast(merged);
-      onCheckIn({ id: guest.id, name: guest.name, rsvp_status: "attended", checked_in_at: merged.checked_in_at ?? stamp, attended_count: r.attended_count ?? attended_count });
-      beepSuccess(); vibrate(80);
-      toast.success(`أهلاً ${guest.name} — تم تسجيل ${r.attended_count ?? attended_count} / ${(guest.companions_count ?? 0) + 1}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "تعذّر التسجيل";
-      if (msg.includes("اكتمل")) {
-        beepError(); vibrate([200, 80, 200]);
-        setAlert({ reason: "full", message: msg });
-      } else if (msg.includes("معتذِر")) {
-        beepError(); vibrate([200, 80, 200]);
-        setAlert({ reason: "declined", message: msg });
-      } else {
-        updateCachedGuest(eventId, guest.id, { rsvp_status: "attended", checked_in_at: stamp });
-        enqueueCheckin(eventId, { guest_id: guest.id, guest_token: guest.token, offline_at: stamp });
-        onCheckIn({ id: guest.id, name: guest.name, rsvp_status: "attended", checked_in_at: stamp, attended_count });
-        beepSuccess(); vibrate(80);
-        toast.warning("تم التسجيل محلياً، ستتم المزامنة لاحقاً");
-      }
-    }
-  }, [eventId, onCheckIn, session]);
-
-  const handleDecoded = useCallback((decoded: string) => {
-    if (paused) return;
-    const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
-    if (!token || token.length < 4 || token.length > 128) {
-      beepError(); vibrate([200, 80, 200]);
-      setAlert({ reason: "unknown", message: "رمز غير صالح — يرجى المحاولة مجدداً" });
-      return;
-    }
-    const guest = guests.find(x => x.token === token);
-    if (!guest) {
-      beepError(); vibrate([200, 80, 200]);
-      setAlert({ reason: "unknown", message: "هذا الرمز غير معروف في هذه الفعالية" });
-      return;
-    }
-    if (guest.rsvp_status === "declined") {
-      beepError(); vibrate([200, 80, 200]);
-      setLast(guest);
-      setAlert({ reason: "declined", message: "هذا المدعو معتذِر — لا يُسمح بتسجيل الحضور" });
-      return;
-    }
-    const companionsCap = guest.companions_count ?? 0;
-    const groupSize = companionsCap + 1;
-    const already = guest.attended_count ?? (guest.rsvp_status === "attended" ? groupSize : 0);
-    const mainAlreadyIn = already >= 1;
-    const companionsIn = Math.max(0, already - 1);
-    const remainingCompanions = Math.max(0, companionsCap - companionsIn);
-
-    if (guest.rsvp_status === "attended" && already >= groupSize) {
-      beepError(); vibrate([200, 80, 200]);
-      setLast(guest);
-      setAlert({ reason: "full", message: `هذا الكود مستخدم مسبقاً بالكامل! وقت التسجيل: ${guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—"}` });
-      return;
-    }
-
-    // Solo guest (no companions configured) → instant check-in, no dialog.
-    if (companionsCap === 0) {
-      void finalizeCheckIn(guest, 1);
-      return;
-    }
-
-    // Companions exist → open smart dialog with remaining seats.
-    setPending({ guest, remainingCompanions, mainAlreadyIn });
-  }, [guests, paused, finalizeCheckIn]);
 
   useEffect(() => {
     if (!scanning) return;
@@ -491,11 +375,67 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
         await s.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
-          (decoded: string) => {
-            const now = Date.now();
-            if (decoded === lastToken && now - lastAt < 2500) return;
-            lastToken = decoded; lastAt = now;
-            handleDecoded(decoded);
+          async (decoded: string) => {
+            try {
+              const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
+              if (!token || token.length < 4 || token.length > 128) { toast.error("رمز غير صالح"); return; }
+              const now = Date.now();
+              if (token === lastToken && now - lastAt < 2500) return;
+              lastToken = token; lastAt = now;
+              // Offline-first: validate locally before hitting network.
+              const localGuest = guests.find(x => x.token === token);
+              if (!localGuest) {
+                toast.error("الرمز غير معروف في هذه الفعالية");
+                return;
+              }
+              if (localGuest.rsvp_status === "declined") {
+                setLast(localGuest);
+                toast.error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+                return;
+              }
+              if (localGuest.rsvp_status === "attended") {
+                setLast(localGuest);
+                toast.warning(`هذا الرمز تم استخدامه بالفعل! ${localGuest.checked_in_at ? "وقت التسجيل: " + formatArabicDate(localGuest.checked_in_at) : ""}`);
+                return;
+              }
+              const offline = typeof navigator !== "undefined" && !navigator.onLine;
+              if (offline) {
+                const stamp = new Date().toISOString();
+                const merged = { ...localGuest, rsvp_status: "attended", checked_in_at: stamp };
+                setLast(merged);
+                updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                onCheckIn({ id: localGuest.id, name: localGuest.name });
+                toast.warning(`تم تسجيل ${localGuest.name} محلياً (سيتم المزامنة لاحقاً)`);
+                return;
+              }
+              try {
+                const r = await coordinatorCheckIn({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_token: token } });
+                const g = guests.find(x => x.token === token);
+                const merged = { ...(g || {} as Guest), ...r, rsvp_status: "attended" } as Guest;
+                setLast(merged);
+                toast.success(`أهلاً ${r.name}`);
+                onCheckIn({ id: r.id, name: r.name });
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : "تعذّر التسجيل";
+                if (msg.includes("بالفعل")) {
+                  const g = guests.find(x => x.token === token);
+                  if (g) { setLast(g); }
+                  toast.warning(msg);
+                } else if (msg.includes("معتذِر")) {
+                  toast.error(msg);
+                } else {
+                  // network blip → queue and update cache locally
+                  const stamp = new Date().toISOString();
+                  updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
+                  enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
+                  onCheckIn({ id: localGuest.id, name: localGuest.name });
+                  toast.warning(`تم التسجيل محلياً، سيتم المزامنة لاحقاً`);
+                }
+              }
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "تعذّر التسجيل");
+            }
           },
           () => {},
         );
@@ -509,27 +449,30 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
       stopped = true;
       scanner?.stop().then(() => scanner?.clear()).catch(() => {});
     };
-  }, [scanning, handleDecoded]);
+  }, [scanning, session, onCheckIn, guests, eventId]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card className="p-4">
         <h3 className="mb-3 font-display text-lg font-bold">مسح QR</h3>
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
-          <ScanLine className="mx-auto h-10 w-10 text-gold" />
-          <p className="mt-2 text-sm text-muted-foreground">افتح الكاميرا لمسح أكواد المدعوين بسرعة.</p>
-          <Button onClick={() => setScanning(true)} className="mt-3 gold-gradient text-primary-foreground">بدء المسح</Button>
-        </div>
+        {!scanning ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <ScanLine className="mx-auto h-10 w-10 text-gold" />
+            <Button onClick={() => setScanning(true)} className="mt-3 gold-gradient text-primary-foreground">بدء المسح</Button>
+          </div>
+        ) : (
+          <>
+            <div id={elId} className="overflow-hidden rounded-xl" />
+            <Button variant="outline" onClick={() => setScanning(false)} className="mt-3 w-full">إيقاف</Button>
+          </>
+        )}
       </Card>
       <Card className="p-4">
         <h3 className="mb-3 font-display text-lg font-bold">آخر تسجيل</h3>
         {last ? (
           <div className="rounded-xl border border-primary/40 p-4 text-center">
             <p className="font-display text-xl font-bold">{last.title ? `${last.title} ` : ""}{last.name}</p>
-            <p className="mt-1 text-sm">المرافقون المسموح بهم: <span className="font-bold text-gold">{last.companions_count}</span></p>
-            {last.attended_count != null ? (
-              <p className="mt-2 text-xs text-muted-foreground">عدد من دخل من المجموعة: <span className="font-bold text-foreground">{last.attended_count}</span> / {(last.companions_count ?? 0) + 1}</p>
-            ) : null}
+            <p className="mt-1 text-sm">المرافقون: <span className="font-bold text-gold">{last.companions_count}</span></p>
             {last.companion_names && last.companion_names.length > 0 ? (
               <div className="mt-3 rounded-lg border border-gold/30 bg-gold/5 p-3 text-right text-sm">
                 <Label className="text-xs">أسماء المرافقين</Label>
@@ -537,6 +480,9 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
                   {last.companion_names.map((n, i) => <li key={i}>• {n || "—"}</li>)}
                 </ul>
               </div>
+            ) : null}
+            {last.attended_count != null ? (
+              <p className="mt-2 text-xs text-muted-foreground">عدد من دخل من المجموعة: <span className="font-bold text-foreground">{last.attended_count}</span> / {(last.companions_count ?? 0) + 1}</p>
             ) : null}
             {last.notes && last.rsvp_status !== "declined" ? (
               <div className="mt-3 rounded-lg bg-muted/40 p-3 text-right text-sm">
@@ -550,142 +496,6 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
           </div>
         ) : <p className="text-sm text-muted-foreground">لم يتم تسجيل أحد بعد</p>}
       </Card>
-
-      {/* Fullscreen camera overlay — centered horizontally + vertically. */}
-      {scanning ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" dir="rtl">
-          <button type="button" aria-label="إغلاق الكاميرا" onClick={() => setScanning(false)} className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20">
-            <X className="h-5 w-5" />
-          </button>
-          <div className="flex w-full max-w-md flex-col items-center gap-3">
-            <p className="text-center text-sm text-white/80">ضع الكود داخل الإطار</p>
-            <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-gold/70 shadow-[0_0_60px_rgba(212,175,55,0.25)]">
-              <div id={elId} className="absolute inset-0" />
-              <div className="pointer-events-none absolute inset-0 ring-1 ring-white/20" />
-            </div>
-            <Button variant="outline" onClick={() => setScanning(false)} className="w-full bg-white/10 text-white hover:bg-white/20">إيقاف الكاميرا</Button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Companions count dialog — enforces remaining seats. */}
-      <CompanionCountDialog
-        pending={pending}
-        onClose={() => setPending(null)}
-        onConfirm={async ({ includeMain, companions }) => {
-          if (!pending) return;
-          const groupSize = (pending.guest.companions_count ?? 0) + 1;
-          const already = pending.guest.attended_count ?? (pending.guest.rsvp_status === "attended" ? groupSize : 0);
-          const addingMain = includeMain && !pending.mainAlreadyIn ? 1 : 0;
-          const newTotal = Math.min(groupSize, already + addingMain + companions);
-          setPending(null);
-          await finalizeCheckIn(pending.guest, newTotal);
-        }}
-      />
-
-      {/* Loud red alert for invalid/used/declined codes. */}
-      <Dialog open={alert != null} onOpenChange={(o) => { if (!o) setAlert(null); }}>
-        <DialogContent dir="rtl" className="border-rose-500/60 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-100">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-center gap-2 text-center text-2xl font-black text-rose-700 dark:text-rose-300">
-              <AlertTriangle className="h-7 w-7 animate-pulse" /> تنبيه
-            </DialogTitle>
-            <DialogDescription className="text-center text-base font-semibold text-rose-800 dark:text-rose-200">
-              {alert?.message}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-xl border-2 border-rose-500/60 bg-rose-500/10 p-4 text-center text-lg font-black text-rose-700 dark:text-rose-300">
-            {alert?.reason === "full" ? "لا يمكن تسجيل الدخول — الكود مستخدم بالكامل" :
-              alert?.reason === "declined" ? "مدعو معتذِر — مراجعة المنظم مطلوبة" :
-              "رمز غير معروف أو غير فعال"}
-          </div>
-          <DialogFooter>
-            <Button className="w-full bg-rose-600 hover:bg-rose-700" onClick={() => setAlert(null)}>حسناً</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
-  );
-}
-
-function CompanionCountDialog({ pending, onClose, onConfirm }: { pending: PendingScan | null; onClose: () => void; onConfirm: (r: { includeMain: boolean; companions: number }) => void | Promise<void> }) {
-  const [companions, setCompanions] = useState(0);
-  const [includeMain, setIncludeMain] = useState(true);
-  useEffect(() => {
-    if (pending) {
-      setCompanions(pending.remainingCompanions);
-      setIncludeMain(!pending.mainAlreadyIn);
-    }
-  }, [pending]);
-  const guest = pending?.guest;
-  const remainingCompanions = pending?.remainingCompanions ?? 0;
-  const mainAlreadyIn = pending?.mainAlreadyIn ?? false;
-  const companionsCap = guest?.companions_count ?? 0;
-  const groupSize = companionsCap + 1;
-  const already = guest?.attended_count ?? 0;
-  const totalNow = (includeMain && !mainAlreadyIn ? 1 : 0) + companions;
-  const clamp = (n: number) => Math.max(0, Math.min(remainingCompanions, n));
-  const canConfirm = totalNow >= 1 && companions <= remainingCompanions;
-  return (
-    <Dialog open={pending != null} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent dir="rtl" className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center font-display text-xl">تأكيد دخول الضيف</DialogTitle>
-          <DialogDescription className="text-center">
-            <span className="font-bold text-foreground">{guest?.title ? `${guest.title} ` : ""}{guest?.name}</span>
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="rounded-lg bg-muted p-2"><p className="text-muted-foreground">المسموح</p><p className="font-display text-lg font-bold">{groupSize}</p></div>
-            <div className="rounded-lg bg-muted p-2"><p className="text-muted-foreground">دخل سابقاً</p><p className="font-display text-lg font-bold">{already}</p></div>
-            <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300"><p className="opacity-80">المتبقي للمرافقين</p><p className="font-display text-lg font-bold">{remainingCompanions}</p></div>
-          </div>
-
-          {mainAlreadyIn ? (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-              الضيف الأساسي دخل مسبقاً — هذا تسجيل للمرافقين المتأخرين فقط.
-            </div>
-          ) : (
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-sm">
-              <span className="font-bold">دخول الضيف الأساسي الآن</span>
-              <input type="checkbox" checked={includeMain} onChange={(e) => setIncludeMain(e.target.checked)} className="h-5 w-5 accent-[var(--gold,#c9a14a)]" />
-            </label>
-          )}
-
-          <div>
-            <Label className="mb-2 block text-sm">عدد المرافقين الداخلين الآن</Label>
-            <div className="flex items-center justify-center gap-3">
-              <Button type="button" size="icon" variant="outline" disabled={remainingCompanions === 0} onClick={() => setCompanions((x) => clamp(x - 1))}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <div className="grid h-14 w-20 place-items-center rounded-xl border-2 border-primary/40 bg-card font-display text-3xl font-bold">
-                {companions}
-              </div>
-              <Button type="button" size="icon" variant="outline" disabled={companions >= remainingCompanions} onClick={() => setCompanions((x) => clamp(x + 1))}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              الحد الأقصى المتاح للمرافقين: <span className="font-bold text-foreground">{remainingCompanions}</span>
-            </p>
-          </div>
-
-          <div className="rounded-lg bg-primary/5 p-3 text-center text-sm">
-            إجمالي الذين سيدخلون الآن: <span className="font-display text-lg font-bold text-primary">{totalNow}</span>
-          </div>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button
-            className="gold-gradient text-primary-foreground"
-            disabled={!canConfirm}
-            onClick={() => onConfirm({ includeMain: includeMain && !mainAlreadyIn, companions })}
-          >
-            <Check className="ms-1 h-4 w-4" /> تأكيد الدخول
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
