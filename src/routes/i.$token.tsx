@@ -267,14 +267,15 @@ function GuestPage() {
                   <p className="truncate font-display text-base font-bold">{event.location || "—"}</p>
                 </div>
               </div>
-              {event.location || event.location_url ? (
+              {mapEmbedSrc ? (
                 <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: cardBorder }}>
                   <iframe
                     title="موقع الحفل"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(event.location_url || event.location || "")}&hl=ar&z=15&output=embed`}
+                    src={mapEmbedSrc}
                     className="block h-56 w-full"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                   />
                 </div>
               ) : null}
