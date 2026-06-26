@@ -966,6 +966,80 @@ function AutomationCard({ icon: Icon, title, desc, action, meta }: { icon: typeo
 }
 
 /* ---------------- Scanner ---------------- */
+type ScanLogRow = {
+  id: string; guest_name: string; coordinator_name: string;
+  scanned_at: string; attended_count: number | null; partial: boolean; status: string;
+};
+
+function ScanLogFeed({ eventId }: { eventId: string }) {
+  const [rows, setRows] = useState<ScanLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("scan_logs")
+        .select("id,guest_name,coordinator_name,scanned_at,attended_count,partial,status")
+        .eq("event_id", eventId)
+        .order("scanned_at", { ascending: false })
+        .limit(100);
+      if (!cancelled) { setRows((data as ScanLogRow[]) ?? []); setLoading(false); }
+    })();
+    const ch = supabase
+      .channel(`scan_logs_${eventId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scan_logs", filter: `event_id=eq.${eventId}` }, (payload) => {
+        const row = payload.new as ScanLogRow;
+        setRows(prev => [row, ...prev].slice(0, 100));
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [eventId]);
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-display text-lg font-bold">سجل المسح الحي</h3>
+        <Badge variant="outline" className="text-xs">{rows.length} عملية</Badge>
+      </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">لم يتم تسجيل أي عملية دخول بعد.</p>
+      ) : (
+        <div className="max-h-96 overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الضيف</TableHead>
+                <TableHead>الحالة</TableHead>
+                <TableHead>المنسق</TableHead>
+                <TableHead>وقت الدخول</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.guest_name}</TableCell>
+                  <TableCell>
+                    {r.partial ? (
+                      <Badge variant="outline" className="border-amber-500 text-amber-700 text-[10px]">جزئي · {r.attended_count ?? "—"}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-emerald-500 text-emerald-700 text-[10px]">حضور · {r.attended_count ?? "—"}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.coordinator_name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground tabular-nums" dir="ltr">{new Date(r.scanned_at).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit" })}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => void }) {
   const [scanning, setScanning] = useState(false);
   const [lastGuest, setLastGuest] = useState<Guest | null>(null);
