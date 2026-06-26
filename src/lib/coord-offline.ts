@@ -17,6 +17,7 @@ type PendingCheckin = { guest_id: string; guest_token: string; offline_at: strin
 
 const GUESTS_KEY = (eventId: string) => `dawati_coord_guests::${eventId}`;
 const QUEUE_KEY = (eventId: string) => `dawati_coord_queue::${eventId}`;
+const EVENT_KEY = (eventId: string) => `dawati_coord_event::${eventId}`;
 
 function safeGet<T>(key: string): T | null {
   try {
@@ -37,6 +38,12 @@ export function cacheGuests(eventId: string, guests: CachedGuest[]) {
 }
 export function readCachedGuests(eventId: string): CachedGuest[] {
   return safeGet<CachedGuest[]>(GUESTS_KEY(eventId)) || [];
+}
+export function cacheEvent<T>(eventId: string, event: T) {
+  safeSet(EVENT_KEY(eventId), event);
+}
+export function readCachedEvent<T>(eventId: string): T | null {
+  return safeGet<T>(EVENT_KEY(eventId));
 }
 export function updateCachedGuest(eventId: string, id: string, patch: Partial<CachedGuest>) {
   const list = readCachedGuests(eventId);
