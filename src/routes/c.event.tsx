@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
 import { getCoordinatorContext, coordinatorCheckIn, coordinatorCheckInById, coordinatorMarkNoteSeen } from "@/lib/coordinator.functions";
-void coordinatorCheckIn;
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate } from "@/lib/event-utils";
 import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQueue, clearQueueItem, cacheEvent, readCachedEvent } from "@/lib/coord-offline";
 
