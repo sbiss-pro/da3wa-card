@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { type TemplateConfig, type TypographySlot } from "@/components/invitation-card";
+import { type TemplateConfig } from "@/components/invitation-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,18 +57,6 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
-const FALLBACK_FONT = "'Tajawal', 'Amiri', system-ui, sans-serif";
-
-function slotStyle(slot: TypographySlot | undefined, globalFont: string | undefined, fallbackSize: number, fallbackColor: string): React.CSSProperties {
-  const fam = slot?.font || globalFont;
-  return {
-    fontFamily: fam ? `'${fam}', ${FALLBACK_FONT}` : FALLBACK_FONT,
-    fontSize: `${slot?.size ?? fallbackSize}px`,
-    color: slot?.color || fallbackColor,
-    lineHeight: 1.4,
-  };
-}
-
 export function GuestInvitationView({
   event,
   initialGuest,
@@ -88,20 +76,20 @@ export function GuestInvitationView({
   const now = useNow(1000);
 
   const tc = event.template_config || {};
-  const typo = tc.typography || {};
   const palette = tc.palette && tc.palette.length >= 4 ? tc.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
-  const [paletteBg, paletteAccent, paletteSurface, paletteSurface2] = palette;
-  const colorsCfg = tc.colors || {};
-  const bgColor = colorsCfg.page_bg || paletteBg;
-  const accent = colorsCfg.icon || colorsCfg.accent || paletteAccent;
-  const surface = paletteSurface;
+  const [paletteBg, paletteAccent, , paletteSurface2] = palette;
+  const bgColor = paletteBg;
+  const accent = paletteAccent;
   const surface2 = paletteSurface2;
-  const textColor = colorsCfg.text || readableTextOn(bgColor);
+  // Always compute text color for max contrast against the background — guarantees readability.
+  const textColor = readableTextOn(bgColor);
+  // Icon/label color drawn ON TOP of accent-colored chips/buttons — guarantees readability.
+  const onAccent = readableTextOn(accent);
   const softText = textColor === "#ffffff" ? "rgba(255,255,255,0.75)" : "rgba(26,20,16,0.7)";
   const cardBg = textColor === "#ffffff" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.6)";
   const cardBorder = accent + "55";
-  const useBlurredBg = !!tc.use_blurred_bg && !!tc.invitation_image_url;
   const vis = {
+    event_name: tc.visibility?.event_name ?? true,
     start_time: tc.visibility?.start_time ?? true,
     end_time: tc.visibility?.end_time ?? false,
     countdown: tc.visibility?.countdown ?? true,
@@ -194,37 +182,20 @@ export function GuestInvitationView({
   const declined = guest.rsvp_status === "declined";
   const fullName = guest.title ? `${guest.title} ${guest.name}` : guest.name;
 
-  // Typography slots (with sensible large defaults for readability)
-  const titleStyle = slotStyle(typo.title, typo.font_family, 36, colorsCfg.text || accent);
-  const dateStyle = slotStyle(typo.date, typo.font_family, 18, textColor);
-  const locationStyle = slotStyle(typo.location, typo.font_family, 20, textColor);
-  const descStyle = slotStyle(typo.description, typo.font_family, 16, textColor);
-  const footerStyle = slotStyle(typo.footer, typo.font_family, 14, softText);
-
   return (
     <div
       dir="rtl"
       className="relative min-h-screen overflow-x-hidden"
       style={{
-        background: useBlurredBg ? bgColor : `linear-gradient(180deg, ${bgColor} 0%, ${surface2} 60%, ${bgColor} 100%)`,
+        background: `linear-gradient(180deg, ${bgColor} 0%, ${surface2} 60%, ${bgColor} 100%)`,
         color: textColor,
-        fontFamily: typo.font_family ? `'${typo.font_family}', ${FALLBACK_FONT}` : FALLBACK_FONT,
+        fontFamily: "'Tajawal', 'Amiri', system-ui, sans-serif",
       }}
     >
       {preview ? (
         <div className="sticky top-0 z-50 bg-amber-500 px-3 py-1.5 text-center text-xs font-bold text-amber-950 shadow">
           معاينة — بيانات وهمية لاستعراض المظهر
         </div>
-      ) : null}
-      {useBlurredBg ? (
-        <>
-          <div
-            aria-hidden
-            className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center"
-            style={{ backgroundImage: `url("${tc.invitation_image_url}")`, filter: "blur(28px) saturate(130%)", transform: "scale(1.15)" }}
-          />
-          <div aria-hidden className="pointer-events-none fixed inset-0 -z-10" style={{ background: bgColor + "cc" }} />
-        </>
       ) : null}
       <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-20" style={{ background: accent }} />
 
@@ -235,21 +206,25 @@ export function GuestInvitationView({
             <img src={tc.invitation_image_url} alt={event.name} className="block h-auto w-full rounded-3xl shadow-2xl" style={{ border: `1px solid ${cardBorder}` }} />
           ) : (
             <div className="grid aspect-[3/4] place-items-center rounded-3xl border border-dashed text-center" style={{ borderColor: cardBorder }}>
-              <p style={titleStyle} className="px-4 font-display font-bold">{event.name}</p>
+              <p className="px-4 font-display text-3xl font-bold" style={{ color: accent }}>{event.name}</p>
             </div>
           )}
-          <p className="mt-4 text-center" style={footerStyle}>
+          <p className="mt-4 text-center text-sm" style={{ color: softText }}>
             دعوة موجّهة إلى <span className="font-bold" style={{ color: accent }}>{fullName}</span>
           </p>
         </section>
 
         {/* Event title + description (dynamic from event form) */}
+        {vis.event_name || (vis.description && event.description) ? (
         <section className="animate-fade-in text-center">
-          <h1 style={titleStyle} className="font-display font-bold">{event.name}</h1>
+          {vis.event_name ? (
+            <h1 className="font-display text-4xl font-bold" style={{ color: accent }}>{event.name}</h1>
+          ) : null}
           {vis.description && event.description ? (
-            <p style={descStyle} className="mt-3 leading-relaxed">{event.description}</p>
+            <p className="mt-3 text-base leading-relaxed" style={{ color: textColor }}>{event.description}</p>
           ) : null}
         </section>
+        ) : null}
 
         {/* Smart timer */}
         {!declined && (vis.countdown || vis.start_time) ? (
@@ -281,9 +256,9 @@ export function GuestInvitationView({
               <>
                 <div className="mt-5 inline-block rounded-lg px-4 py-2" style={{ background: accent + "12" }}>
                   <p className="text-[11px]" style={{ color: softText }}>يبدأ الحفل الساعة</p>
-                  <p className="font-bold" style={dateStyle}>{formatArabicClock12(new Date(startMs))}</p>
+                  <p className="text-lg font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(startMs))}</p>
                 </div>
-                <p className="mt-3" style={{ ...dateStyle, fontSize: `${(typo.date?.size ?? 18) - 4}px`, color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
+                <p className="mt-3 text-sm" style={{ color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
                 {vis.end_time ? (
                   <p className="mt-2 text-xs" style={{ color: softText }}>ينتهي الساعة {formatArabicClock12(new Date(endMs))}</p>
                 ) : null}
@@ -300,12 +275,12 @@ export function GuestInvitationView({
           <section className="animate-fade-in">
             <Card className="border p-5" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full" style={{ background: accent, color: surface }}>
+                <div className="grid h-10 w-10 place-items-center rounded-full" style={{ background: accent, color: onAccent }}>
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs" style={{ color: softText }}>موقع الحفل</p>
-                  <p className="truncate font-display font-bold" style={locationStyle}>{event.location || "—"}</p>
+                  <p className="truncate font-display text-lg font-bold" style={{ color: textColor }}>{event.location || "—"}</p>
                 </div>
               </div>
               {mapEmbedSrc ? (
@@ -322,7 +297,7 @@ export function GuestInvitationView({
               ) : null}
               {safeHttpUrl(event.location_url) ? (
                 <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                  <Button className="w-full" style={{ background: accent, color: surface }}>
+                  <Button className="w-full" style={{ background: accent, color: onAccent }}>
                     <MapPin className="ms-2 h-4 w-4" /> فتح الموقع على الخريطة
                   </Button>
                 </a>
@@ -369,7 +344,7 @@ export function GuestInvitationView({
               <div>
                 <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
                 <div className="grid grid-cols-2 gap-3">
-                  <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: surface }}>
+                  <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: onAccent }}>
                     <Check className="ms-2 h-4 w-4" /> حضور
                   </Button>
                   <Button onClick={() => setMode("decline")} variant="outline" style={{ borderColor: accent, color: textColor, background: "transparent" }}>
@@ -399,7 +374,7 @@ export function GuestInvitationView({
                           className="h-9 min-w-9 rounded-md px-3 text-sm font-bold transition"
                           style={{
                             background: chosenCompanions === i ? accent : "transparent",
-                            color: chosenCompanions === i ? surface : textColor,
+                            color: chosenCompanions === i ? onAccent : textColor,
                             border: `1px solid ${accent}66`,
                           }}
                         >
@@ -430,7 +405,7 @@ export function GuestInvitationView({
                 ) : null}
                 <div className="grid grid-cols-2 gap-3">
                   <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
-                  <Button onClick={() => respond("accepted")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>تأكيد الحضور</Button>
+                  <Button onClick={() => respond("accepted")} disabled={submitting} className="font-bold" style={{ background: accent, color: onAccent }}>تأكيد الحضور</Button>
                 </div>
               </div>
             ) : (
@@ -448,7 +423,7 @@ export function GuestInvitationView({
                 <p className="text-left text-[11px]" style={{ color: softText }}>{toArabicDigits(wishes.length)}/{toArabicDigits(500)}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
-                  <Button onClick={() => respond("declined")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>إرسال</Button>
+                  <Button onClick={() => respond("declined")} disabled={submitting} className="font-bold" style={{ background: accent, color: onAccent }}>إرسال</Button>
                 </div>
               </div>
             )}

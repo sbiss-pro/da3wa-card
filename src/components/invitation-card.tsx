@@ -26,6 +26,7 @@ export type TemplateConfig = {
     accent?: string;
   };
   visibility?: {
+    event_name?: boolean;
     start_time?: boolean;
     end_time?: boolean;
     countdown?: boolean;
