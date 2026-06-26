@@ -74,6 +74,7 @@ function GuestPage() {
   const softText = textColor === "#ffffff" ? "rgba(255,255,255,0.75)" : "rgba(26,20,16,0.7)";
   const cardBg = textColor === "#ffffff" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.6)";
   const cardBorder = accent + "55";
+  const useBlurredBg = !!tc.use_blurred_bg && !!tc.invitation_image_url;
 
   const startMs = useMemo(() => new Date(event.event_date).getTime(), [event.event_date]);
   const endMs = useMemo(() => (tc.event_end_date ? new Date(tc.event_end_date).getTime() : startMs + 4 * 3600 * 1000), [tc.event_end_date, startMs]);
@@ -81,6 +82,9 @@ function GuestPage() {
   // Companion count is set by the host only. The guest sees it read-only
   // and may fill in companion names accordingly.
   const hostCompanions = Math.max(0, Math.min(11, guest.companions_count || 0));
+  // Guest may choose to bring fewer companions, but never more than the host limit.
+  const [chosenCompanions, setChosenCompanions] = useState<number>(hostCompanions);
+  useEffect(() => { setChosenCompanions(hostCompanions); }, [hostCompanions]);
 
   // Build countdown parts
   let cd = { d: 0, h: 0, m: 0, s: 0 };
@@ -105,10 +109,10 @@ function GuestPage() {
   useEffect(() => {
     setCompanionNames((prev) => {
       const next = [...prev];
-      while (next.length < hostCompanions) next.push("");
-      return next.slice(0, hostCompanions);
+      while (next.length < chosenCompanions) next.push("");
+      return next.slice(0, chosenCompanions);
     });
-  }, [hostCompanions]);
+  }, [chosenCompanions]);
 
   const respond = async (status: "accepted" | "declined") => {
     setSubmitting(true);
@@ -119,7 +123,7 @@ function GuestPage() {
         notes: status === "declined" ? wishes.trim() : notes,
       };
       if (status === "accepted") {
-        payload.companions_count = hostCompanions;
+        payload.companions_count = chosenCompanions;
         payload.companion_names = companionNames.map((s) => s.trim()).filter(Boolean);
       }
       const r = await submitRsvp({ data: payload });
@@ -150,10 +154,20 @@ function GuestPage() {
       dir="rtl"
       className="relative min-h-screen overflow-x-hidden"
       style={{
-        background: `linear-gradient(180deg, ${bgColor} 0%, ${surface2} 60%, ${bgColor} 100%)`,
+        background: useBlurredBg ? bgColor : `linear-gradient(180deg, ${bgColor} 0%, ${surface2} 60%, ${bgColor} 100%)`,
         color: textColor,
       }}
     >
+      {useBlurredBg ? (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center"
+            style={{ backgroundImage: `url("${tc.invitation_image_url}")`, filter: "blur(28px) saturate(130%)", transform: "scale(1.15)" }}
+          />
+          <div aria-hidden className="pointer-events-none fixed inset-0 -z-10" style={{ background: bgColor + "cc" }} />
+        </>
+      ) : null}
       <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full blur-3xl opacity-20" style={{ background: accent }} />
 
       <div className="mx-auto max-w-xl space-y-6 px-4 py-8 sm:py-12">
@@ -199,19 +213,19 @@ function GuestPage() {
             ) : phase === "during" ? (
               <p className="font-display text-2xl font-bold" style={{ color: accent }}>بدأ الحفل الآن .. أهلاً ومرحباً بكم</p>
             ) : (
-              <p className="font-display text-2xl font-bold" style={{ color: accent }}>انتهى الحفل .. شكراً للحضور</p>
+              <p className="font-display text-3xl font-bold tracking-wide" style={{ color: accent }}>انتهى الحفل</p>
             )}
-            <div className="mt-5 grid grid-cols-2 gap-3 text-sm" style={{ color: softText }}>
-              <div className="rounded-lg p-2" style={{ background: accent + "12" }}>
-                <p className="text-[10px]">يبدأ</p>
-                <p className="font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(startMs))}</p>
-              </div>
-              <div className="rounded-lg p-2" style={{ background: accent + "12" }}>
-                <p className="text-[10px]">ينتهي</p>
-                <p className="font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(endMs))}</p>
-              </div>
-            </div>
-            <p className="mt-3 text-xs" style={{ color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
+            {phase !== "after" ? (
+              <>
+                <div className="mt-5 inline-block rounded-lg px-4 py-2 text-sm" style={{ background: accent + "12", color: softText }}>
+                  <p className="text-[10px]">يبدأ الحفل الساعة</p>
+                  <p className="font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(startMs))}</p>
+                </div>
+                <p className="mt-3 text-xs" style={{ color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs" style={{ color: softText }}>شكراً لكم على المشاركة</p>
+            )}
           </Card>
         </section>
 
@@ -228,6 +242,17 @@ function GuestPage() {
                   <p className="truncate font-display text-base font-bold">{event.location || "—"}</p>
                 </div>
               </div>
+              {event.location || event.location_url ? (
+                <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: cardBorder }}>
+                  <iframe
+                    title="موقع الحفل"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(event.location_url || event.location || "")}&hl=ar&z=15&output=embed`}
+                    className="block h-56 w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              ) : null}
               {safeHttpUrl(event.location_url) ? (
                 <a href={safeHttpUrl(event.location_url)!} target="_blank" rel="noopener noreferrer" className="mt-4 block">
                   <Button className="w-full" style={{ background: accent, color: surface }}>
@@ -279,7 +304,7 @@ function GuestPage() {
                 ) : null}
               </div>
             ) : phase === "after" ? (
-              <p className="text-center" style={{ color: softText }}>انتهى الحفل، لم يعد بالإمكان تأكيد الحضور.</p>
+              <p className="text-center font-display text-2xl font-bold" style={{ color: accent }}>انتهى الحفل</p>
             ) : mode === null ? (
               <div>
                 <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
@@ -301,12 +326,32 @@ function GuestPage() {
                 </div>
                 {hostCompanions > 0 ? (
                   <div className="space-y-3 rounded-xl border p-3" style={{ borderColor: cardBorder, background: accent + "10" }}>
-                    <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: accent }} /><Label>مرافقوك ({toArabicDigits(hostCompanions)})</Label></div>
+                    <div className="flex items-center gap-2"><Users className="h-4 w-4" style={{ color: accent }} /><Label>عدد مرافقيك</Label></div>
                     <p className="text-xs" style={{ color: softText }}>
-                      حدّد المنظم لك <span className="font-bold" style={{ color: accent }}>{toArabicDigits(hostCompanions)}</span> مرافق. يرجى كتابة أسمائهم.
+                      حدّد لك المنظم حتى <span className="font-bold" style={{ color: accent }}>{toArabicDigits(hostCompanions)}</span> مرافق. يمكنك تقليل العدد إن أحببت.
                     </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: hostCompanions + 1 }, (_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setChosenCompanions(i)}
+                          className="h-9 min-w-9 rounded-md px-3 text-sm font-bold transition"
+                          style={{
+                            background: chosenCompanions === i ? accent : "transparent",
+                            color: chosenCompanions === i ? surface : textColor,
+                            border: `1px solid ${accent}66`,
+                          }}
+                        >
+                          {toArabicDigits(i)}
+                        </button>
+                      ))}
+                    </div>
+                    {chosenCompanions > 0 ? (
+                      <p className="text-[11px]" style={{ color: softText }}>اكتب أسماء المرافقين (اختياري):</p>
+                    ) : null}
                     <div className="space-y-2">
-                      {Array.from({ length: hostCompanions }, (_, i) => (
+                      {Array.from({ length: chosenCompanions }, (_, i) => (
                           <Input
                             key={i}
                             value={companionNames[i] ?? ""}
@@ -315,7 +360,7 @@ function GuestPage() {
                               next[i] = e.target.value;
                               setCompanionNames(next);
                             }}
-                            placeholder={`اسم المرافق ${toArabicDigits(i + 1)}`}
+                            placeholder={`اسم المرافق ${toArabicDigits(i + 1)} (اختياري)`}
                             className="bg-white/10"
                             style={{ color: textColor }}
                           />
