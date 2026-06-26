@@ -345,7 +345,7 @@ export function GuestInvitationView({
               <div>
                 <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
                 <div className="grid grid-cols-2 gap-3">
-                  <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: surface }}>
+                  <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: onAccent }}>
                     <Check className="ms-2 h-4 w-4" /> حضور
                   </Button>
                   <Button onClick={() => setMode("decline")} variant="outline" style={{ borderColor: accent, color: textColor, background: "transparent" }}>
@@ -406,7 +406,7 @@ export function GuestInvitationView({
                 ) : null}
                 <div className="grid grid-cols-2 gap-3">
                   <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
-                  <Button onClick={() => respond("accepted")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>تأكيد الحضور</Button>
+                  <Button onClick={() => respond("accepted")} disabled={submitting} className="font-bold" style={{ background: accent, color: onAccent }}>تأكيد الحضور</Button>
                 </div>
               </div>
             ) : (
@@ -424,7 +424,7 @@ export function GuestInvitationView({
                 <p className="text-left text-[11px]" style={{ color: softText }}>{toArabicDigits(wishes.length)}/{toArabicDigits(500)}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <Button variant="ghost" onClick={() => setMode(null)} disabled={submitting} style={{ color: textColor }}>رجوع</Button>
-                  <Button onClick={() => respond("declined")} disabled={submitting} className="font-bold" style={{ background: accent, color: surface }}>إرسال</Button>
+                  <Button onClick={() => respond("declined")} disabled={submitting} className="font-bold" style={{ background: accent, color: onAccent }}>إرسال</Button>
                 </div>
               </div>
             )}
