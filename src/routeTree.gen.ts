@@ -18,6 +18,7 @@ import { Route as CEventRouteImport } from './routes/c.event'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as IPreviewEventIdRouteImport } from './routes/i.preview.$eventId'
+import { Route as ApiPublicProxyRouteImport } from './routes/api/public/proxy'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events.new'
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
 
@@ -66,6 +67,11 @@ const IPreviewEventIdRoute = IPreviewEventIdRouteImport.update({
   path: '/i/preview/$eventId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicProxyRoute = ApiPublicProxyRouteImport.update({
+  id: '/api/public/proxy',
+  path: '/api/public/proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedEventsNewRoute = AuthenticatedEventsNewRouteImport.update({
   id: '/events/new',
   path: '/events/new',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
+  '/api/public/proxy': typeof ApiPublicProxyRoute
   '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRoutesByTo {
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
+  '/api/public/proxy': typeof ApiPublicProxyRoute
   '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRoutesById {
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/i/$token': typeof ITokenRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
+  '/api/public/proxy': typeof ApiPublicProxyRoute
   '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRouteTypes {
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
+    | '/api/public/proxy'
     | '/i/preview/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
+    | '/api/public/proxy'
     | '/i/preview/$eventId'
   id:
     | '__root__'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
+    | '/api/public/proxy'
     | '/i/preview/$eventId'
   fileRoutesById: FileRoutesById
 }
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   CEventRoute: typeof CEventRoute
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
+  ApiPublicProxyRoute: typeof ApiPublicProxyRoute
   IPreviewEventIdRoute: typeof IPreviewEventIdRoute
 }
 
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IPreviewEventIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/proxy': {
+      id: '/api/public/proxy'
+      path: '/api/public/proxy'
+      fullPath: '/api/public/proxy'
+      preLoaderRoute: typeof ApiPublicProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/events/new': {
       id: '/_authenticated/events/new'
       path: '/events/new'
@@ -272,18 +292,9 @@ const rootRouteChildren: RootRouteChildren = {
   CEventRoute: CEventRoute,
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
+  ApiPublicProxyRoute: ApiPublicProxyRoute,
   IPreviewEventIdRoute: IPreviewEventIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
