@@ -1066,6 +1066,98 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
 /* ---------------- Coordinators ---------------- */
 type CoordinatorRow = { id: string; name: string; username: string; last_login_at: string | null; created_at: string };
 
+/* ---------------- Live scan-logs feed (host view) ---------------- */
+type ScanLogRow = {
+  id: string;
+  guest_name: string;
+  coordinator_name: string;
+  attended_count: number | null;
+  partial: boolean;
+  status: string;
+  scanned_at: string;
+};
+
+function ScanLogsFeed({ eventId }: { eventId: string }) {
+  const [rows, setRows] = useState<ScanLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("scan_logs")
+        .select("id,guest_name,coordinator_name,attended_count,partial,status,scanned_at")
+        .eq("event_id", eventId)
+        .order("scanned_at", { ascending: false })
+        .limit(100);
+      if (!alive) return;
+      setRows((data || []) as ScanLogRow[]);
+      setLoading(false);
+    })();
+    const ch = supabase
+      .channel(`scan-logs-${eventId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "scan_logs", filter: `event_id=eq.${eventId}` },
+        (payload) => {
+          const r = payload.new as ScanLogRow;
+          setRows(prev => [r, ...prev].slice(0, 100));
+        },
+      )
+      .subscribe();
+    return () => { alive = false; supabase.removeChannel(ch); };
+  }, [eventId]);
+
+  const fmtTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit" });
+    } catch { return iso; }
+  };
+
+  return (
+    <Card className="p-4 sm:p-6">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="font-display text-lg font-bold">سجل مسح QR (حي)</h3>
+        <Badge variant="outline" className="text-xs">{rows.length} عملية</Badge>
+      </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">لم يتم تسجيل أي عملية مسح بعد. ستظهر هنا فور قيام المنسق بأي عملية تحضير.</p>
+      ) : (
+        <div className="max-h-[420px] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الوقت</TableHead>
+                <TableHead>اسم الضيف</TableHead>
+                <TableHead>المنسق</TableHead>
+                <TableHead>الحالة</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs tabular-nums text-muted-foreground" dir="ltr">{fmtTime(r.scanned_at)}</TableCell>
+                  <TableCell className="font-medium">{r.guest_name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.coordinator_name}</TableCell>
+                  <TableCell>
+                    {r.partial ? (
+                      <Badge variant="outline" className="border-amber-500 text-amber-700 text-[10px]">جزئي · {r.attended_count ?? "—"}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-emerald-500 text-emerald-700 text-[10px]">مكتمل · {r.attended_count ?? "—"}</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function CoordinatorsTab({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<CoordinatorRow[]>([]);
   const [loading, setLoading] = useState(true);
