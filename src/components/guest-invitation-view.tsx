@@ -90,12 +90,26 @@ export function GuestInvitationView({
   const tc = event.template_config || {};
   const typo = tc.typography || {};
   const palette = tc.palette && tc.palette.length >= 4 ? tc.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
-  const [bgColor, accent, surface, surface2] = palette;
-  const textColor = readableTextOn(bgColor);
+  const [paletteBg, paletteAccent, paletteSurface, paletteSurface2] = palette;
+  const colorsCfg = tc.colors || {};
+  const bgColor = colorsCfg.page_bg || paletteBg;
+  const accent = colorsCfg.icon || colorsCfg.accent || paletteAccent;
+  const surface = paletteSurface;
+  const surface2 = paletteSurface2;
+  const textColor = colorsCfg.text || readableTextOn(bgColor);
   const softText = textColor === "#ffffff" ? "rgba(255,255,255,0.75)" : "rgba(26,20,16,0.7)";
   const cardBg = textColor === "#ffffff" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.6)";
   const cardBorder = accent + "55";
   const useBlurredBg = !!tc.use_blurred_bg && !!tc.invitation_image_url;
+  const vis = {
+    start_time: tc.visibility?.start_time ?? true,
+    end_time: tc.visibility?.end_time ?? false,
+    countdown: tc.visibility?.countdown ?? true,
+    location: tc.visibility?.location ?? true,
+    description: tc.visibility?.description ?? true,
+    qr: tc.visibility?.qr ?? true,
+    calendar: tc.visibility?.calendar ?? true,
+  };
 
   const mapEmbedSrc = useMemo(() => {
     const url = (event.location_url || "").trim();
@@ -181,7 +195,7 @@ export function GuestInvitationView({
   const fullName = guest.title ? `${guest.title} ${guest.name}` : guest.name;
 
   // Typography slots (with sensible large defaults for readability)
-  const titleStyle = slotStyle(typo.title, typo.font_family, 36, accent);
+  const titleStyle = slotStyle(typo.title, typo.font_family, 36, colorsCfg.text || accent);
   const dateStyle = slotStyle(typo.date, typo.font_family, 18, textColor);
   const locationStyle = slotStyle(typo.location, typo.font_family, 20, textColor);
   const descStyle = slotStyle(typo.description, typo.font_family, 16, textColor);
@@ -232,17 +246,18 @@ export function GuestInvitationView({
         {/* Event title + description (dynamic from event form) */}
         <section className="animate-fade-in text-center">
           <h1 style={titleStyle} className="font-display font-bold">{event.name}</h1>
-          {event.description ? (
+          {vis.description && event.description ? (
             <p style={descStyle} className="mt-3 leading-relaxed">{event.description}</p>
           ) : null}
         </section>
 
         {/* Smart timer */}
+        {!declined && (vis.countdown || vis.start_time) ? (
         <section className="animate-fade-in">
           <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
-            {phase === "before" ? (
+            {phase === "before" && vis.countdown ? (
               <>
-                <p className="text-xs uppercase tracking-[0.3em]" style={{ color: softText }}>متبقي على بداية الحفل</p>
+                <p className="text-sm font-semibold" style={{ color: softText }}>المتبقي على بداية الحفل</p>
                 <div dir="ltr" className="mt-4 grid grid-cols-4 gap-2 text-center">
                   {[
                     { v: cd.d, l: "يوم" },
@@ -259,25 +274,29 @@ export function GuestInvitationView({
               </>
             ) : phase === "during" ? (
               <p className="font-display text-2xl font-bold" style={{ color: accent }}>بدأ الحفل الآن .. أهلاً ومرحباً بكم</p>
-            ) : (
+            ) : phase === "after" ? (
               <p className="font-display text-3xl font-bold tracking-wide" style={{ color: accent }}>انتهى الحفل</p>
-            )}
-            {phase !== "after" ? (
+            ) : null}
+            {phase !== "after" && vis.start_time ? (
               <>
                 <div className="mt-5 inline-block rounded-lg px-4 py-2" style={{ background: accent + "12" }}>
                   <p className="text-[11px]" style={{ color: softText }}>يبدأ الحفل الساعة</p>
                   <p className="font-bold" style={dateStyle}>{formatArabicClock12(new Date(startMs))}</p>
                 </div>
                 <p className="mt-3" style={{ ...dateStyle, fontSize: `${(typo.date?.size ?? 18) - 4}px`, color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
+                {vis.end_time ? (
+                  <p className="mt-2 text-xs" style={{ color: softText }}>ينتهي الساعة {formatArabicClock12(new Date(endMs))}</p>
+                ) : null}
               </>
             ) : (
-              <p className="mt-3 text-xs" style={{ color: softText }}>شكراً لكم على المشاركة</p>
+              phase === "after" ? <p className="mt-3 text-xs" style={{ color: softText }}>شكراً لكم على المشاركة</p> : null
             )}
           </Card>
         </section>
+        ) : null}
 
         {/* Location — hidden when guest declined */}
-        {!declined && (event.location || event.location_url) ? (
+        {!declined && vis.location && (event.location || event.location_url) ? (
           <section className="animate-fade-in">
             <Card className="border p-5" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
               <div className="flex items-center gap-3">
@@ -321,6 +340,7 @@ export function GuestInvitationView({
                 <p className="mt-3" style={{ color: softText }}>{accepted ? "نتشرف بحضورك" : "نشكر تواصلك"}</p>
 
                 {accepted && phase !== "after" ? (
+                  vis.calendar ? (
                   <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <a href={cal.google} target="_blank" rel="noreferrer" dir="ltr"
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 text-[14px] font-medium leading-none text-[#3c4043] shadow-sm transition hover:bg-[#f8f9fa]">
@@ -331,6 +351,7 @@ export function GuestInvitationView({
                       <span className="whitespace-nowrap">Add to Apple Calendar</span>
                     </a>
                   </div>
+                  ) : null
                 ) : null}
 
                 {accepted && (guest.companion_names?.length ?? 0) > 0 ? (
@@ -435,10 +456,10 @@ export function GuestInvitationView({
         </section>
 
         {/* QR */}
-        {qr && !declined && phase !== "after" ? (
+        {qr && !declined && phase !== "after" && vis.qr ? (
           <section className="animate-fade-in">
             <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
-              <p className="mb-3 text-xs uppercase tracking-[0.3em]" style={{ color: softText }}>رمز الدخول الخاص بك</p>
+              <p className="mb-3 text-sm font-semibold" style={{ color: softText }}>رمز الدخول الخاص بك</p>
               <div className="mx-auto inline-block overflow-hidden rounded-xl" style={{ boxShadow: `0 0 0 4px ${accent}55` }}>
                 <img src={qr} alt="QR" className="block" />
               </div>

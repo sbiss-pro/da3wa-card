@@ -19,6 +19,21 @@ export type TemplateConfig = {
     description?: TypographySlot;
     footer?: TypographySlot;
   };
+  colors?: {
+    page_bg?: string;
+    text?: string;
+    icon?: string;
+    accent?: string;
+  };
+  visibility?: {
+    start_time?: boolean;
+    end_time?: boolean;
+    countdown?: boolean;
+    location?: boolean;
+    description?: boolean;
+    qr?: boolean;
+    calendar?: boolean;
+  };
 };
 
 export type TypographySlot = {

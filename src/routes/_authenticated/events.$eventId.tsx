@@ -8,6 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -188,6 +190,29 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
     setCfg({ ...cfg, palette: next });
   };
 
+  const colors = cfg.colors || {};
+  const effectiveColors = {
+    page_bg: colors.page_bg || palette[0],
+    text: colors.text || "#1a1410",
+    icon: colors.icon || palette[1],
+    accent: colors.accent || palette[1],
+  };
+  const updateColors = (patch: Partial<NonNullable<TemplateConfig["colors"]>>) =>
+    setCfg({ ...cfg, colors: { ...colors, ...patch } });
+  const resetColors = () => setCfg({ ...cfg, colors: undefined });
+
+  const vis = {
+    start_time: cfg.visibility?.start_time ?? true,
+    end_time: cfg.visibility?.end_time ?? false,
+    countdown: cfg.visibility?.countdown ?? true,
+    location: cfg.visibility?.location ?? true,
+    description: cfg.visibility?.description ?? true,
+    qr: cfg.visibility?.qr ?? true,
+    calendar: cfg.visibility?.calendar ?? true,
+  };
+  const setVis = (key: keyof typeof vis, v: boolean) =>
+    setCfg({ ...cfg, visibility: { ...(cfg.visibility || {}), [key]: v } });
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="space-y-6 p-6">
@@ -225,16 +250,37 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
 
         {/* --- لوحة الألوان --- */}
         <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-          <Label className="flex items-center gap-2"><PaletteIcon className="h-4 w-4 text-gold" /> ألوان الصفحة</Label>
-          <p className="text-xs text-muted-foreground">يمكنك تعديل أي لون يدوياً. اللون الأول = الخلفية الرئيسية.</p>
-          <div className="grid grid-cols-4 gap-2">
-            {palette.map((c, i) => (
-              <div key={i} className="space-y-1">
-                <Input type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-12 w-full p-1" />
-                <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground" dir="ltr">{c}</p>
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2"><PaletteIcon className="h-4 w-4 text-gold" /> ألوان البطاقة</Label>
+            <Button type="button" variant="ghost" size="sm" onClick={resetColors}>العودة للوضع الافتراضي</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">كل لون يؤثر على عنصر واحد فقط بشكل صارم.</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([
+              { key: "page_bg", label: "خلفية الصفحة" },
+              { key: "text", label: "النصوص" },
+              { key: "icon", label: "الأيقونات" },
+              { key: "accent", label: "الأزرار والحقول" },
+            ] as const).map((c) => (
+              <div key={c.key} className="space-y-1">
+                <Label className="text-[11px]">{c.label}</Label>
+                <Input
+                  type="color"
+                  className="h-10 w-full p-1"
+                  value={effectiveColors[c.key]}
+                  onChange={(e) => updateColors({ [c.key]: e.target.value })}
+                />
               </div>
             ))}
           </div>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground">لوحة الألوان المستخرجة من الصورة (متقدم)</summary>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {palette.map((c, i) => (
+                <Input key={i} type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-9 w-full p-1" />
+              ))}
+            </div>
+          </details>
           <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-background/40 p-3">
             <input
               id="use_blurred_bg"
@@ -247,6 +293,30 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               <span className="font-bold">خلفية ضبابية من صورة الدعوة</span>
               <span className="block text-xs text-muted-foreground">استخدام صورة الدعوة كخلفية كاملة للصفحة مع تأثير ضبابي.</span>
             </Label>
+          </div>
+        </section>
+
+        {/* --- إظهار / إخفاء عناصر البطاقة --- */}
+        <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <Eye className="h-4 w-4 text-gold" /> إظهار وإخفاء عناصر البطاقة
+          </Label>
+          <p className="text-xs text-muted-foreground">عند الإخفاء يُعاد ترتيب البطاقة تلقائياً دون فراغات.</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {([
+              { key: "countdown", label: "العداد الزمني" },
+              { key: "start_time", label: "وقت بداية الحفل" },
+              { key: "end_time", label: "وقت نهاية الحفل" },
+              { key: "location", label: "موقع الحفل والخريطة" },
+              { key: "description", label: "الوصف الإضافي" },
+              { key: "calendar", label: "أزرار التقويم" },
+              { key: "qr", label: "رمز QR" },
+            ] as const).map((v) => (
+              <div key={v.key} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                <Label className="cursor-pointer text-sm">{v.label}</Label>
+                <Switch checked={vis[v.key]} onCheckedChange={(c) => setVis(v.key, c)} />
+              </div>
+            ))}
           </div>
         </section>
 
@@ -357,39 +427,37 @@ function TypographyControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: 
         {TYPO_SLOTS.map((s) => {
           const slot = (typo[s.key] as TypographySlot | undefined) || {};
           return (
-            <div key={s.key} className="grid grid-cols-1 gap-2 rounded-lg border border-border/60 bg-background/40 p-2 sm:grid-cols-[1fr_auto_auto]">
-              <div className="space-y-1">
+            <div key={s.key} className="space-y-2 rounded-lg border border-border/60 bg-background/40 p-3">
+              <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs font-bold">{s.label}</Label>
-                <select
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                  value={slot.font || ""}
-                  onChange={(e) => updateSlot(s.key, { font: e.target.value || undefined })}
-                >
-                  <option value="">— استخدام الخط الافتراضي —</option>
-                  {ARABIC_FONT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px]">الحجم</Label>
-                <Input
-                  type="number"
-                  min={10}
-                  max={80}
-                  className="h-8 w-20"
-                  value={slot.size ?? s.defaultSize}
-                  onChange={(e) => updateSlot(s.key, { size: Math.max(10, Math.min(80, parseInt(e.target.value || "0", 10) || s.defaultSize)) })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px]">اللون</Label>
                 <Input
                   type="color"
-                  className="h-8 w-12 p-1"
+                  className="h-8 w-12 shrink-0 p-1"
                   value={slot.color || "#1a1410"}
                   onChange={(e) => updateSlot(s.key, { color: e.target.value })}
                 />
+              </div>
+              <select
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                value={slot.font || ""}
+                onChange={(e) => updateSlot(s.key, { font: e.target.value || undefined })}
+              >
+                <option value="">— استخدام الخط الافتراضي —</option>
+                {ARABIC_FONT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-3">
+                <Label className="shrink-0 text-[11px] text-muted-foreground">حجم الخط</Label>
+                <Slider
+                  min={10}
+                  max={80}
+                  step={1}
+                  value={[slot.size ?? s.defaultSize]}
+                  onValueChange={(v) => updateSlot(s.key, { size: v[0] })}
+                  className="flex-1"
+                />
+                <span className="w-10 text-left font-mono text-xs tabular-nums">{slot.size ?? s.defaultSize}px</span>
               </div>
             </div>
           );
