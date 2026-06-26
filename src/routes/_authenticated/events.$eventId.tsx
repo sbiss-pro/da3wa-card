@@ -780,7 +780,11 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     // "(معدل)" reflects host override of the original guest reply and persists across check-ins.
     const overridden = !!(guest.original_rsvp_status && guest.original_rsvp_status !== status);
     const wasAttended = guest.rsvp_status === "attended";
-    const patch: Record<string, unknown> = {
+    const patch: {
+      name: string; phone: string | null; companions_count: number; rsvp_status: string;
+      status_overridden_by_host: boolean; notes: string | null;
+      attended_count?: number; checked_in_at?: string | null;
+    } = {
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
