@@ -277,21 +277,12 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           </div>
         </section>
 
-        {/* --- الحد الأقصى للمرافقين --- */}
-        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-          <Label className="flex items-center gap-2"><UsersIcon className="h-4 w-4 text-gold" /> الحد الأقصى للمرافقين لكل ضيف</Label>
-          <Input
-            type="number"
-            min={0}
-            max={MAX_COMPANIONS}
-            value={cfg.max_companions ?? 0}
-            onChange={(e) => {
-              const n = Math.max(0, Math.min(MAX_COMPANIONS, parseInt(e.target.value || "0", 10) || 0));
-              setCfg({ ...cfg, max_companions: n });
-            }}
-          />
-          <p className="text-xs text-muted-foreground">إذا كانت القيمة صفر، لن يستطيع الضيف اختيار مرافقين. الحد الأقصى: {MAX_COMPANIONS}.</p>
-        </section>
+        {/* --- تخصيص الخطوط والنصوص --- */}
+        <TypographyControls cfg={cfg} setCfg={setCfg} />
+
+        <p className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+          ملاحظة: يتم تحديد الحد الأقصى للمرافقين لكل ضيف من تبويب «المدعوون» (حقل المرافقين عند الإضافة أو التعديل). الحد الأعلى: {MAX_COMPANIONS}.
+        </p>
 
         <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ"}
