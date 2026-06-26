@@ -777,16 +777,24 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     setSaving(true);
     const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
     const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
-    // Status is considered "overridden" only when there's a recorded guest choice and the host picked something different.
+    // "(معدل)" reflects host override of the original guest reply and persists across check-ins.
     const overridden = !!(guest.original_rsvp_status && guest.original_rsvp_status !== status);
-    const { error } = await supabase.from("guests").update({
+    const wasAttended = guest.rsvp_status === "attended";
+    const patch: Record<string, unknown> = {
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
       rsvp_status: status,
       status_overridden_by_host: overridden,
       notes: notes.trim() ? notes.trim().slice(0, 500) : null,
-    }).eq("id", guest.id);
+    };
+    // QR reset: when host moves status off "attended" (e.g. حضر → مقبول), wipe attendance
+    // counters and the check-in timestamp so the coordinator can re-scan the same QR.
+    if (status !== "attended" && wasAttended) {
+      patch.attended_count = 0;
+      patch.checked_in_at = null;
+    }
+    const { error } = await supabase.from("guests").update(patch).eq("id", guest.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("تم حفظ التعديلات");
