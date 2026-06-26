@@ -375,7 +375,7 @@ export function GuestInvitationView({
                           className="h-9 min-w-9 rounded-md px-3 text-sm font-bold transition"
                           style={{
                             background: chosenCompanions === i ? accent : "transparent",
-                            color: chosenCompanions === i ? surface : textColor,
+                            color: chosenCompanions === i ? onAccent : textColor,
                             border: `1px solid ${accent}66`,
                           }}
                         >
