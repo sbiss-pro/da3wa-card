@@ -75,6 +75,23 @@ function EventDetails() {
   };
   useEffect(() => { load(); }, [eventId]);
 
+  // Live-sync: any coordinator check-in or new scan log refreshes the host UI.
+  useEffect(() => {
+    const ch = supabase
+      .channel(`event-live-${eventId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "guests", filter: `event_id=eq.${eventId}` }, (payload) => {
+        const row = payload.new as Guest;
+        setGuests(prev => prev.map(x => x.id === row.id ? { ...x, ...row } : x));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scan_logs", filter: `event_id=eq.${eventId}` }, () => {
+        // scan_logs feed reloads itself; refresh guests just in case the update event was missed.
+        supabase.from("guests").select("*").eq("event_id", eventId).order("created_at", { ascending: false })
+          .then(({ data }) => { if (data) setGuests(data as Guest[]); });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [eventId]);
+
   if (loading || !event) return <HostShell><p className="text-muted-foreground">جاري التحميل...</p></HostShell>;
 
   const inviteUrl = (token: string) => `${window.location.origin}/i/${token}`;
