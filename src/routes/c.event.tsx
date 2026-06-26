@@ -185,7 +185,22 @@ function CoordinatorEvent() {
   }, [session]);
 
   if (loading) return <div dir="rtl" className="p-8 text-muted-foreground">جاري التحميل...</div>;
-  if (!session || !event) return null;
+  if (!session) return null;
+  if (!event) {
+    return (
+      <div dir="rtl" className="grid min-h-screen place-items-center bg-background p-6">
+        <div className="max-w-sm text-center space-y-4">
+          <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+          <h2 className="font-display text-lg font-bold">تعذّر تحميل بيانات الفعالية</h2>
+          <p className="text-sm text-muted-foreground">تحقّق من الاتصال بالإنترنت ثم أعد المحاولة، أو سجّل الدخول من جديد.</p>
+          <div className="flex justify-center gap-2">
+            <Button onClick={() => session && load(session)}>إعادة المحاولة</Button>
+            <Button variant="outline" onClick={signOut}>تسجيل خروج</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const attended = guests.filter(g => g.rsvp_status === "attended").length;
   const accepted = guests.filter(g => g.rsvp_status === "accepted").length;
