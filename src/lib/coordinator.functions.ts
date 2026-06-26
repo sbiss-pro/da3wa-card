@@ -182,65 +182,98 @@ async function logScan(opts: {
   });
 }
 
+/**
+ * Smart admission state machine — supports partial check-ins and late-arriving
+ * companions. The guest's QR code stays valid until the group is fully admitted
+ * (attended_count === companions_count + 1).
+ *
+ * First scan: the main guest is admitted automatically, plus `companions_now`
+ *   additional companions (0..max_companions).
+ * Later scans: only companions are admitted (main is already in). The counter
+ *   is capped at remaining seats; once the last seat is filled, the code is
+ *   locked and further scans surface ALREADY_CHECKED_IN.
+ */
+function buildAdmissionPatch(guest: { rsvp_status: string; companions_count: number | null; attended_count: number | null; checked_in_at: string | null }, companions_now: number) {
+  if (guest.rsvp_status === "declined") {
+    throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
+  }
+  const groupSize = (guest.companions_count ?? 0) + 1;
+  const current = guest.attended_count ?? 0;
+  if (current >= groupSize) {
+    const err = new Error(`تنبيه: هذا الرمز مستخدم بالكامل! وقت أول تسجيل: ${guest.checked_in_at ?? "—"}`);
+    (err as Error & { code?: string }).code = "ALREADY_CHECKED_IN";
+    throw err;
+  }
+  const remaining = groupSize - current;
+  const firstScan = current === 0;
+  const requestedCompanions = Math.max(0, Math.floor(companions_now));
+  const maxCompanionsThisScan = firstScan ? Math.min(groupSize - 1, remaining - 1) : remaining;
+  const companionsAdmitted = Math.min(requestedCompanions, Math.max(0, maxCompanionsThisScan));
+  const admit = (firstScan ? 1 : 0) + companionsAdmitted;
+  if (admit <= 0) {
+    throw new Error("لا توجد مقاعد متبقية لإضافتها");
+  }
+  const total = current + admit;
+  const partial = total < groupSize;
+  return {
+    patch: {
+      rsvp_status: "attended",
+      checked_in_at: firstScan ? new Date().toISOString() : guest.checked_in_at,
+      attended_count: total,
+    } as const,
+    total,
+    groupSize,
+    partial,
+    admit,
+    companionsAdmitted,
+    firstScan,
+  };
+}
+
+const guestSelect = "id,name,title,phone,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at,attended_count,token";
+
 export const coordinatorCheckIn = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    sessionSchema.extend({ guest_token: z.string().min(4).max(128) }).parse(d),
+    sessionSchema.extend({
+      guest_token: z.string().min(4).max(128),
+      companions_now: z.number().int().min(0).max(11).optional(),
+    }).parse(d),
   )
   .handler(async ({ data }) => {
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
     const { data: guest } = await supabaseAdmin
-      .from("guests")
-      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at")
-      .eq("token", data.guest_token)
-      .eq("event_id", row.event_id)
-      .maybeSingle();
-    if (!guest) throw new Error("المدعو غير موجود في هذه الفعالية");
-    if (guest.rsvp_status === "declined") {
-      throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
-    }
-    if (guest.rsvp_status === "attended") {
-      const err = new Error(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${guest.checked_in_at ?? "—"}`);
-      (err as Error & { code?: string; guest?: unknown }).code = "ALREADY_CHECKED_IN";
-      (err as Error & { code?: string; guest?: unknown }).guest = guest;
-      throw err;
-    }
-    const total = (guest.companions_count ?? 0) + 1;
-    await supabaseAdmin
-      .from("guests")
-      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: total })
-      .eq("id", guest.id);
-    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial: false });
-    return { ...guest, rsvp_status: "attended", attended_count: total };
+      .from("guests").select(guestSelect)
+      .eq("token", data.guest_token).eq("event_id", row.event_id).maybeSingle();
+    if (!guest) throw new Error("الرمز غير معروف في هذه الفعالية");
+    const { patch, total, groupSize, partial, admit, companionsAdmitted, firstScan } =
+      buildAdmissionPatch(guest, data.companions_now ?? (groupSize_default(guest) - 1));
+    await supabaseAdmin.from("guests").update(patch).eq("id", guest.id);
+    await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial });
+    return { ...guest, ...patch, group_size: groupSize, remaining: groupSize - total, partial, admit, companions_admitted: companionsAdmitted, first_scan: firstScan };
   });
+
+function groupSize_default(g: { companions_count: number | null }) {
+  return (g.companions_count ?? 0) + 1;
+}
 
 export const coordinatorCheckInById = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    sessionSchema.extend({ guest_id: z.string().uuid(), attended_count: z.number().int().min(1).max(12).optional() }).parse(d),
+    sessionSchema.extend({
+      guest_id: z.string().uuid(),
+      companions_now: z.number().int().min(0).max(11).optional(),
+    }).parse(d),
   )
   .handler(async ({ data }) => {
     const { row, supabaseAdmin } = await authCoordinator(data.coordinator_id, data.session_token);
     const { data: guest } = await supabaseAdmin
-      .from("guests")
-      .select("id,name,companions_count,companion_names,notes,event_id,rsvp_status,checked_in_at")
-      .eq("id", data.guest_id)
-      .eq("event_id", row.event_id)
-      .maybeSingle();
+      .from("guests").select(guestSelect)
+      .eq("id", data.guest_id).eq("event_id", row.event_id).maybeSingle();
     if (!guest) throw new Error("المدعو غير موجود");
-    if (guest.rsvp_status === "declined") {
-      throw new Error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
-    }
-    if (guest.rsvp_status === "attended") {
-      throw new Error(`هذا المدعو مسجّل سابقاً (${guest.checked_in_at ?? "—"})`);
-    }
-    const groupSize = (guest.companions_count ?? 0) + 1;
-    const total = Math.max(1, Math.min(groupSize, data.attended_count ?? groupSize));
-    const partial = total < groupSize;
-    await supabaseAdmin
-      .from("guests")
-      .update({ rsvp_status: "attended", checked_in_at: new Date().toISOString(), attended_count: total })
-      .eq("id", guest.id);
+    const { patch, total, groupSize, partial, admit, companionsAdmitted, firstScan } =
+      buildAdmissionPatch(guest, data.companions_now ?? (groupSize_default(guest) - 1));
+    await supabaseAdmin.from("guests").update(patch).eq("id", guest.id);
     await logScan({ event_id: row.event_id, coordinator_id: row.id, coordinator_name: row.name, guest_id: guest.id, guest_name: guest.name, attended_count: total, partial });
-    return { ...guest, rsvp_status: "attended", attended_count: total };
+    return { ...guest, ...patch, group_size: groupSize, remaining: groupSize - total, partial, admit, companions_admitted: companionsAdmitted, first_scan: firstScan };
   });
 
 /**
