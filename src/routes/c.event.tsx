@@ -13,7 +13,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
 import { getCoordinatorContext, coordinatorCheckIn, coordinatorCheckInById, coordinatorMarkNoteSeen } from "@/lib/coordinator.functions";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate } from "@/lib/event-utils";
-import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQueue, clearQueueItem } from "@/lib/coord-offline";
+import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQueue, clearQueueItem, cacheEvent, readCachedEvent } from "@/lib/coord-offline";
 
 export const Route = createFileRoute("/c/event")({
   ssr: false,
@@ -46,24 +46,33 @@ function CoordinatorEvent() {
       setEvent(r.event as EventLite);
       const list = (r.guests || []) as Guest[];
       setGuests(list);
-      if (r.event?.id) cacheGuests(r.event.id, list);
+      if (r.event?.id) {
+        cacheGuests(r.event.id, list);
+        cacheEvent(r.event.id, r.event);
+      }
     } catch (e) {
-      // Offline fallback — use last cached snapshot if available.
+      // Offline / network fallback — use last cached snapshot if available.
+      const msg = e instanceof Error ? e.message : "";
+      const isAuthError = /جلسة|بيانات الدخول|Unauthorized/i.test(msg);
       try {
-        const lastEv = localStorage.getItem("dawati_coord_last_event");
-        if (lastEv) {
+        const lastEv = typeof localStorage !== "undefined" ? localStorage.getItem("dawati_coord_last_event") : null;
+        if (lastEv && !isAuthError) {
+          const cachedEv = readCachedEvent<EventLite>(lastEv);
           const cached = readCachedGuests(lastEv);
-          if (cached.length) {
+          if (cachedEv) {
+            setEvent(cachedEv);
             setGuests(cached as Guest[]);
-            toast.warning("أنت في وضع عدم الاتصال — يتم استخدام النسخة المحفوظة");
+            toast.warning("تعذّر الاتصال بالخادم — يتم عرض النسخة المحفوظة");
             setLoading(false);
             return;
           }
         }
       } catch { /* ignore */ }
-      toast.error(e instanceof Error ? e.message : "تعذر التحميل");
-      clearCoordSession();
-      navigate({ to: "/c/login" });
+      toast.error(msg || "تعذر التحميل");
+      if (isAuthError) {
+        clearCoordSession();
+        navigate({ to: "/c/login" });
+      }
     } finally {
       setLoading(false);
     }
