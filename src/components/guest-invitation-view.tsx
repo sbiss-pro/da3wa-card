@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type TemplateConfig } from "@/components/invitation-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,6 +57,33 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
+/**
+ * Attach to a section ref to fade/translate it into view on scroll. Uses
+ * IntersectionObserver once-only; respects prefers-reduced-motion via CSS.
+ */
+function useReveal<T extends HTMLElement>(): React.RefObject<T | null> {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.classList.add("reveal");
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("reveal-in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return ref;
+}
+
 export function GuestInvitationView({
   event,
   initialGuest,
@@ -74,6 +101,12 @@ export function GuestInvitationView({
   const [qr, setQr] = useState<string>("");
   const [mode, setMode] = useState<null | "accept" | "decline">(null);
   const now = useNow(1000);
+  const heroRef = useReveal<HTMLElement>();
+  const titleRef = useReveal<HTMLElement>();
+  const timerRef = useReveal<HTMLElement>();
+  const locationRef = useReveal<HTMLElement>();
+  const rsvpRef = useReveal<HTMLElement>();
+  const qrRef = useReveal<HTMLElement>();
 
   const tc = event.template_config || {};
   const palette = tc.palette && tc.palette.length >= 4 ? tc.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
@@ -201,7 +234,7 @@ export function GuestInvitationView({
 
       <div className="mx-auto max-w-xl space-y-6 px-4 py-8 sm:py-12">
         {/* Invitation image */}
-        <section className="animate-fade-in">
+        <section ref={heroRef}>
           {tc.invitation_image_url ? (
             <img src={tc.invitation_image_url} alt={event.name} className="block h-auto w-full rounded-3xl shadow-2xl" style={{ border: `1px solid ${cardBorder}` }} />
           ) : (
@@ -216,7 +249,7 @@ export function GuestInvitationView({
 
         {/* Event title + description (dynamic from event form) */}
         {vis.event_name || (vis.description && event.description) ? (
-        <section className="animate-fade-in text-center">
+        <section ref={titleRef} className="text-center">
           {vis.event_name ? (
             <h1 className="font-display text-4xl font-bold" style={{ color: accent }}>{event.name}</h1>
           ) : null}
@@ -228,7 +261,7 @@ export function GuestInvitationView({
 
         {/* Smart timer */}
         {!declined && (vis.countdown || vis.start_time) ? (
-        <section className="animate-fade-in">
+        <section ref={timerRef}>
           <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
             {phase === "before" && vis.countdown ? (
               <>
@@ -272,7 +305,7 @@ export function GuestInvitationView({
 
         {/* Location — hidden when guest declined */}
         {!declined && vis.location && (event.location || event.location_url) ? (
-          <section className="animate-fade-in">
+          <section ref={locationRef}>
             <Card className="border p-5" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-full" style={{ background: accent, color: onAccent }}>
@@ -307,7 +340,7 @@ export function GuestInvitationView({
         ) : null}
 
         {/* RSVP */}
-        <section className="animate-fade-in">
+        <section ref={rsvpRef}>
           <Card className="border p-6" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
             {accepted || declined ? (
               <div className="text-center">
@@ -432,10 +465,10 @@ export function GuestInvitationView({
 
         {/* QR */}
         {qr && !declined && phase !== "after" && vis.qr ? (
-          <section className="animate-fade-in">
+          <section ref={qrRef}>
             <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
               <p className="mb-3 text-sm font-semibold" style={{ color: softText }}>رمز الدخول الخاص بك</p>
-              <div className="mx-auto inline-block overflow-hidden rounded-xl" style={{ boxShadow: `0 0 0 4px ${accent}55` }}>
+              <div className="lux-pulse-ring mx-auto inline-block overflow-hidden rounded-xl" style={{ boxShadow: `0 0 0 4px ${accent}55`, ["--ring-color" as string]: accent + "88" }}>
                 <img src={qr} alt="QR" className="block" />
               </div>
               {guest.companions_count > 0 ? (

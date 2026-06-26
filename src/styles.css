@@ -217,3 +217,30 @@
   filter: blur(18px) saturate(120%);
   transition: filter 0.25s ease;
 }
+
+/* Scroll-reveal — paired with IntersectionObserver in JS */
+@utility reveal {
+  opacity: 0;
+  transform: translateY(28px) scale(0.985);
+  transition: opacity 0.9s cubic-bezier(.2,.7,.2,1), transform 0.9s cubic-bezier(.2,.7,.2,1);
+  will-change: opacity, transform;
+}
+@utility reveal-in {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+@keyframes lux-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 var(--ring-color, rgba(201,162,74,0.55)); }
+  70%  { box-shadow: 0 0 0 18px rgba(201,162,74,0); }
+  100% { box-shadow: 0 0 0 0 rgba(201,162,74,0); }
+}
+@utility lux-pulse-ring {
+  animation: lux-pulse-ring 2.4s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lux-pulse-ring { animation: none; }
+}
