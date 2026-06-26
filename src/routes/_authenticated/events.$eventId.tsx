@@ -154,12 +154,17 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
   const [cfg, setCfg] = useState<TemplateConfig>(event.template_config || {});
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   const save = async () => {
     setSaving(true);
     const { error } = await supabase.from("events").update({ template_config: cfg }).eq("id", event.id);
     setSaving(false);
-    if (error) toast.error(error.message); else { toast.success("تم حفظ التصميم"); onSaved(); }
+    if (error) toast.error(error.message); else {
+      toast.success("تم حفظ التصميم");
+      setPreviewKey((k) => k + 1);
+      onSaved();
+    }
   };
 
   const autoExtract = async (url: string) => {
@@ -230,6 +235,19 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               </div>
             ))}
           </div>
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-background/40 p-3">
+            <input
+              id="use_blurred_bg"
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={!!cfg.use_blurred_bg}
+              onChange={(e) => setCfg({ ...cfg, use_blurred_bg: e.target.checked })}
+            />
+            <Label htmlFor="use_blurred_bg" className="cursor-pointer text-sm font-normal">
+              <span className="font-bold">خلفية ضبابية من صورة الدعوة</span>
+              <span className="block text-xs text-muted-foreground">استخدام صورة الدعوة كخلفية كاملة للصفحة مع تأثير ضبابي.</span>
+            </Label>
+          </div>
         </section>
 
         {/* --- وقت البداية والنهاية --- */}
@@ -280,13 +298,13 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
         </Button>
       </Card>
 
-      <GuestPagePreview event={event} guests={guests} inviteUrl={inviteUrl} />
+      <GuestPagePreview event={event} guests={guests} inviteUrl={inviteUrl} refreshKey={previewKey} />
     </div>
   );
 }
 
 /* ---------------- Guest Page Live Preview ---------------- */
-function GuestPagePreview({ event, guests, inviteUrl }: { event: EventRow; guests: Guest[]; inviteUrl: (t: string) => string }) {
+function GuestPagePreview({ event, guests, inviteUrl, refreshKey = 0 }: { event: EventRow; guests: Guest[]; inviteUrl: (t: string) => string; refreshKey?: number }) {
   const sample = guests[0];
   const url = sample ? inviteUrl(sample.token) : null;
   return (
@@ -303,7 +321,8 @@ function GuestPagePreview({ event, guests, inviteUrl }: { event: EventRow; guest
             <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
           </div>
           <iframe
-            src={url}
+            key={refreshKey}
+            src={`${url}?v=${refreshKey}`}
             title="معاينة صفحة المدعو"
             className="block h-[720px] w-full bg-white"
           />
