@@ -481,14 +481,25 @@ function CoordinatorEvent() {
                       </TableCell>
                       <TableCell className="text-left">
                         <div className="flex flex-wrap justify-end gap-1">
-                          <Button size="sm" variant={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "outline" : "default"} disabled={g.rsvp_status === "attended" || g.rsvp_status === "declined"} onClick={() => checkInGuest(g)} className={g.rsvp_status === "attended" || g.rsvp_status === "declined" ? "" : "gold-gradient text-primary-foreground"}>
-                            <Check className="ms-1 h-3 w-3" /> {g.rsvp_status === "attended" ? `حضر${g.attended_count ? ` (${g.attended_count}/${(g.companions_count ?? 0) + 1})` : ""}` : g.rsvp_status === "declined" ? "معتذر" : "كامل"}
-                          </Button>
-                          {g.rsvp_status !== "attended" && g.rsvp_status !== "declined" && (g.companions_count ?? 0) > 0 ? (
-                            <Button size="sm" variant="outline" onClick={() => checkInPartial(g)} title="دخول مجزأ">
-                              <Users className="ms-1 h-3 w-3" /> مجزأ
-                            </Button>
-                          ) : null}
+                          {(() => {
+                            const groupSize = (g.companions_count ?? 0) + 1;
+                            const current = g.attended_count ?? 0;
+                            const full = current >= groupSize;
+                            const declined = g.rsvp_status === "declined";
+                            const partial = current > 0 && !full;
+                            return (
+                              <Button
+                                size="sm"
+                                variant={full || declined ? "outline" : "default"}
+                                disabled={full || declined}
+                                onClick={() => handleScan(g)}
+                                className={full || declined ? "" : "gold-gradient text-primary-foreground"}
+                              >
+                                <Check className="ms-1 h-3 w-3" />{" "}
+                                {declined ? "معتذر" : full ? `مكتمل (${current}/${groupSize})` : partial ? `إكمال (${current}/${groupSize})` : groupSize > 1 ? `حضور (0/${groupSize})` : "حضور"}
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -500,17 +511,22 @@ function CoordinatorEvent() {
           <TabsContent value="scan" className="mt-4">
             <ErrorBoundary title="تعذّر تشغيل ماسح QR">
               <CoordinatorScanner
-                session={session}
-                eventId={event.id}
                 guests={guests}
-                onCheckIn={(g) => {
-                  setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: new Date().toISOString() } : x));
-                }}
+                lastScan={lastScan}
+                onScanGuest={handleScan}
+                onUnknown={(token) => { beep("error"); setInvalidMsg(`تنبيه: هذا الكود غير معروف أو غير فعّال!\nالرمز: ${token.slice(0, 12)}...`); }}
               />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
       </main>
+
+      <AdmitDialog
+        state={admitState}
+        onClose={() => setAdmitState(null)}
+        onConfirm={async (n) => { if (admitState) { await admitGuest(admitState.guest, n); setAdmitState(null); } }}
+      />
+      <InvalidCodeDialog message={invalidMsg} onClose={() => setInvalidMsg(null)} />
     </div>
   );
 }
