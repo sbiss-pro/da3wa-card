@@ -76,6 +76,31 @@ function GuestPage() {
   const cardBorder = accent + "55";
   const useBlurredBg = !!tc.use_blurred_bg && !!tc.invitation_image_url;
 
+  // Build a reliable keyless Google Maps embed URL.
+  // Prefer extracting coordinates from the host's location URL (works for
+  // share links like maps.app.goo.gl after redirect, /maps/place/.../@lat,lng,zoom,
+  // and ?q=lat,lng links). Fall back to the textual location, then the raw URL.
+  const mapEmbedSrc = useMemo(() => {
+    const url = (event.location_url || "").trim();
+    const text = (event.location || "").trim();
+    // 1) Coordinates inside the URL: "@24.7136,46.6753" or "?q=24.7136,46.6753"
+    const coordRe = /(-?\d{1,3}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/;
+    const m = url.match(coordRe) || text.match(coordRe);
+    if (m) {
+      const q = `${m[1]},${m[2]}`;
+      return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&hl=ar&output=embed`;
+    }
+    // 2) Textual location name
+    if (text) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(text)}&z=15&hl=ar&output=embed`;
+    }
+    // 3) Last resort: pass the URL as a query string
+    if (url) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(url)}&hl=ar&output=embed`;
+    }
+    return "";
+  }, [event.location, event.location_url]);
+
   const startMs = useMemo(() => new Date(event.event_date).getTime(), [event.event_date]);
   const endMs = useMemo(() => (tc.event_end_date ? new Date(tc.event_end_date).getTime() : startMs + 4 * 3600 * 1000), [tc.event_end_date, startMs]);
   const phase: "before" | "during" | "after" = now < startMs ? "before" : now < endMs ? "during" : "after";
@@ -242,14 +267,15 @@ function GuestPage() {
                   <p className="truncate font-display text-base font-bold">{event.location || "—"}</p>
                 </div>
               </div>
-              {event.location || event.location_url ? (
+              {mapEmbedSrc ? (
                 <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: cardBorder }}>
                   <iframe
                     title="موقع الحفل"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(event.location_url || event.location || "")}&hl=ar&z=15&output=embed`}
+                    src={mapEmbedSrc}
                     className="block h-56 w-full"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                   />
                 </div>
               ) : null}
