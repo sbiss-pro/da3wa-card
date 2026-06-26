@@ -77,10 +77,9 @@ export function GuestInvitationView({
 
   const tc = event.template_config || {};
   const palette = tc.palette && tc.palette.length >= 4 ? tc.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
-  const [paletteBg, paletteAccent, paletteSurface, paletteSurface2] = palette;
+  const [paletteBg, paletteAccent, , paletteSurface2] = palette;
   const bgColor = paletteBg;
   const accent = paletteAccent;
-  const surface = paletteSurface;
   const surface2 = paletteSurface2;
   // Always compute text color for max contrast against the background — guarantees readability.
   const textColor = readableTextOn(bgColor);
