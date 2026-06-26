@@ -12,7 +12,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig, ARABIC_FONT_OPTIONS, type TypographySlot } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
 import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart, Users as UsersIcon, Palette as PaletteIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
@@ -46,7 +46,7 @@ const TITLE_OPTIONS = [
   "المكرم","المكرمة","الأستاذ","الأستاذة","الدكتور","الدكتورة",
   "الشيخ","الشيخة","المهندس","المهندسة","الأمير","الأميرة",
 ];
-const MAX_COMPANIONS = 11;
+const MAX_COMPANIONS = 10;
 
 function joinTitleName(title: string, name: string): string {
   const t = (title || "").trim();
@@ -277,62 +277,125 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           </div>
         </section>
 
-        {/* --- الحد الأقصى للمرافقين --- */}
-        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
-          <Label className="flex items-center gap-2"><UsersIcon className="h-4 w-4 text-gold" /> الحد الأقصى للمرافقين لكل ضيف</Label>
-          <Input
-            type="number"
-            min={0}
-            max={MAX_COMPANIONS}
-            value={cfg.max_companions ?? 0}
-            onChange={(e) => {
-              const n = Math.max(0, Math.min(MAX_COMPANIONS, parseInt(e.target.value || "0", 10) || 0));
-              setCfg({ ...cfg, max_companions: n });
-            }}
-          />
-          <p className="text-xs text-muted-foreground">إذا كانت القيمة صفر، لن يستطيع الضيف اختيار مرافقين. الحد الأقصى: {MAX_COMPANIONS}.</p>
-        </section>
+        {/* --- تخصيص الخطوط والنصوص --- */}
+        <TypographyControls cfg={cfg} setCfg={setCfg} />
+
+        <p className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+          ملاحظة: يتم تحديد الحد الأقصى للمرافقين لكل ضيف من تبويب «المدعوون» (حقل المرافقين عند الإضافة أو التعديل). الحد الأعلى: {MAX_COMPANIONS}.
+        </p>
 
         <Button onClick={save} disabled={saving} className="w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> {saving ? "..." : "حفظ"}
         </Button>
       </Card>
 
-      <GuestPagePreview event={event} guests={guests} inviteUrl={inviteUrl} refreshKey={previewKey} />
+      <GuestPagePreview event={event} refreshKey={previewKey} />
     </div>
   );
 }
 
 /* ---------------- Guest Page Live Preview ---------------- */
-function GuestPagePreview({ event, guests, inviteUrl, refreshKey = 0 }: { event: EventRow; guests: Guest[]; inviteUrl: (t: string) => string; refreshKey?: number }) {
-  const sample = guests[0];
-  const url = sample ? inviteUrl(sample.token) : null;
+function GuestPagePreview({ event, refreshKey = 0 }: { event: EventRow; refreshKey?: number }) {
+  const url = `/i/preview/${event.id}`;
   return (
     <div className="lg:sticky lg:top-24 lg:self-start">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">معاينة كاملة لصفحة المدعو</p>
-        {url ? (
-          <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
-        ) : null}
+        <p className="text-sm text-muted-foreground">معاينة كاملة (ببيانات وهمية) لصفحة المدعو</p>
+        <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
       </div>
-      {url ? (
-        <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
-          <div className="flex items-center justify-center bg-foreground/5 py-1.5">
-            <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
-          </div>
-          <iframe
-            key={refreshKey}
-            src={`${url}?v=${refreshKey}`}
-            title="معاينة صفحة المدعو"
-            className="block h-[720px] w-full bg-white"
-          />
+      <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
+        <div className="flex items-center justify-center bg-foreground/5 py-1.5">
+          <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
         </div>
-      ) : (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          أضف مدعواً واحداً على الأقل من تبويب «المدعوون» لمشاهدة المعاينة الكاملة لصفحته هنا.
-        </Card>
-      )}
+        <iframe
+          key={refreshKey}
+          src={`${url}?v=${refreshKey}`}
+          title="معاينة صفحة المدعو"
+          className="block h-[720px] w-full bg-white"
+        />
+      </div>
+      <p className="mt-2 text-center text-[11px] text-muted-foreground">المعاينة لا تعرض اسم أي مدعو حقيقي.</p>
     </div>
+  );
+}
+
+/* ---------------- Typography Controls ---------------- */
+const TYPO_SLOTS: { key: "title" | "date" | "location" | "description" | "footer"; label: string; defaultSize: number }[] = [
+  { key: "title", label: "اسم الفعالية", defaultSize: 36 },
+  { key: "date", label: "التاريخ والوقت", defaultSize: 18 },
+  { key: "location", label: "الموقع", defaultSize: 20 },
+  { key: "description", label: "الوصف الإضافي", defaultSize: 16 },
+  { key: "footer", label: "النص السفلي", defaultSize: 14 },
+];
+
+function TypographyControls({ cfg, setCfg }: { cfg: TemplateConfig; setCfg: (c: TemplateConfig) => void }) {
+  const typo = cfg.typography || {};
+  const update = (patch: Partial<NonNullable<TemplateConfig["typography"]>>) =>
+    setCfg({ ...cfg, typography: { ...typo, ...patch } });
+  const updateSlot = (key: typeof TYPO_SLOTS[number]["key"], patch: Partial<TypographySlot>) => {
+    const current = (typo[key] as TypographySlot | undefined) || {};
+    update({ [key]: { ...current, ...patch } } as Partial<NonNullable<TemplateConfig["typography"]>>);
+  };
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+      <Label className="flex items-center gap-2 text-base font-bold">
+        <PaletteIcon className="h-4 w-4 text-gold" /> الخطوط والنصوص
+      </Label>
+      <div className="space-y-2">
+        <Label className="text-xs">الخط الافتراضي للبطاقة</Label>
+        <select
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          value={typo.font_family || "Tajawal"}
+          onChange={(e) => update({ font_family: e.target.value })}
+        >
+          {ARABIC_FONT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-3">
+        {TYPO_SLOTS.map((s) => {
+          const slot = (typo[s.key] as TypographySlot | undefined) || {};
+          return (
+            <div key={s.key} className="grid grid-cols-1 gap-2 rounded-lg border border-border/60 bg-background/40 p-2 sm:grid-cols-[1fr_auto_auto]">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold">{s.label}</Label>
+                <select
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  value={slot.font || ""}
+                  onChange={(e) => updateSlot(s.key, { font: e.target.value || undefined })}
+                >
+                  <option value="">— استخدام الخط الافتراضي —</option>
+                  {ARABIC_FONT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px]">الحجم</Label>
+                <Input
+                  type="number"
+                  min={10}
+                  max={80}
+                  className="h-8 w-20"
+                  value={slot.size ?? s.defaultSize}
+                  onChange={(e) => updateSlot(s.key, { size: Math.max(10, Math.min(80, parseInt(e.target.value || "0", 10) || s.defaultSize)) })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px]">اللون</Label>
+                <Input
+                  type="color"
+                  className="h-8 w-12 p-1"
+                  value={slot.color || "#1a1410"}
+                  onChange={(e) => updateSlot(s.key, { color: e.target.value })}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const tokenSchema = z.object({ token: z.string().min(8).max(64) });
+const eventIdSchema = z.object({ event_id: z.string().uuid() });
 
 export const getInvitation = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => tokenSchema.parse(data))
@@ -29,12 +30,29 @@ export const getInvitation = createServerFn({ method: "GET" })
     return { guest, event };
   });
 
+/**
+ * Public preview endpoint: returns the event so the organizer can preview the
+ * guest invitation page with dummy data. Does NOT touch the guests table.
+ */
+export const getEventForPreview = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => eventIdSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: event, error } = await supabaseAdmin
+      .from("events")
+      .select("id,name,event_type,event_date,location,location_url,description,template_config")
+      .eq("id", data.event_id)
+      .single();
+    if (error || !event) throw new Error("NOT_FOUND");
+    return event;
+  });
+
 const rsvpSchema = z.object({
   token: z.string().min(8).max(64),
   status: z.enum(["accepted", "declined"]),
   notes: z.string().max(500).optional().nullable(),
-  companions_count: z.number().int().min(0).max(11).optional(),
-  companion_names: z.array(z.string().trim().max(80)).max(11).optional(),
+  companions_count: z.number().int().min(0).max(10).optional(),
+  companion_names: z.array(z.string().trim().max(80)).max(10).optional(),
 });
 
 export const submitRsvp = createServerFn({ method: "POST" })
@@ -59,7 +77,7 @@ export const submitRsvp = createServerFn({ method: "POST" })
     if (deadline && new Date(deadline).getTime() < Date.now()) {
       throw new Error("انتهت الفترة المحددة لتأكيد الحضور");
     }
-    const maxC = Math.max(0, Math.min(11, tc.max_companions ?? 0));
+    const maxC = Math.max(0, Math.min(10, tc.max_companions ?? 0));
     let comps = data.companions_count ?? 0;
     if (comps > maxC) comps = maxC;
     if (comps < 0) comps = 0;

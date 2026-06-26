@@ -17,6 +17,7 @@ import { Route as CLoginRouteImport } from './routes/c.login'
 import { Route as CEventRouteImport } from './routes/c.event'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as IPreviewEventIdRouteImport } from './routes/i.preview.$eventId'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events.new'
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
 
@@ -60,6 +61,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const IPreviewEventIdRoute = IPreviewEventIdRouteImport.update({
+  id: '/i/preview/$eventId',
+  path: '/i/preview/$eventId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedEventsNewRoute = AuthenticatedEventsNewRouteImport.update({
   id: '/events/new',
   path: '/events/new',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
+  '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/i/$token': typeof ITokenRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
+  '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/i/$token': typeof ITokenRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
+  '/i/preview/$eventId': typeof IPreviewEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
+    | '/i/preview/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/events/$eventId'
     | '/events/new'
+    | '/i/preview/$eventId'
   id:
     | '__root__'
     | '/'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/i/$token'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
+    | '/i/preview/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   CEventRoute: typeof CEventRoute
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
+  IPreviewEventIdRoute: typeof IPreviewEventIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/i/preview/$eventId': {
+      id: '/i/preview/$eventId'
+      path: '/i/preview/$eventId'
+      fullPath: '/i/preview/$eventId'
+      preLoaderRoute: typeof IPreviewEventIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/events/new': {
       id: '/_authenticated/events/new'
       path: '/events/new'
@@ -252,17 +272,8 @@ const rootRouteChildren: RootRouteChildren = {
   CEventRoute: CEventRoute,
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
+  IPreviewEventIdRoute: IPreviewEventIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
