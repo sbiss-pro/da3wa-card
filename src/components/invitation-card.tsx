@@ -11,7 +11,30 @@ export type TemplateConfig = {
   rsvp_deadline?: string | null;
   wa_message_template?: string;
   use_blurred_bg?: boolean;
+  typography?: {
+    font_family?: string;
+    title?: TypographySlot;
+    date?: TypographySlot;
+    location?: TypographySlot;
+    description?: TypographySlot;
+    footer?: TypographySlot;
+  };
 };
+
+export type TypographySlot = {
+  font?: string;
+  size?: number;
+  color?: string;
+};
+
+export const ARABIC_FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: "Tajawal", label: "Tajawal — تجوال" },
+  { value: "Amiri", label: "Amiri — أميري" },
+  { value: "Cairo", label: "Cairo — القاهرة" },
+  { value: "Reem Kufi", label: "Reem Kufi — ريم كوفي" },
+  { value: "Almarai", label: "Almarai — المراعي" },
+  { value: "Noto Naskh Arabic", label: "Noto Naskh — نسخ" },
+];
 
 export function InvitationCard({
   config,
