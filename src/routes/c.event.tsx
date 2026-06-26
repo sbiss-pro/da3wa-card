@@ -176,6 +176,10 @@ function CoordinatorEvent() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [online, setOnline] = useState<boolean>(typeof navigator === "undefined" ? true : navigator.onLine);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [admitState, setAdmitState] = useState<AdmitState>(null);
+  const [invalidMsg, setInvalidMsg] = useState<string | null>(null);
+  const [lastScan, setLastScan] = useState<Guest | null>(null);
+  const beep = useBeeper();
 
   const signOut = useCallback(() => {
     clearCoordSession();
@@ -270,49 +274,79 @@ function CoordinatorEvent() {
     [guests, q, statusFilter],
   );
 
-  const checkInGuest = useCallback(async (g: Guest) => {
+  /**
+   * Smart admission router. Validates the guest locally, plays audio feedback,
+   * then either admits instantly (no companions) or opens the partial dialog.
+   */
+  const admitGuest = useCallback(async (g: Guest, companionsNow: number, opts?: { silent?: boolean }) => {
     if (!session) return;
-    if (g.rsvp_status === "declined") {
-      toast.error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
-      return;
-    }
-    if (g.rsvp_status === "attended") {
-      const when = g.checked_in_at ? formatArabicDate(g.checked_in_at) : "—";
-      toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
-      return;
-    }
+    const groupSize = (g.companions_count ?? 0) + 1;
+    const current = g.attended_count ?? 0;
+    const firstScan = current === 0;
+    const admit = (firstScan ? 1 : 0) + Math.max(0, companionsNow);
+    const total = Math.min(groupSize, current + admit);
     const stamp = new Date().toISOString();
-    setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: stamp } : x));
-    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: stamp });
+    // Optimistic local update
+    const merged: Guest = { ...g, rsvp_status: "attended", checked_in_at: firstScan ? stamp : g.checked_in_at, attended_count: total };
+    setGuests(prev => prev.map(x => x.id === g.id ? merged : x));
+    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: merged.checked_in_at ?? stamp });
+    setLastScan(merged);
     try {
-      await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id } });
-      toast.success(`تم تسجيل حضور ${g.name}`);
-    } catch {
+      const r = await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, companions_now: companionsNow } });
+      setGuests(prev => prev.map(x => x.id === g.id ? { ...x, ...r } as Guest : x));
+      setLastScan({ ...merged, ...r } as Guest);
+      if (!opts?.silent) {
+        beep("ok");
+        const remaining = groupSize - (r.attended_count ?? total);
+        toast.success(remaining > 0 ? `تم تسجيل ${admit} · المتبقي ${remaining}` : `تم تسجيل ${admit} — مكتمل`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "تعذّر التسجيل";
+      // Network blip → queue for later sync (cache already updated).
       if (event) {
         enqueueCheckin(event.id, { guest_id: g.id, guest_token: g.token, offline_at: stamp });
         setPendingCount(c => c + 1);
       }
-      toast.warning(`تم تسجيل ${g.name} محلياً، ستتم المزامنة عند عودة الاتصال`);
+      if (/بالكامل|بالفعل|معتذِر/.test(msg)) {
+        beep("error");
+        setInvalidMsg(msg);
+        // revert local
+        setGuests(prev => prev.map(x => x.id === g.id ? g : x));
+      } else {
+        beep("warn");
+        toast.warning(`تم التسجيل محلياً، ستتم المزامنة لاحقاً`);
+      }
     }
-  }, [session, event]);
+  }, [session, event, beep]);
 
-  const checkInPartial = useCallback(async (g: Guest) => {
-    if (!session) return;
-    if (g.rsvp_status === "declined" || g.rsvp_status === "attended") return;
+  /**
+   * Entry point for any check-in trigger (QR scan or list button). Handles the
+   * three branches: invalid → loud alert, no-companions → instant, otherwise
+   * → open the partial admission dialog.
+   */
+  const handleScan = useCallback((g: Guest) => {
     const groupSize = (g.companions_count ?? 0) + 1;
-    const raw = window.prompt(`أدخل عدد الحضور الفعلي من المجموعة (الحد الأقصى: ${groupSize})`, String(groupSize));
-    if (!raw) return;
-    const n = Math.max(1, Math.min(groupSize, parseInt(raw, 10) || groupSize));
-    const stamp = new Date().toISOString();
-    setGuests(prev => prev.map(x => x.id === g.id ? { ...x, rsvp_status: "attended", checked_in_at: stamp, attended_count: n } : x));
-    if (event) updateCachedGuest(event.id, g.id, { rsvp_status: "attended", checked_in_at: stamp });
-    try {
-      await coordinatorCheckInById({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_id: g.id, attended_count: n } });
-      toast.success(`تم تسجيل ${n} من أصل ${groupSize}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر التسجيل");
+    const current = g.attended_count ?? 0;
+    if (g.rsvp_status === "declined") {
+      beep("error");
+      setInvalidMsg(`تنبيه: هذا المدعو معتذر! (${g.name}) — لا يمكن تسجيل حضوره`);
+      return;
     }
-  }, [session, event]);
+    if (current >= groupSize) {
+      beep("error");
+      const when = g.checked_in_at ? formatArabicDate(g.checked_in_at) : "—";
+      setInvalidMsg(`تنبيه: هذا الكود مستخدم بالكامل!\n${g.name} — وقت أول تسجيل: ${when}`);
+      setLastScan(g);
+      return;
+    }
+    if (groupSize === 1) {
+      // No companions — instant admit, no popup.
+      void admitGuest(g, 0);
+      return;
+    }
+    const remaining = groupSize - current;
+    setAdmitState({ guest: g, remaining, firstScan: current === 0 });
+  }, [admitGuest, beep]);
 
   const toggleNoteSeen = useCallback(async (g: Guest) => {
     if (!session) return;
