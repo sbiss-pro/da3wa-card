@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { LogOut, Search, ScanLine, Check, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff, Eye, EyeOff, Ban } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { LogOut, Search, ScanLine, Check, Users, UserCheck, UserX, Clock, AlertTriangle, Wifi, WifiOff, Eye, EyeOff, Ban, Plus, Minus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { getCoordSession, clearCoordSession, type CoordSession } from "@/lib/coordinator-session";
@@ -21,8 +22,149 @@ export const Route = createFileRoute("/c/event")({
   component: CoordinatorEvent,
 });
 
-type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; companion_names?: string[]; attended_count?: number; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
+type Guest = { id: string; name: string; title?: string | null; phone: string | null; rsvp_status: string; companions_count: number; companion_names?: string[]; attended_count?: number | null; notes: string | null; notes_seen_at?: string | null; token: string; checked_in_at: string | null };
 type EventLite = { id: string; name: string; event_type: string; event_date: string; location: string | null };
+
+/* ---- Audio feedback (WebAudio — no asset needed) ---- */
+function useBeeper() {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const getCtx = () => {
+    if (typeof window === "undefined") return null;
+    if (!ctxRef.current) {
+      try {
+        const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+        ctxRef.current = new AC();
+      } catch { return null; }
+    }
+    return ctxRef.current;
+  };
+  const beep = useCallback((kind: "ok" | "warn" | "error") => {
+    const ctx = getCtx(); if (!ctx) return;
+    try { if (ctx.state === "suspended") void ctx.resume(); } catch { /* ignore */ }
+    const now = ctx.currentTime;
+    const seq = kind === "ok" ? [[880, 0.08], [1320, 0.10]]
+      : kind === "warn" ? [[520, 0.12], [400, 0.14]]
+      : [[220, 0.18], [180, 0.22], [140, 0.28]];
+    let t = now;
+    for (const [freq, dur] of seq) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = kind === "error" ? "square" : "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t); osc.stop(t + dur + 0.02);
+      t += dur + 0.04;
+    }
+  }, []);
+  return beep;
+}
+
+/* ---- Admission Dialog (replaces window.prompt) ---- */
+type AdmitState = { guest: Guest; remaining: number; firstScan: boolean } | null;
+function AdmitDialog({ state, onClose, onConfirm }: { state: AdmitState; onClose: () => void; onConfirm: (companionsNow: number) => Promise<void> }) {
+  const [companions, setCompanions] = useState(0);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (state) {
+      // default: admit everyone remaining (companions only on first scan = remaining-1, else = remaining)
+      const def = state.firstScan ? Math.max(0, state.remaining - 1) : state.remaining;
+      setCompanions(def);
+    }
+  }, [state]);
+  if (!state) return null;
+  const maxCompanions = state.firstScan ? Math.max(0, state.remaining - 1) : state.remaining;
+  const total = (state.firstScan ? 1 : 0) + companions;
+  const groupSize = state.guest.companions_count + 1;
+  const alreadyIn = state.guest.attended_count ?? 0;
+  return (
+    <Dialog open={!!state} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent dir="rtl" className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">{state.guest.title ? `${state.guest.title} ` : ""}{state.guest.name}</DialogTitle>
+          <DialogDescription>
+            حجم المجموعة: <b className="text-foreground">{groupSize}</b>
+            {" · "}دخلوا سابقاً: <b className="text-foreground">{alreadyIn}</b>
+            {" · "}المتبقي: <b className="text-emerald-600">{state.remaining}</b>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {state.firstScan ? (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
+              <Check className="h-4 w-4 text-emerald-600" />
+              <span>سيتم تسجيل دخول الضيف الأساسي تلقائياً</span>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-sm">
+              الضيف الأساسي مسجّل بالفعل — اختر عدد المرافقين الجدد فقط.
+            </div>
+          )}
+          <div>
+            <Label className="mb-2 block">عدد المرافقين الداخلين الآن (الحد: {maxCompanions})</Label>
+            <div className="flex items-center justify-center gap-3">
+              <Button type="button" size="icon" variant="outline" onClick={() => setCompanions(c => Math.max(0, c - 1))} disabled={companions <= 0}>
+                <Minus className="h-4 w-4" />
+              </Button>
+              <Input
+                type="number" inputMode="numeric" min={0} max={maxCompanions}
+                value={companions}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (Number.isNaN(v)) { setCompanions(0); return; }
+                  setCompanions(Math.max(0, Math.min(maxCompanions, v)));
+                }}
+                className="h-12 w-20 text-center text-xl font-bold tabular-nums"
+              />
+              <Button type="button" size="icon" variant="outline" onClick={() => setCompanions(c => Math.min(maxCompanions, c + 1))} disabled={companions >= maxCompanions}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              سيتم تسجيل دخول <b className="text-foreground">{total}</b> شخص في هذا المسح
+              {total < state.remaining ? " · سيبقى الكود فعّالاً للمرافقين المتأخرين" : " · سيُقفل الكود بعد هذا التسجيل"}
+            </p>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} disabled={busy}>إلغاء</Button>
+          <Button
+            className="gold-gradient text-primary-foreground"
+            disabled={busy || total < 1}
+            onClick={async () => {
+              setBusy(true);
+              try { await onConfirm(companions); } finally { setBusy(false); }
+            }}
+          >
+            <Check className="ms-1 h-4 w-4" /> تأكيد دخول {total}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---- Loud "invalid code" alert dialog ---- */
+function InvalidCodeDialog({ message, onClose }: { message: string | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!message} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent dir="rtl" className="max-w-md border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/40">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-2xl font-extrabold text-rose-700 dark:text-rose-300">
+            <XCircle className="h-7 w-7 animate-pulse" /> تنبيه!
+          </DialogTitle>
+        </DialogHeader>
+        <p className="rounded-lg bg-rose-100 p-4 text-center text-lg font-bold leading-relaxed text-rose-800 dark:bg-rose-900/40 dark:text-rose-100">
+          {message}
+        </p>
+        <DialogFooter>
+          <Button className="w-full bg-rose-600 hover:bg-rose-700" onClick={onClose}>تم</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function CoordinatorEvent() {
   const navigate = useNavigate();
