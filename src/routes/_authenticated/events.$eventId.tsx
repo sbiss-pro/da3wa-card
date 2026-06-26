@@ -760,19 +760,44 @@ function EditGuestDialog({ guest, onClose, onSaved }: { guest: Guest | null; onC
     setSaving(true);
     const normPhone = phone ? (normalizePhone(phone) || phone.trim()) : null;
     const c = Math.max(0, Math.min(MAX_COMPANIONS, Number(companions) || 0));
-    // Status is considered "overridden" only when there's a recorded guest choice and the host picked something different.
-    const overridden = !!(guest.original_rsvp_status && guest.original_rsvp_status !== status);
-    const { error } = await supabase.from("guests").update({
+    // Override flag rules:
+    // - If host returns to the guest's original choice → clear the flag.
+    // - Otherwise: preserve any existing override AND set it true when the
+    //   new status diverges from the original. Marking "attended"
+    //   (check-in semantic) must NEVER erase the "(معدل)" tag.
+    const matchesOriginal = !!guest.original_rsvp_status && guest.original_rsvp_status === status;
+    const diverges = !!guest.original_rsvp_status && guest.original_rsvp_status !== status && status !== "attended";
+    const overridden = matchesOriginal ? false : (!!guest.status_overridden_by_host || diverges);
+    // When host moves the guest OUT of "attended" (e.g. back to "accepted"),
+    // unlock the check-in counters so the coordinator's action button
+    // becomes active again and the QR can be scanned anew.
+    const wasAttended = guest.rsvp_status === "attended";
+    const movingAway = wasAttended && status !== "attended";
+    const patch: {
+      name: string;
+      phone: string | null;
+      companions_count: number;
+      rsvp_status: string;
+      status_overridden_by_host: boolean;
+      notes: string | null;
+      attended_count?: number;
+      checked_in_at?: string | null;
+    } = {
       name: joinTitleName(title, name),
       phone: normPhone,
       companions_count: c,
       rsvp_status: status,
       status_overridden_by_host: overridden,
       notes: notes.trim() ? notes.trim().slice(0, 500) : null,
-    }).eq("id", guest.id);
+    };
+    if (movingAway) {
+      patch.attended_count = 0;
+      patch.checked_in_at = null;
+    }
+    const { error } = await supabase.from("guests").update(patch).eq("id", guest.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم حفظ التعديلات");
+    toast.success(movingAway ? "تم حفظ التعديلات وإعادة تفعيل تسجيل الحضور" : "تم حفظ التعديلات");
     onSaved();
     onClose();
   };
@@ -941,6 +966,80 @@ function AutomationCard({ icon: Icon, title, desc, action, meta }: { icon: typeo
 }
 
 /* ---------------- Scanner ---------------- */
+type ScanLogRow = {
+  id: string; guest_name: string; coordinator_name: string;
+  scanned_at: string; attended_count: number | null; partial: boolean; status: string;
+};
+
+function ScanLogFeed({ eventId }: { eventId: string }) {
+  const [rows, setRows] = useState<ScanLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("scan_logs")
+        .select("id,guest_name,coordinator_name,scanned_at,attended_count,partial,status")
+        .eq("event_id", eventId)
+        .order("scanned_at", { ascending: false })
+        .limit(100);
+      if (!cancelled) { setRows((data as ScanLogRow[]) ?? []); setLoading(false); }
+    })();
+    const ch = supabase
+      .channel(`scan_logs_${eventId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scan_logs", filter: `event_id=eq.${eventId}` }, (payload) => {
+        const row = payload.new as ScanLogRow;
+        setRows(prev => [row, ...prev].slice(0, 100));
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [eventId]);
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-display text-lg font-bold">سجل المسح الحي</h3>
+        <Badge variant="outline" className="text-xs">{rows.length} عملية</Badge>
+      </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">لم يتم تسجيل أي عملية دخول بعد.</p>
+      ) : (
+        <div className="max-h-96 overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>الضيف</TableHead>
+                <TableHead>الحالة</TableHead>
+                <TableHead>المنسق</TableHead>
+                <TableHead>وقت الدخول</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.guest_name}</TableCell>
+                  <TableCell>
+                    {r.partial ? (
+                      <Badge variant="outline" className="border-amber-500 text-amber-700 text-[10px]">جزئي · {r.attended_count ?? "—"}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-emerald-500 text-emerald-700 text-[10px]">حضور · {r.attended_count ?? "—"}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.coordinator_name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground tabular-nums" dir="ltr">{new Date(r.scanned_at).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit" })}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => void }) {
   const [scanning, setScanning] = useState(false);
   const [lastGuest, setLastGuest] = useState<Guest | null>(null);
@@ -970,15 +1069,29 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
               lastToken = token; lastAt = now;
             const { data: guest } = await supabase.from("guests").select("*").eq("token", token).eq("event_id", eventId).single();
             if (!guest) { toast.error("لم يتم التعرف على المدعو"); return; }
-            if (guest.rsvp_status === "attended") {
+            if (guest.rsvp_status === "declined") {
+              toast.error(`المدعو ${guest.name} معتذر — لا يمكن تسجيل الحضور`);
+              return;
+            }
+            const groupSize = (guest.companions_count ?? 0) + 1;
+            const current = guest.attended_count ?? 0;
+            if (current >= groupSize) {
               const when = guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—";
-              toast.warning(`هذا الرمز تم استخدامه بالفعل! وقت التسجيل: ${when}`);
+              toast.warning(`هذا الرمز مستخدم بالكامل (${current}/${groupSize}) — وقت أول تسجيل: ${when}`);
               setLastGuest({ ...guest } as Guest);
               return;
             }
-            await supabase.from("guests").update({ rsvp_status: "attended", checked_in_at: new Date().toISOString() }).eq("id", guest.id);
-            setLastGuest({ ...guest, rsvp_status: "attended" } as Guest);
-            toast.success(`أهلاً ${guest.name}`);
+            const stamp = new Date().toISOString();
+            const firstScan = current === 0;
+            const total = groupSize; // host scan admits the whole group at once
+            const patch = { rsvp_status: "attended", attended_count: total, checked_in_at: firstScan ? stamp : guest.checked_in_at };
+            await supabase.from("guests").update(patch).eq("id", guest.id);
+            await supabase.from("scan_logs").insert({
+              event_id: eventId, guest_id: guest.id, guest_name: guest.name,
+              coordinator_name: "المنظم", attended_count: total, partial: false,
+            });
+            setLastGuest({ ...guest, ...patch } as Guest);
+            toast.success(`أهلاً ${guest.name} — ${total}/${groupSize}`);
             onCheckIn();
             } catch (err) {
               console.error(err);
@@ -1027,6 +1140,9 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
           <p className="text-muted-foreground">لم يتم مسح أي رمز بعد</p>
         )}
       </Card>
+      <div className="lg:col-span-2">
+        <ScanLogFeed eventId={eventId} />
+      </div>
     </div>
   );
 }

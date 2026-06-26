@@ -259,10 +259,18 @@ function CoordinatorEvent() {
     window.addEventListener("offline", onOffline);
     void flush();
     const t = setInterval(refreshPending, 5000);
+    // Periodic resync with the host's dashboard so status changes
+    // (e.g. host moves a guest back from "attended" to "accepted")
+    // unlock the action button on the coordinator side automatically.
+    const sync = setInterval(() => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      void load(session);
+    }, 20000);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       clearInterval(t);
+      clearInterval(sync);
     };
   }, [session, event, load]);
 
