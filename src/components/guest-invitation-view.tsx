@@ -243,7 +243,17 @@ export function GuestInvitationView({
             </div>
           )}
           <p className="mt-4 text-center text-sm" style={{ color: softText }}>
-            دعوة موجّهة إلى <span className="font-bold" style={{ color: accent }}>{fullName}</span>
+            دعوة موجّهة إلى{" "}
+            <span
+              className="font-bold"
+              style={{
+                color: textColor,
+                borderBottom: `2px solid ${accent}`,
+                paddingBottom: "2px",
+              }}
+            >
+              {fullName}
+            </span>
           </p>
         </section>
 
@@ -273,8 +283,23 @@ export function GuestInvitationView({
                     { v: cd.m, l: "دقيقة" },
                     { v: cd.s, l: "ثانية" },
                   ].map((u, i) => (
-                    <div key={i} className="rounded-xl py-2" style={{ background: accent + "1f", border: `1px solid ${accent}33` }}>
-                      <p className="font-display text-2xl font-bold tabular-nums" style={{ color: accent }}>{toArabicDigits(String(u.v).padStart(2, "0"))}</p>
+                    <div
+                      key={i}
+                      className="rounded-xl py-2"
+                      style={{
+                        background:
+                          textColor === "#ffffff"
+                            ? "rgba(255,255,255,0.10)"
+                            : "rgba(0,0,0,0.06)",
+                        border: `1px solid ${accent}66`,
+                      }}
+                    >
+                      <p
+                        className="font-display text-2xl font-bold tabular-nums"
+                        style={{ color: textColor }}
+                      >
+                        {toArabicDigits(String(u.v).padStart(2, "0"))}
+                      </p>
                       <p className="text-[10px]" style={{ color: softText }}>{u.l}</p>
                     </div>
                   ))}
