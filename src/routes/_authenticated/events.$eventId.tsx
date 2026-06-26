@@ -1056,6 +1056,9 @@ function ScannerTab({ eventId, onCheckIn }: { eventId: string; onCheckIn: () => 
           <p className="text-muted-foreground">لم يتم مسح أي رمز بعد</p>
         )}
       </Card>
+      <div className="lg:col-span-2">
+        <ScanLogsFeed eventId={eventId} />
+      </div>
     </div>
   );
 }
