@@ -14,7 +14,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { InvitationCard, type TemplateConfig, ARABIC_FONT_OPTIONS, type TypographySlot } from "@/components/invitation-card";
+import { InvitationCard, type TemplateConfig } from "@/components/invitation-card";
 import { RSVP_LABELS, RSVP_COLORS, formatArabicDate, eventTypeLabel } from "@/lib/event-utils";
 import { Upload, Plus, Trash2, Save, Link as LinkIcon, Copy, Search, ScanLine, Bell, MailCheck, MessageCircle, UserCog, Download, Pencil, Clock, Eye, EyeOff, Plug, Tag, ShieldCheck, AlertTriangle, Image as ImageIcon, Check as CheckIcon, X as XIcon, Heart, Users as UsersIcon, Palette as PaletteIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
@@ -184,24 +184,16 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
   };
 
   const palette = cfg.palette && cfg.palette.length >= 4 ? cfg.palette : ["#1a1410", "#c9a24a", "#f7f1e6", "#3a2e2a"];
+  const PALETTE_LABELS = ["خلفية الصفحة", "اللون المميّز (الأيقونات والأزرار)", "السطح الفاتح", "السطح الثانوي"];
   const updateColor = (i: number, hex: string) => {
     const next = [...palette];
     next[i] = hex;
     setCfg({ ...cfg, palette: next });
   };
-
-  const colors = cfg.colors || {};
-  const effectiveColors = {
-    page_bg: colors.page_bg || palette[0],
-    text: colors.text || "#1a1410",
-    icon: colors.icon || palette[1],
-    accent: colors.accent || palette[1],
-  };
-  const updateColors = (patch: Partial<NonNullable<TemplateConfig["colors"]>>) =>
-    setCfg({ ...cfg, colors: { ...colors, ...patch } });
-  const resetColors = () => setCfg({ ...cfg, colors: undefined });
+  const resetColors = () => setCfg({ ...cfg, palette: undefined, colors: undefined });
 
   const vis = {
+    event_name: cfg.visibility?.event_name ?? true,
     start_time: cfg.visibility?.start_time ?? true,
     end_time: cfg.visibility?.end_time ?? false,
     countdown: cfg.visibility?.countdown ?? true,
@@ -254,45 +246,16 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             <Label className="flex items-center gap-2"><PaletteIcon className="h-4 w-4 text-gold" /> ألوان البطاقة</Label>
             <Button type="button" variant="ghost" size="sm" onClick={resetColors}>العودة للوضع الافتراضي</Button>
           </div>
-          <p className="text-xs text-muted-foreground">كل لون يؤثر على عنصر واحد فقط بشكل صارم.</p>
+          <p className="text-xs text-muted-foreground">
+            تُستخرج الألوان تلقائياً من صورة الدعوة. يمكنك تعديل أي لون يدوياً — يظل لون النصوص يُحسب تلقائياً لضمان الوضوح والقراءة فوق أي خلفية.
+          </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {([
-              { key: "page_bg", label: "خلفية الصفحة" },
-              { key: "text", label: "النصوص" },
-              { key: "icon", label: "الأيقونات" },
-              { key: "accent", label: "الأزرار والحقول" },
-            ] as const).map((c) => (
-              <div key={c.key} className="space-y-1">
-                <Label className="text-[11px]">{c.label}</Label>
-                <Input
-                  type="color"
-                  className="h-10 w-full p-1"
-                  value={effectiveColors[c.key]}
-                  onChange={(e) => updateColors({ [c.key]: e.target.value })}
-                />
+            {palette.map((c, i) => (
+              <div key={i} className="space-y-1">
+                <Label className="text-[11px]">{PALETTE_LABELS[i]}</Label>
+                <Input type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-10 w-full p-1" />
               </div>
             ))}
-          </div>
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs text-muted-foreground">لوحة الألوان المستخرجة من الصورة (متقدم)</summary>
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              {palette.map((c, i) => (
-                <Input key={i} type="color" value={c} onChange={(e) => updateColor(i, e.target.value)} className="h-9 w-full p-1" />
-              ))}
-            </div>
-          </details>
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-background/40 p-3">
-            <input
-              id="use_blurred_bg"
-              type="checkbox"
-              className="mt-1 h-4 w-4"
-              checked={!!cfg.use_blurred_bg}
-              onChange={(e) => setCfg({ ...cfg, use_blurred_bg: e.target.checked })}
-            />
-            <Label htmlFor="use_blurred_bg" className="cursor-pointer text-sm font-normal">
-              <span className="font-bold">خلفية ضبابية من صورة الدعوة</span>
-              <span className="block text-xs text-muted-foreground">استخدام صورة الدعوة كخلفية كاملة للصفحة مع تأثير ضبابي.</span>
-            </Label>
           </div>
         </section>
 
@@ -304,6 +267,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           <p className="text-xs text-muted-foreground">عند الإخفاء يُعاد ترتيب البطاقة تلقائياً دون فراغات.</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {([
+              { key: "event_name", label: "اسم الفعالية" },
               { key: "countdown", label: "العداد الزمني" },
               { key: "start_time", label: "وقت بداية الحفل" },
               { key: "end_time", label: "وقت نهاية الحفل" },
@@ -346,9 +310,6 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             />
           </div>
         </section>
-
-        {/* --- تخصيص الخطوط والنصوص --- */}
-        <TypographyControls cfg={cfg} setCfg={setCfg} />
 
         <p className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
           ملاحظة: يتم تحديد الحد الأقصى للمرافقين لكل ضيف من تبويب «المدعوون» (حقل المرافقين عند الإضافة أو التعديل). الحد الأعلى: {MAX_COMPANIONS}.
