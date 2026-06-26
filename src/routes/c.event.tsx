@@ -547,10 +547,19 @@ function StatCard({ icon: Icon, label, value, color, active, onClick }: { icon: 
   );
 }
 
-function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (g: { id: string; name: string }) => void }) {
+/**
+ * Pure QR decoder. All admission decisions and audio/visual feedback live in
+ * the parent (`handleScan`) so list buttons and scan share one code path.
+ */
+function CoordinatorScanner({ guests, lastScan, onScanGuest, onUnknown }: { guests: Guest[]; lastScan: Guest | null; onScanGuest: (g: Guest) => void; onUnknown: (token: string) => void }) {
   const [scanning, setScanning] = useState(false);
-  const [last, setLast] = useState<Guest | null>(null);
   const elId = "coord-qr-reader";
+  const last = lastScan;
+  // Keep latest callbacks in refs so the scanner effect doesn't restart per render.
+  const onScanRef = useRef(onScanGuest);
+  const onUnknownRef = useRef(onUnknown);
+  const guestsRef = useRef(guests);
+  useEffect(() => { onScanRef.current = onScanGuest; onUnknownRef.current = onUnknown; guestsRef.current = guests; }, [onScanGuest, onUnknown, guests]);
 
   useEffect(() => {
     if (!scanning) return;
@@ -567,67 +576,15 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
         await s.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
-          async (decoded: string) => {
-            try {
-              const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
-              if (!token || token.length < 4 || token.length > 128) { toast.error("رمز غير صالح"); return; }
-              const now = Date.now();
-              if (token === lastToken && now - lastAt < 2500) return;
-              lastToken = token; lastAt = now;
-              // Offline-first: validate locally before hitting network.
-              const localGuest = guests.find(x => x.token === token);
-              if (!localGuest) {
-                toast.error("الرمز غير معروف في هذه الفعالية");
-                return;
-              }
-              if (localGuest.rsvp_status === "declined") {
-                setLast(localGuest);
-                toast.error("لا يمكن تسجيل حضور مدعو معتذِر — يرجى مراجعة المضيف");
-                return;
-              }
-              if (localGuest.rsvp_status === "attended") {
-                setLast(localGuest);
-                toast.warning(`هذا الرمز تم استخدامه بالفعل! ${localGuest.checked_in_at ? "وقت التسجيل: " + formatArabicDate(localGuest.checked_in_at) : ""}`);
-                return;
-              }
-              const offline = typeof navigator !== "undefined" && !navigator.onLine;
-              if (offline) {
-                const stamp = new Date().toISOString();
-                const merged = { ...localGuest, rsvp_status: "attended", checked_in_at: stamp };
-                setLast(merged);
-                updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
-                enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
-                onCheckIn({ id: localGuest.id, name: localGuest.name });
-                toast.warning(`تم تسجيل ${localGuest.name} محلياً (سيتم المزامنة لاحقاً)`);
-                return;
-              }
-              try {
-                const r = await coordinatorCheckIn({ data: { coordinator_id: session.coordinator_id, session_token: session.session_token, guest_token: token } });
-                const g = guests.find(x => x.token === token);
-                const merged = { ...(g || {} as Guest), ...r, rsvp_status: "attended" } as Guest;
-                setLast(merged);
-                toast.success(`أهلاً ${r.name}`);
-                onCheckIn({ id: r.id, name: r.name });
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : "تعذّر التسجيل";
-                if (msg.includes("بالفعل")) {
-                  const g = guests.find(x => x.token === token);
-                  if (g) { setLast(g); }
-                  toast.warning(msg);
-                } else if (msg.includes("معتذِر")) {
-                  toast.error(msg);
-                } else {
-                  // network blip → queue and update cache locally
-                  const stamp = new Date().toISOString();
-                  updateCachedGuest(eventId, localGuest.id, { rsvp_status: "attended", checked_in_at: stamp });
-                  enqueueCheckin(eventId, { guest_id: localGuest.id, guest_token: token, offline_at: stamp });
-                  onCheckIn({ id: localGuest.id, name: localGuest.name });
-                  toast.warning(`تم التسجيل محلياً، سيتم المزامنة لاحقاً`);
-                }
-              }
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "تعذّر التسجيل");
-            }
+          (decoded: string) => {
+            const token = decoded.includes("/i/") ? decoded.split("/i/")[1].split(/[?#]/)[0] : decoded.trim();
+            if (!token || token.length < 4 || token.length > 128) { onUnknownRef.current(token || decoded); return; }
+            const now = Date.now();
+            if (token === lastToken && now - lastAt < 2500) return;
+            lastToken = token; lastAt = now;
+            const g = guestsRef.current.find(x => x.token === token);
+            if (!g) { onUnknownRef.current(token); return; }
+            onScanRef.current(g);
           },
           () => {},
         );
@@ -641,7 +598,7 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
       stopped = true;
       scanner?.stop().then(() => scanner?.clear()).catch(() => {});
     };
-  }, [scanning, session, onCheckIn, guests, eventId]);
+  }, [scanning]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
