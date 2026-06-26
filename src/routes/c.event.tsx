@@ -381,7 +381,8 @@ function vibrate(pattern: number | number[]) {
 }
 
 type ScanReason = "declined" | "full" | "unknown";
-type PendingScan = { guest: Guest; remaining: number };
+/** `remainingCompanions` = companions seats still available (excludes the main guest). */
+type PendingScan = { guest: Guest; remainingCompanions: number; mainAlreadyIn: boolean };
 
 function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: CoordSession; eventId: string; guests: Guest[]; onCheckIn: (patch: Partial<Guest> & { id: string; name: string }) => void }) {
   const [scanning, setScanning] = useState(false);
@@ -451,11 +452,14 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
       setAlert({ reason: "declined", message: "هذا المدعو معتذِر — لا يُسمح بتسجيل الحضور" });
       return;
     }
-    const groupSize = (guest.companions_count ?? 0) + 1;
+    const companionsCap = guest.companions_count ?? 0;
+    const groupSize = companionsCap + 1;
     const already = guest.attended_count ?? (guest.rsvp_status === "attended" ? groupSize : 0);
-    const remaining = Math.max(0, groupSize - already);
+    const mainAlreadyIn = already >= 1;
+    const companionsIn = Math.max(0, already - 1);
+    const remainingCompanions = Math.max(0, companionsCap - companionsIn);
 
-    if (guest.rsvp_status === "attended" && remaining <= 0) {
+    if (guest.rsvp_status === "attended" && already >= groupSize) {
       beepError(); vibrate([200, 80, 200]);
       setLast(guest);
       setAlert({ reason: "full", message: `هذا الكود مستخدم مسبقاً بالكامل! وقت التسجيل: ${guest.checked_in_at ? formatArabicDate(guest.checked_in_at) : "—"}` });
@@ -463,13 +467,13 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
     }
 
     // Solo guest (no companions configured) → instant check-in, no dialog.
-    if ((guest.companions_count ?? 0) === 0) {
+    if (companionsCap === 0) {
       void finalizeCheckIn(guest, 1);
       return;
     }
 
     // Companions exist → open smart dialog with remaining seats.
-    setPending({ guest, remaining: remaining > 0 ? remaining : groupSize });
+    setPending({ guest, remainingCompanions, mainAlreadyIn });
   }, [guests, paused, finalizeCheckIn]);
 
   useEffect(() => {
@@ -568,11 +572,12 @@ function CoordinatorScanner({ session, eventId, guests, onCheckIn }: { session: 
       <CompanionCountDialog
         pending={pending}
         onClose={() => setPending(null)}
-        onConfirm={async (extras) => {
+        onConfirm={async ({ includeMain, companions }) => {
           if (!pending) return;
           const groupSize = (pending.guest.companions_count ?? 0) + 1;
           const already = pending.guest.attended_count ?? (pending.guest.rsvp_status === "attended" ? groupSize : 0);
-          const newTotal = Math.min(groupSize, already + extras);
+          const addingMain = includeMain && !pending.mainAlreadyIn ? 1 : 0;
+          const newTotal = Math.min(groupSize, already + addingMain + companions);
           setPending(null);
           await finalizeCheckIn(pending.guest, newTotal);
         }}
