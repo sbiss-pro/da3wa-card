@@ -130,7 +130,9 @@ export function GuestInvitationView({
     description: tc.visibility?.description ?? true,
     qr: tc.visibility?.qr ?? true,
     calendar: tc.visibility?.calendar ?? true,
+    rsvp_question: tc.visibility?.rsvp_question ?? true,
   };
+  const rsvpQuestion = (tc.rsvp_question && tc.rsvp_question.trim()) || "هل ستشرفنا بالحضور؟";
 
   const mapEmbedSrc = useMemo(() => {
     const url = (event.location_url || "").trim();
@@ -260,11 +262,7 @@ export function GuestInvitationView({
             دعوة موجّهة إلى{" "}
             <span
               className="font-bold"
-              style={{
-                color: textColor,
-                borderBottom: `2px solid ${accent}`,
-                paddingBottom: "2px",
-              }}
+              style={{ color: textColor }}
             >
               {fullName}
             </span>
@@ -435,7 +433,11 @@ export function GuestInvitationView({
               <p className="text-center font-display text-2xl font-bold" style={{ color: accent }}>انتهى الحفل</p>
             ) : mode === null ? (
               <div>
-                <h2 className="mb-4 text-center font-display text-xl font-bold">هل ستشرفنا بالحضور؟</h2>
+                {vis.rsvp_question ? (
+                  <h2 className="mb-4 text-center font-display text-xl font-bold" style={{ color: textColor }}>
+                    {rsvpQuestion}
+                  </h2>
+                ) : null}
                 <div className="grid grid-cols-2 gap-3">
                   <Button onClick={() => setMode("accept")} className="font-bold" style={{ background: accent, color: onAccent }}>
                     <Check className="ms-2 h-4 w-4" /> حضور
