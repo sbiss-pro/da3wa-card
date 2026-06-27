@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "دعوتي — دعوات إلكترونية فاخرة لمناسبتك" },
+      { title: "invitly — دعوات إلكترونية فاخرة لمناسبتك" },
       {
         name: "description",
         content:
@@ -167,7 +167,7 @@ function Index() {
             <span className="grid h-9 w-9 place-items-center rounded-full gold-gradient font-display font-extrabold">
               د
             </span>
-            <span className="font-display text-xl font-bold tracking-wide">دعوتي</span>
+            <span className="font-display text-xl font-bold tracking-wide">invitly</span>
           </Link>
           <div className="flex items-center gap-3">
             <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
@@ -519,7 +519,7 @@ function Index() {
                     د
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">دعوتي</p>
+                    <p className="text-xs font-bold text-white">invitly</p>
                     <p className="text-[9px] text-white/60">متصل الآن</p>
                   </div>
                 </div>
@@ -693,7 +693,7 @@ function Index() {
           <a href="#pricing" className="hover:text-foreground transition">الأسعار</a>
           <a href="/auth" className="hover:text-foreground transition">تسجيل الدخول</a>
         </div>
-        © {new Date().getFullYear()} دعوتي · جميع الحقوق محفوظة
+        © {new Date().getFullYear()} invitly · جميع الحقوق محفوظة
       </footer>
     </div>
   );
