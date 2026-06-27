@@ -396,21 +396,53 @@ function CoordinatorEvent() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/70 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full gold-gradient text-primary-foreground font-bold">د</span>
-            <span className="font-display text-lg font-bold">منسق · {session.name}</span>
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full gold-gradient font-display font-extrabold">د</span>
+            <div className="min-w-0">
+              <p className="text-[10px] tracking-[0.3em] text-primary/80">COMMAND CENTER</p>
+              <p className="truncate font-display text-base font-bold leading-tight">المنسق · {session.name}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${online ? "bg-emerald-500/10 text-emerald-700" : "bg-rose-500/10 text-rose-700"}`}>
-              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              {online ? "متصل" : "غير متصل"}
-              {pendingCount > 0 ? ` · ${pendingCount} بانتظار المزامنة` : ""}
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold backdrop-blur ${
+                online
+                  ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                  : "border-rose-400/50 bg-rose-500/10 text-rose-300"
+              }`}
+              title={online ? "متصل بالخادم — مزامنة لحظية" : "وضع أوفلاين — يُسجَّل محلياً"}
+            >
+              {online ? (
+                <>
+                  <span className="relative inline-flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  </span>
+                  <Wifi className="h-3.5 w-3.5" />
+                  <span>متصل · مزامنة لحظية</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3.5 w-3.5" />
+                  <span>أوفلاين</span>
+                </>
+              )}
+              {pendingCount > 0 ? (
+                <span className="ms-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300">
+                  +{pendingCount} بانتظار
+                </span>
+              ) : null}
             </span>
             <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
           </div>
         </div>
+        {!online ? (
+          <div className="border-t border-rose-400/30 bg-rose-500/10 px-4 py-1.5 text-center text-[11px] font-medium text-rose-200">
+            وضع قراءة الباركود أوفلاين — كل عمليات التسجيل تُحفظ محلياً وتتم مزامنتها فور عودة الاتصال
+          </div>
+        ) : null}
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6">
