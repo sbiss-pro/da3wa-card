@@ -205,6 +205,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
     description: cfg.visibility?.description ?? true,
     qr: cfg.visibility?.qr ?? true,
     calendar: cfg.visibility?.calendar ?? true,
+    rsvp_question: cfg.visibility?.rsvp_question ?? true,
   };
   const setVis = (key: keyof typeof vis, v: boolean) =>
     setCfg({ ...cfg, visibility: { ...(cfg.visibility || {}), [key]: v } });
