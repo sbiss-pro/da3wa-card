@@ -12,7 +12,7 @@ import { ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  head: () => ({ meta: [{ title: "تسجيل الدخول — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "تسجيل الدخول — INVITLY" }] }),
   component: AuthPage,
 });
 
@@ -70,7 +70,7 @@ function AuthPage() {
         </div>
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
           <span className="grid h-10 w-10 place-items-center rounded-full gold-gradient font-bold text-primary-foreground">د</span>
-          <span className="font-display text-2xl font-bold">دعوتي</span>
+          <span className="font-display text-2xl font-bold">INVITLY</span>
         </Link>
         <Card className="p-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")}>
