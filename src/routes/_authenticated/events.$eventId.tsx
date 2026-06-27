@@ -205,6 +205,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
     description: cfg.visibility?.description ?? true,
     qr: cfg.visibility?.qr ?? true,
     calendar: cfg.visibility?.calendar ?? true,
+    rsvp_question: cfg.visibility?.rsvp_question ?? true,
   };
   const setVis = (key: keyof typeof vis, v: boolean) =>
     setCfg({ ...cfg, visibility: { ...(cfg.visibility || {}), [key]: v } });
@@ -279,6 +280,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               { key: "description", label: "الوصف الإضافي" },
               { key: "calendar", label: "أزرار التقويم" },
               { key: "qr", label: "رمز QR" },
+              { key: "rsvp_question", label: "سؤال تأكيد الحضور" },
             ] as const).map((v) => (
               <div key={v.key} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
                 <Label className="cursor-pointer text-sm">{v.label}</Label>
@@ -286,6 +288,57 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               </div>
             ))}
           </div>
+        </section>
+
+        {/* --- موقع الحفل (نص + رابط خرائط قابل للتعديل) --- */}
+        <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <LinkIcon className="h-4 w-4 text-gold" /> موقع الحفل والخريطة
+          </Label>
+          <div className="space-y-2">
+            <Label className="text-xs">اسم/عنوان الموقع</Label>
+            <Input
+              value={event.location || ""}
+              onChange={async (e) => {
+                const v = e.target.value;
+                const { error } = await supabase.from("events").update({ location: v || null }).eq("id", event.id);
+                if (error) toast.error(error.message); else onSaved();
+              }}
+              placeholder="قاعة الماسة، الرياض"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">رابط الموقع على خرائط Google (قابل للتعديل)</Label>
+            <Input
+              value={event.location_url || ""}
+              onChange={async (e) => {
+                const v = e.target.value.trim();
+                const { error } = await supabase.from("events").update({ location_url: v || null }).eq("id", event.id);
+                if (error) toast.error(error.message); else onSaved();
+              }}
+              placeholder="https://maps.google.com/?q=..."
+              dir="ltr"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              يظهر الموقع داخل خريطة تفاعلية في بطاقة الضيف، مع زر مباشر لفتح الخريطة.
+            </p>
+          </div>
+        </section>
+
+        {/* --- نص سؤال تأكيد الحضور (قابل للتعديل) --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <Pencil className="h-4 w-4 text-gold" /> نص سؤال تأكيد الحضور
+          </Label>
+          <Input
+            value={cfg.rsvp_question ?? ""}
+            onChange={(e) => setCfg({ ...cfg, rsvp_question: e.target.value.slice(0, 120) })}
+            placeholder="هل ستشرفنا بالحضور؟"
+            maxLength={120}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            يظهر هذا النص فوق أزرار «حضور / اعتذار» في بطاقة الضيف. يمكنك إخفاؤه من قائمة «إظهار وإخفاء عناصر البطاقة».
+          </p>
         </section>
 
         {/* --- وقت البداية والنهاية --- */}
@@ -334,22 +387,30 @@ function GuestPagePreview({ event, refreshKey = 0 }: { event: EventRow; refreshK
   const url = `/i/preview/${event.id}`;
   return (
     <div className="lg:sticky lg:top-24 lg:self-start">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">معاينة كاملة (ببيانات وهمية) لصفحة المدعو</p>
-        <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
-      </div>
-      <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
-        <div className="flex items-center justify-center bg-foreground/5 py-1.5">
-          <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+      <div className="relative">
+        <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-[2.5rem] lux-ornament blur-2xl opacity-60" />
+        <div className="glass-card relative rounded-[1.75rem] p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="mx-auto h-px w-6 bg-primary/60" />
+              <p className="font-display text-[10px] tracking-[0.4em] text-primary/80">INVITATION PREVIEW</p>
+            </div>
+            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
+          </div>
+          <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[1.75rem] border border-primary/20 bg-black shadow-2xl">
+            <div className="flex items-center justify-center bg-foreground/5 py-1.5">
+              <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+            </div>
+            <iframe
+              key={refreshKey}
+              src={`${url}?v=${refreshKey}`}
+              title="معاينة صفحة المدعو"
+              className="block h-[720px] w-full bg-white"
+            />
+          </div>
+          <p className="mt-3 text-center text-[11px] text-muted-foreground">معاينة كاملة ببيانات وهمية — لا تعرض اسم أي مدعو حقيقي.</p>
         </div>
-        <iframe
-          key={refreshKey}
-          src={`${url}?v=${refreshKey}`}
-          title="معاينة صفحة المدعو"
-          className="block h-[720px] w-full bg-white"
-        />
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">المعاينة لا تعرض اسم أي مدعو حقيقي.</p>
     </div>
   );
 }

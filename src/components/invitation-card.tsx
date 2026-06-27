@@ -11,6 +11,7 @@ export type TemplateConfig = {
   rsvp_deadline?: string | null;
   wa_message_template?: string;
   use_blurred_bg?: boolean;
+  rsvp_question?: string;
   typography?: {
     font_family?: string;
     title?: TypographySlot;
@@ -34,6 +35,7 @@ export type TemplateConfig = {
     description?: boolean;
     qr?: boolean;
     calendar?: boolean;
+    rsvp_question?: boolean;
   };
 };
 

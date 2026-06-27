@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calendar, Heart, Briefcase, Cake, Users, QrCode, BarChart3, MailCheck, Sparkles, ArrowLeft, FileSpreadsheet } from "lucide-react";
+import { Calendar, Heart, Briefcase, Cake, Users, QrCode, BarChart3, MailCheck, Sparkles, ArrowLeft, FileSpreadsheet, Sun, Moon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -14,6 +15,20 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    const stored = (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light" | null)) || "dark";
+    setTheme(stored);
+    document.documentElement.classList.toggle("light", stored === "light");
+  }, []);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try { localStorage.setItem("theme", next); } catch { /* ignore */ }
+      document.documentElement.classList.toggle("light", next === "light");
+      return next;
+    });
+  };
   const eventTypes = [
     { icon: Heart, label: "أعراس" },
     { icon: Sparkles, label: "خطوبة" },
@@ -51,6 +66,15 @@ function Index() {
             <span className="grid h-9 w-9 place-items-center rounded-full gold-gradient font-display font-extrabold">د</span>
             <span className="font-display text-xl font-bold tracking-wide">دعوتي</span>
           </Link>
+          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/50 text-foreground/80 transition hover:border-primary/60 hover:text-primary"
+            aria-label="تبديل المظهر"
+          >
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
           <Link
             to="/auth"
             className="group inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-card/50 px-4 py-1.5 text-[12px] font-medium text-primary/90 transition hover:border-primary/60 hover:text-primary"
@@ -59,6 +83,7 @@ function Index() {
             <span>الدخول</span>
             <ArrowLeft className="h-3.5 w-3.5 transition group-hover:-translate-x-0.5" />
           </Link>
+          </div>
         </div>
       </header>
 
