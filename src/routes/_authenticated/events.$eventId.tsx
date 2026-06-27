@@ -387,22 +387,30 @@ function GuestPagePreview({ event, refreshKey = 0 }: { event: EventRow; refreshK
   const url = `/i/preview/${event.id}`;
   return (
     <div className="lg:sticky lg:top-24 lg:self-start">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">معاينة كاملة (ببيانات وهمية) لصفحة المدعو</p>
-        <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
-      </div>
-      <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[2rem] border-4 border-foreground/10 bg-black shadow-2xl">
-        <div className="flex items-center justify-center bg-foreground/5 py-1.5">
-          <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+      <div className="relative">
+        <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-[2.5rem] lux-ornament blur-2xl opacity-60" />
+        <div className="glass-card relative rounded-[1.75rem] p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="mx-auto h-px w-6 bg-primary/60" />
+              <p className="font-display text-[10px] tracking-[0.4em] text-primary/80">INVITATION PREVIEW</p>
+            </div>
+            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-gold underline">فتح في تبويب</a>
+          </div>
+          <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-[1.75rem] border border-primary/20 bg-black shadow-2xl">
+            <div className="flex items-center justify-center bg-foreground/5 py-1.5">
+              <span className="h-1.5 w-16 rounded-full bg-foreground/30" />
+            </div>
+            <iframe
+              key={refreshKey}
+              src={`${url}?v=${refreshKey}`}
+              title="معاينة صفحة المدعو"
+              className="block h-[720px] w-full bg-white"
+            />
+          </div>
+          <p className="mt-3 text-center text-[11px] text-muted-foreground">معاينة كاملة ببيانات وهمية — لا تعرض اسم أي مدعو حقيقي.</p>
         </div>
-        <iframe
-          key={refreshKey}
-          src={`${url}?v=${refreshKey}`}
-          title="معاينة صفحة المدعو"
-          className="block h-[720px] w-full bg-white"
-        />
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">المعاينة لا تعرض اسم أي مدعو حقيقي.</p>
     </div>
   );
 }
