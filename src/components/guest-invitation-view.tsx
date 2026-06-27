@@ -502,17 +502,41 @@ export function GuestInvitationView({
           </Card>
         </section>
 
-        {/* QR */}
+        {/* QR — with anti-screenshot scanline + animated noise overlay */}
         {qr && !declined && phase !== "after" && vis.qr ? (
           <section ref={qrRef}>
             <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
-              <p className="mb-3 text-sm font-semibold" style={{ color: softText }}>رمز الدخول الخاص بك</p>
-              <div className="lux-pulse-ring mx-auto inline-block overflow-hidden rounded-xl" style={{ boxShadow: `0 0 0 4px ${accent}55`, ["--ring-color" as string]: accent + "88" }}>
-                <img src={qr} alt="QR" className="block" />
+              <p className="mb-1 text-[11px] tracking-[0.35em]" style={{ color: softText }}>ENTRY PASS</p>
+              <p className="mb-4 text-sm font-semibold" style={{ color: softText }}>رمز الدخول الخاص بك</p>
+              <div
+                className="lux-pulse-ring relative mx-auto inline-block overflow-hidden rounded-2xl"
+                style={{
+                  boxShadow: `0 0 0 4px ${accent}55, 0 20px 60px -20px ${accent}aa`,
+                  ["--ring-color" as string]: accent + "88",
+                  padding: "10px",
+                  background: accent + "10",
+                }}
+              >
+                <img src={qr} alt="QR" className="block rounded-lg" />
+                {/* moving scanline + repeating diagonal noise — screenshot deterrent */}
+                <span aria-hidden className="qr-scanline" />
+                <span aria-hidden className="qr-noise" />
+                {/* corner brackets */}
+                {[
+                  "top-1 right-1 border-t-2 border-r-2",
+                  "top-1 left-1 border-t-2 border-l-2",
+                  "bottom-1 right-1 border-b-2 border-r-2",
+                  "bottom-1 left-1 border-b-2 border-l-2",
+                ].map((p) => (
+                  <span key={p} aria-hidden className={`absolute h-3 w-3 ${p}`} style={{ borderColor: accent }} />
+                ))}
               </div>
               {guest.companions_count > 0 ? (
-                <p className="mt-3 text-xs" style={{ color: softText }}>هذا الرمز يخصّك ومجموعتك ({toArabicDigits(guest.companions_count + 1)} أشخاص)</p>
+                <p className="mt-4 text-xs" style={{ color: softText }}>هذا الرمز يخصّك ومجموعتك ({toArabicDigits(guest.companions_count + 1)} أشخاص)</p>
               ) : null}
+              <p className="mt-3 text-[10px] tracking-wider" style={{ color: softText }}>
+                لأمانك — لا تشارك هذا الرمز ولا تُلتقط له صورة. يُعرض حياً عند الباب.
+              </p>
             </Card>
           </section>
         ) : null}
