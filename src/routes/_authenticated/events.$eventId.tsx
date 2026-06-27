@@ -279,6 +279,7 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               { key: "description", label: "الوصف الإضافي" },
               { key: "calendar", label: "أزرار التقويم" },
               { key: "qr", label: "رمز QR" },
+              { key: "rsvp_question", label: "سؤال تأكيد الحضور" },
             ] as const).map((v) => (
               <div key={v.key} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
                 <Label className="cursor-pointer text-sm">{v.label}</Label>
@@ -286,6 +287,57 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
               </div>
             ))}
           </div>
+        </section>
+
+        {/* --- موقع الحفل (نص + رابط خرائط قابل للتعديل) --- */}
+        <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <LinkIcon className="h-4 w-4 text-gold" /> موقع الحفل والخريطة
+          </Label>
+          <div className="space-y-2">
+            <Label className="text-xs">اسم/عنوان الموقع</Label>
+            <Input
+              value={event.location || ""}
+              onChange={async (e) => {
+                const v = e.target.value;
+                const { error } = await supabase.from("events").update({ location: v || null }).eq("id", event.id);
+                if (error) toast.error(error.message); else onSaved();
+              }}
+              placeholder="قاعة الماسة، الرياض"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">رابط الموقع على خرائط Google (قابل للتعديل)</Label>
+            <Input
+              value={event.location_url || ""}
+              onChange={async (e) => {
+                const v = e.target.value.trim();
+                const { error } = await supabase.from("events").update({ location_url: v || null }).eq("id", event.id);
+                if (error) toast.error(error.message); else onSaved();
+              }}
+              placeholder="https://maps.google.com/?q=..."
+              dir="ltr"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              يظهر الموقع داخل خريطة تفاعلية في بطاقة الضيف، مع زر مباشر لفتح الخريطة.
+            </p>
+          </div>
+        </section>
+
+        {/* --- نص سؤال تأكيد الحضور (قابل للتعديل) --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <Pencil className="h-4 w-4 text-gold" /> نص سؤال تأكيد الحضور
+          </Label>
+          <Input
+            value={cfg.rsvp_question ?? ""}
+            onChange={(e) => setCfg({ ...cfg, rsvp_question: e.target.value.slice(0, 120) })}
+            placeholder="هل ستشرفنا بالحضور؟"
+            maxLength={120}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            يظهر هذا النص فوق أزرار «حضور / اعتذار» في بطاقة الضيف. يمكنك إخفاؤه من قائمة «إظهار وإخفاء عناصر البطاقة».
+          </p>
         </section>
 
         {/* --- وقت البداية والنهاية --- */}
