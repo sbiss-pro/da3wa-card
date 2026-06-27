@@ -1,14 +1,33 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, LayoutDashboard, Plus, Menu, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Plus, Menu, X, Sun, Moon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+function useTheme(): ["dark" | "light", () => void] {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    const stored = (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light" | null)) || "dark";
+    setTheme(stored);
+    document.documentElement.classList.toggle("light", stored === "light");
+  }, []);
+  const toggle = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try { localStorage.setItem("theme", next); } catch { /* ignore */ }
+      document.documentElement.classList.toggle("light", next === "light");
+      return next;
+    });
+  };
+  return [theme, toggle];
+}
 
 export function HostShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [theme, toggleTheme] = useTheme();
   const signOut = async () => {
     await qc.cancelQueries();
     qc.clear();
@@ -26,11 +45,20 @@ export function HostShell({ children }: { children: React.ReactNode }) {
           <div className="hidden items-center gap-2 md:flex">
             <Link to="/dashboard"><Button variant="ghost" size="sm"><LayoutDashboard className="ms-1 h-4 w-4" /> اللوحة</Button></Link>
             <Link to="/events/new"><Button size="sm" className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> فعالية جديدة</Button></Link>
+            <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label="تبديل المظهر">
+              {theme === "dark" ? <Sun className="ms-1 h-4 w-4" /> : <Moon className="ms-1 h-4 w-4" />}
+              {theme === "dark" ? "فاتح" : "داكن"}
+            </Button>
             <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="ms-1 h-4 w-4" /> خروج</Button>
           </div>
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setOpen(v => !v)} aria-label="القائمة">
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1 md:hidden">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="تبديل المظهر">
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setOpen(v => !v)} aria-label="القائمة">
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
         {open ? (
           <div className="border-t border-border bg-card md:hidden">
