@@ -12,7 +12,7 @@ import { EVENT_TYPES } from "@/lib/event-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/events/new")({
-  head: () => ({ meta: [{ title: "فعالية جديدة — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "فعالية جديدة — INVITLY" }] }),
   component: NewEvent,
 });
 
