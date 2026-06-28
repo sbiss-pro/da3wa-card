@@ -6,7 +6,7 @@ type LoaderData = { guest: GuestData; event: EventData };
 
 export const Route = createFileRoute("/i/$token")({
   ssr: false,
-  head: () => ({ meta: [{ title: "دعوتك — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "دعوتك — INVITLY" }] }),
   component: GuestPage,
   loader: async ({ params }) => {
     try {
