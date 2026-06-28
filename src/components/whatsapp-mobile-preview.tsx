@@ -1,6 +1,6 @@
 import { MessageCircle, Phone, Video, ArrowLeft, Check } from "lucide-react";
 
-export function WhatsAppMobilePreview({ message, senderName = "دعوتي" }: { message: string; senderName?: string }) {
+export function WhatsAppMobilePreview({ message, senderName = "INVITLY" }: { message: string; senderName?: string }) {
   const now = new Date();
   const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 

@@ -4,7 +4,7 @@ import { getEventForPreview } from "@/lib/invitation.functions";
 
 export const Route = createFileRoute("/i/preview/$eventId")({
   ssr: false,
-  head: () => ({ meta: [{ title: "معاينة البطاقة — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "معاينة البطاقة — INVITLY" }] }),
   loader: async ({ params }) => {
     try {
       const event = await getEventForPreview({ data: { event_id: params.eventId } });

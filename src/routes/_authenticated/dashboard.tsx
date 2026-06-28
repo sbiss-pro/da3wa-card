@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { eventTypeLabel, formatArabicDate } from "@/lib/event-utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "لوحة التحكم — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "لوحة التحكم — INVITLY" }] }),
   component: Dashboard,
 });
 

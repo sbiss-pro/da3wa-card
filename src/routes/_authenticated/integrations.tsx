@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plug, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
-  head: () => ({ meta: [{ title: "التكاملات — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "التكاملات — INVITLY" }] }),
   component: IntegrationsPage,
 });
 
