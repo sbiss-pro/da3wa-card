@@ -213,6 +213,43 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="space-y-6 p-6">
+        {/* --- معلومات الفعالية المقتبسة تلقائياً من الصفحة الرئيسية --- */}
+        <section className="space-y-2 rounded-xl border border-gold/40 bg-gradient-to-bl from-amber-50/30 via-card to-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="flex items-center gap-2 text-sm font-bold">
+              <LinkIcon className="h-4 w-4 text-gold" /> مقتبس تلقائياً من بيانات الفعالية
+            </Label>
+            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[10px] text-gold">مزامنة فورية</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            تُعرض هذه الحقول داخل بطاقة الدعوة تلقائياً. لتعديلها، استخدم تبويب «معلومات الفعالية» في الصفحة الرئيسية للمنظم.
+          </p>
+          <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+            <div className="rounded-lg bg-muted/30 p-2">
+              <p className="text-[10px] text-muted-foreground">اسم الحفل</p>
+              <p className="truncate font-display text-sm font-bold">{event.name || "—"}</p>
+            </div>
+            <div className="rounded-lg bg-muted/30 p-2">
+              <p className="text-[10px] text-muted-foreground">التاريخ والوقت</p>
+              <p className="truncate text-sm">{event.event_date ? formatArabicDate(event.event_date) : "—"}</p>
+            </div>
+            <div className="rounded-lg bg-muted/30 p-2">
+              <p className="text-[10px] text-muted-foreground">المكان</p>
+              <p className="truncate text-sm">{event.location || "—"}</p>
+            </div>
+            <div className="rounded-lg bg-muted/30 p-2">
+              <p className="text-[10px] text-muted-foreground">النوع</p>
+              <p className="truncate text-sm">{eventTypeLabel(event.event_type)}</p>
+            </div>
+            {event.description ? (
+              <div className="rounded-lg bg-muted/30 p-2 sm:col-span-2">
+                <p className="text-[10px] text-muted-foreground">وصف الحفل</p>
+                <p className="line-clamp-2 text-xs leading-relaxed">{event.description}</p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
         {/* --- صورة الدعوة --- */}
         <section className="space-y-3">
           <Label className="flex items-center gap-2 text-base font-bold">
