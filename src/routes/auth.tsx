@@ -69,7 +69,7 @@ function AuthPage() {
           </Button>
         </div>
         <Link to="/" className="mb-6 flex items-center justify-center gap-2">
-          <span className="grid h-10 w-10 place-items-center rounded-full gold-gradient font-bold text-primary-foreground">د</span>
+          <span className="grid h-10 w-10 place-items-center rounded-full gold-gradient font-bold text-primary-foreground">i</span>
           <span className="font-display text-2xl font-bold">INVITLY</span>
         </Link>
         <Card className="p-6">
