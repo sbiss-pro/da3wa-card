@@ -29,7 +29,7 @@ import { extractPalette, readableTextOn } from "@/lib/palette";
 import { proxied } from "@/lib/proxy";
 
 export const Route = createFileRoute("/_authenticated/events/$eventId")({
-  head: () => ({ meta: [{ title: "إدارة الفعالية — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "إدارة الفعالية — INVITLY" }] }),
   component: EventDetails,
 });
 
