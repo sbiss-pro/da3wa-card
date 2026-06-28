@@ -18,7 +18,7 @@ import { cacheGuests, readCachedGuests, updateCachedGuest, enqueueCheckin, readQ
 
 export const Route = createFileRoute("/c/event")({
   ssr: false,
-  head: () => ({ meta: [{ title: "لوحة المنسق — دعوتي" }] }),
+  head: () => ({ meta: [{ title: "لوحة المنسق — INVITLY" }] }),
   component: CoordinatorEvent,
 });
 
@@ -399,7 +399,7 @@ function CoordinatorEvent() {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full gold-gradient font-display font-extrabold">د</span>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full gold-gradient font-display font-extrabold">i</span>
             <div className="min-w-0">
               <p className="text-[10px] tracking-[0.3em] text-primary/80">COMMAND CENTER</p>
               <p className="truncate font-display text-base font-bold leading-tight">المنسق · {session.name}</p>
