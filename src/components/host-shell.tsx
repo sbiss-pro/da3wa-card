@@ -39,8 +39,8 @@ export function HostShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full gold-gradient text-primary-foreground font-bold">د</span>
-            <span className="truncate font-display text-lg font-bold">دعوتي</span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full gold-gradient text-primary-foreground font-bold">i</span>
+            <span className="truncate font-display text-lg font-bold tracking-wide">INVITLY</span>
           </Link>
           <div className="hidden items-center gap-2 md:flex">
             <Link to="/dashboard"><Button variant="ghost" size="sm"><LayoutDashboard className="ms-1 h-4 w-4" /> اللوحة</Button></Link>
