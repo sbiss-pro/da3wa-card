@@ -213,40 +213,64 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="space-y-6 p-6">
-        {/* --- معلومات الفعالية المقتبسة تلقائياً من الصفحة الرئيسية --- */}
-        <section className="space-y-2 rounded-xl border border-gold/40 bg-gradient-to-bl from-amber-50/30 via-card to-card p-4">
+        {/* --- بيانات الفعالية (قابلة للتحرير من هنا أيضاً) --- */}
+        <section className="space-y-3 rounded-xl border border-gold/40 bg-gradient-to-bl from-amber-50/30 via-card to-card p-4">
           <div className="flex items-center justify-between gap-2">
             <Label className="flex items-center gap-2 text-sm font-bold">
-              <LinkIcon className="h-4 w-4 text-gold" /> مقتبس تلقائياً من بيانات الفعالية
+              <Pencil className="h-4 w-4 text-gold" /> بيانات الفعالية
             </Label>
-            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[10px] text-gold">مزامنة فورية</span>
+            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[10px] text-gold">حفظ فوري</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            تُعرض هذه الحقول داخل بطاقة الدعوة تلقائياً. لتعديلها، استخدم تبويب «معلومات الفعالية» في الصفحة الرئيسية للمنظم.
+            هذه الحقول تظهر في بطاقة الدعوة. عدّلها مباشرةً هنا — يتم الحفظ تلقائياً بعد كل تعديل.
           </p>
-          <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
-            <div className="rounded-lg bg-muted/30 p-2">
-              <p className="text-[10px] text-muted-foreground">اسم الحفل</p>
-              <p className="truncate font-display text-sm font-bold">{event.name || "—"}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1 sm:col-span-2">
+              <Label className="text-[11px]">اسم الفعالية</Label>
+              <Input
+                value={event.name || ""}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  const { error } = await supabase.from("events").update({ name: v }).eq("id", event.id);
+                  if (error) toast.error(error.message); else onSaved();
+                }}
+                placeholder="حفل زفاف سارة وخالد"
+              />
             </div>
-            <div className="rounded-lg bg-muted/30 p-2">
-              <p className="text-[10px] text-muted-foreground">التاريخ والوقت</p>
-              <p className="truncate text-sm">{event.event_date ? formatArabicDate(event.event_date) : "—"}</p>
+            <div className="space-y-1">
+              <Label className="text-[11px]">نوع الفعالية</Label>
+              <Select
+                value={event.event_type || ""}
+                onValueChange={async (v) => {
+                  const { error } = await supabase.from("events").update({ event_type: v }).eq("id", event.id);
+                  if (error) toast.error(error.message); else onSaved();
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="اختر النوع" /></SelectTrigger>
+                <SelectContent>
+                  {["wedding","engagement","graduation","corporate","birthday","other"].map((t) => (
+                    <SelectItem key={t} value={t}>{eventTypeLabel(t)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="rounded-lg bg-muted/30 p-2">
-              <p className="text-[10px] text-muted-foreground">المكان</p>
-              <p className="truncate text-sm">{event.location || "—"}</p>
+            <div className="space-y-1">
+              <Label className="text-[11px]">المعرّف العام (slug)</Label>
+              <Input value={event.slug || ""} readOnly dir="ltr" className="opacity-70" />
             </div>
-            <div className="rounded-lg bg-muted/30 p-2">
-              <p className="text-[10px] text-muted-foreground">النوع</p>
-              <p className="truncate text-sm">{eventTypeLabel(event.event_type)}</p>
+            <div className="space-y-1 sm:col-span-2">
+              <Label className="text-[11px]">وصف الحفل</Label>
+              <Textarea
+                value={event.description || ""}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  const { error } = await supabase.from("events").update({ description: v || null }).eq("id", event.id);
+                  if (error) toast.error(error.message); else onSaved();
+                }}
+                rows={3}
+                placeholder="نتشرف بدعوتكم لمشاركتنا فرحتنا..."
+              />
             </div>
-            {event.description ? (
-              <div className="rounded-lg bg-muted/30 p-2 sm:col-span-2">
-                <p className="text-[10px] text-muted-foreground">وصف الحفل</p>
-                <p className="line-clamp-2 text-xs leading-relaxed">{event.description}</p>
-              </div>
-            ) : null}
           </div>
         </section>
 
