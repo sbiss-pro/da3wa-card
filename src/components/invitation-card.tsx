@@ -12,6 +12,7 @@ export type TemplateConfig = {
   wa_message_template?: string;
   use_blurred_bg?: boolean;
   rsvp_question?: string;
+  invitation_pill?: string;
   typography?: {
     font_family?: string;
     title?: TypographySlot;
