@@ -160,10 +160,40 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const [draft, setDraft] = useState({
+    name: event.name || "",
+    event_type: event.event_type || "",
+    description: event.description || "",
+    location: event.location || "",
+    location_url: event.location_url || "",
+    event_date: event.event_date || "",
+  });
+  useEffect(() => {
+    setDraft({
+      name: event.name || "",
+      event_type: event.event_type || "",
+      description: event.description || "",
+      location: event.location || "",
+      location_url: event.location_url || "",
+      event_date: event.event_date || "",
+    });
+    setCfg(event.template_config || {});
+  }, [event.id]);
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("events").update({ template_config: cfg }).eq("id", event.id);
+    const { error } = await supabase
+      .from("events")
+      .update({
+        template_config: cfg,
+        name: draft.name,
+        event_type: draft.event_type,
+        description: draft.description || null,
+        location: draft.location || null,
+        location_url: draft.location_url || null,
+        event_date: draft.event_date,
+      })
+      .eq("id", event.id);
     setSaving(false);
     if (error) toast.error(error.message); else {
       toast.success("تم حفظ التصميم");
