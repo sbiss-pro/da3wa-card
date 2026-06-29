@@ -133,6 +133,7 @@ export function GuestInvitationView({
     rsvp_question: tc.visibility?.rsvp_question ?? true,
   };
   const rsvpQuestion = (tc.rsvp_question && tc.rsvp_question.trim()) || "هل ستشرفنا بالحضور؟";
+  const pillLabel = (tc.invitation_pill && tc.invitation_pill.trim()) || "دعوة خاصة لـ";
 
   const mapEmbedSrc = useMemo(() => {
     const url = (event.location_url || "").trim();
@@ -275,13 +276,17 @@ export function GuestInvitationView({
               {/* Floating "invitation arrived for X" pill */}
               <div
                 className="absolute -top-3 right-4 flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md"
-                style={{ background: cardBg, borderColor: accent + "66", color: accent }}
+                style={{
+                  background: textColor === "#ffffff" ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.85)",
+                  borderColor: accent + "88",
+                  color: textColor,
+                }}
               >
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: accent }} />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
                 </span>
-                ✦ دعوة وصلت لـ {fullName}
+                <span style={{ color: accent }}>✦</span> {pillLabel} {fullName}
               </div>
 
               <div className="mx-auto mb-3 h-px w-16" style={{ background: accent }} />
@@ -316,14 +321,14 @@ export function GuestInvitationView({
                       key={i}
                       className="rounded-xl py-2"
                       style={{
-                        background: textColor === "#ffffff" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                        border: `1px solid ${accent}33`,
+                        background: textColor === "#ffffff" ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.75)",
+                        border: `1px solid ${accent}66`,
                       }}
                     >
-                      <p className="font-display text-2xl font-bold" style={{ color: accent }}>
+                      <p className="font-display text-2xl font-bold tabular-nums" style={{ color: textColor }}>
                         {toArabicDigits(String(u.v).padStart(2, "0"))}
                       </p>
-                      <p className="text-[10px]" style={{ color: softText }}>{u.l}</p>
+                      <p className="text-[10px]" style={{ color: textColor, opacity: 0.8 }}>{u.l}</p>
                     </div>
                   ))}
                 </div>
