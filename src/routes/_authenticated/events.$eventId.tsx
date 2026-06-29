@@ -249,32 +249,24 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             <Label className="flex items-center gap-2 text-sm font-bold">
               <Pencil className="h-4 w-4 text-gold" /> بيانات الفعالية
             </Label>
-            <span className="rounded-full border border-gold/40 px-2 py-0.5 text-[10px] text-gold">حفظ فوري</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            هذه الحقول تظهر في بطاقة الدعوة. عدّلها مباشرةً هنا — يتم الحفظ تلقائياً بعد كل تعديل.
+            هذه الحقول تظهر في بطاقة الدعوة. عدّلها هنا ثم اضغط «حفظ» في الأسفل لتطبيق التغييرات.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-[11px]">اسم الفعالية</Label>
               <Input
-                value={event.name || ""}
-                onChange={async (e) => {
-                  const v = e.target.value;
-                  const { error } = await supabase.from("events").update({ name: v }).eq("id", event.id);
-                  if (error) toast.error(error.message); else onSaved();
-                }}
+                value={draft.name}
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
                 placeholder="حفل زفاف سارة وخالد"
               />
             </div>
             <div className="space-y-1">
               <Label className="text-[11px]">نوع الفعالية</Label>
               <Select
-                value={event.event_type || ""}
-                onValueChange={async (v) => {
-                  const { error } = await supabase.from("events").update({ event_type: v }).eq("id", event.id);
-                  if (error) toast.error(error.message); else onSaved();
-                }}
+                value={draft.event_type}
+                onValueChange={(v) => setDraft((d) => ({ ...d, event_type: v }))}
               >
                 <SelectTrigger><SelectValue placeholder="اختر النوع" /></SelectTrigger>
                 <SelectContent>
@@ -291,12 +283,8 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-[11px]">وصف الحفل</Label>
               <Textarea
-                value={event.description || ""}
-                onChange={async (e) => {
-                  const v = e.target.value;
-                  const { error } = await supabase.from("events").update({ description: v || null }).eq("id", event.id);
-                  if (error) toast.error(error.message); else onSaved();
-                }}
+                value={draft.description}
+                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
                 rows={3}
                 placeholder="نتشرف بدعوتكم لمشاركتنا فرحتنا..."
               />
@@ -389,24 +377,16 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           <div className="space-y-2">
             <Label className="text-xs">اسم/عنوان الموقع</Label>
             <Input
-              value={event.location || ""}
-              onChange={async (e) => {
-                const v = e.target.value;
-                const { error } = await supabase.from("events").update({ location: v || null }).eq("id", event.id);
-                if (error) toast.error(error.message); else onSaved();
-              }}
+              value={draft.location}
+              onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
               placeholder="قاعة الماسة، الرياض"
             />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">رابط الموقع على خرائط Google (قابل للتعديل)</Label>
             <Input
-              value={event.location_url || ""}
-              onChange={async (e) => {
-                const v = e.target.value.trim();
-                const { error } = await supabase.from("events").update({ location_url: v || null }).eq("id", event.id);
-                if (error) toast.error(error.message); else onSaved();
-              }}
+              value={draft.location_url}
+              onChange={(e) => setDraft((d) => ({ ...d, location_url: e.target.value.trim() }))}
               placeholder="https://maps.google.com/?q=..."
               dir="ltr"
             />
@@ -432,18 +412,32 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           </p>
         </section>
 
+        {/* --- نص شارة الدعوة العلوية --- */}
+        <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <Label className="flex items-center gap-2 text-base font-bold">
+            <Pencil className="h-4 w-4 text-gold" /> نص شارة الدعوة
+          </Label>
+          <Input
+            value={cfg.invitation_pill ?? ""}
+            onChange={(e) => setCfg({ ...cfg, invitation_pill: e.target.value.slice(0, 60) })}
+            placeholder="دعوة خاصة لـ"
+            maxLength={60}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            تظهر في أعلى البطاقة قبل اسم الضيف. (الافتراضي: «دعوة خاصة لـ»)
+          </p>
+        </section>
+
         {/* --- وقت البداية والنهاية --- */}
         <section className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/20 p-3 md:grid-cols-2">
           <div className="space-y-2">
             <Label className="flex items-center gap-2"><Clock className="h-4 w-4 text-gold" /> بداية الحفل</Label>
             <Input
               type="datetime-local"
-              value={toLocalInput(event.event_date)}
-              onChange={async (e) => {
+              value={draft.event_date ? toLocalInput(draft.event_date) : ""}
+              onChange={(e) => {
                 if (!e.target.value) return;
-                const iso = new Date(e.target.value).toISOString();
-                const { error } = await supabase.from("events").update({ event_date: iso }).eq("id", event.id);
-                if (error) toast.error(error.message); else { toast.success("تم تحديث وقت البداية"); onSaved(); }
+                setDraft((d) => ({ ...d, event_date: new Date(e.target.value).toISOString() }));
               }}
               dir="ltr"
             />
