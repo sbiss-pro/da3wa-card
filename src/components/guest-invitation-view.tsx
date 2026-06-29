@@ -258,37 +258,54 @@ export function GuestInvitationView({
               <p className="px-4 font-display text-3xl font-bold" style={{ color: accent }}>{event.name}</p>
             </div>
           )}
-          <p className="mt-4 text-center text-sm" style={{ color: softText }}>
-            دعوة موجّهة إلى{" "}
-            <span
-              className="font-bold"
-              style={{ color: textColor }}
+        </section>
+
+        {/* ────────── Luxury invitation glass card (inspired by landing hero) ────────── */}
+        <section ref={titleRef}>
+          <div className="relative">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-6 rounded-[2rem] blur-2xl opacity-60"
+              style={{ background: `radial-gradient(circle at 50% 30%, ${accent}55, transparent 70%)` }}
+            />
+            <div
+              className="relative rounded-[1.75rem] border p-7 text-center shadow-2xl backdrop-blur-xl"
+              style={{ background: cardBg, borderColor: cardBorder, color: textColor }}
             >
-              {fullName}
-            </span>
-          </p>
-        </section>
+              {/* Floating "invitation arrived for X" pill */}
+              <div
+                className="absolute -top-3 right-4 flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md"
+                style={{ background: cardBg, borderColor: accent + "66", color: accent }}
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: accent }} />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+                </span>
+                ✦ دعوة وصلت لـ {fullName}
+              </div>
 
-        {/* Event title + description (dynamic from event form) */}
-        {vis.event_name || (vis.description && event.description) ? (
-        <section ref={titleRef} className="text-center">
-          {vis.event_name ? (
-            <h1 className="font-display text-4xl font-bold" style={{ color: accent }}>{event.name}</h1>
-          ) : null}
-          {vis.description && event.description ? (
-            <p className="mt-3 text-base leading-relaxed" style={{ color: textColor }}>{event.description}</p>
-          ) : null}
-        </section>
-        ) : null}
+              <div className="mx-auto mb-3 h-px w-16" style={{ background: accent }} />
+              <p className="font-display text-[11px] tracking-[0.4em]" style={{ color: accent }}>INVITATION</p>
 
-        {/* Smart timer */}
-        {!declined && (vis.countdown || vis.start_time) ? (
-        <section ref={timerRef}>
-          <Card className="border p-6 text-center" style={{ background: cardBg, borderColor: cardBorder, color: textColor }}>
-            {phase === "before" && vis.countdown ? (
-              <>
-                <p className="text-sm font-semibold" style={{ color: softText }}>المتبقي على بداية الحفل</p>
-                <div dir="ltr" className="mt-4 grid grid-cols-4 gap-2 text-center">
+              {vis.event_name ? (
+                <h1 className="mt-5 font-display text-3xl font-bold leading-tight sm:text-4xl" style={{ color: textColor }}>
+                  {event.name}
+                </h1>
+              ) : null}
+
+              {vis.start_time && phase !== "after" ? (
+                <p className="mt-3 text-xs" style={{ color: softText }}>
+                  {formatArabicFullDate(new Date(startMs))}
+                </p>
+              ) : null}
+
+              {(vis.event_name || vis.countdown) ? (
+                <div className="my-5 h-px w-full" style={{ background: `linear-gradient(to left, transparent, ${accent}88, transparent)` }} />
+              ) : null}
+
+              {/* Timer / phase */}
+              {!declined && phase === "before" && vis.countdown ? (
+                <div dir="ltr" className="mt-1 grid grid-cols-4 gap-2 text-center tabular-nums">
                   {[
                     { v: cd.d, l: "يوم" },
                     { v: cd.h, l: "ساعة" },
@@ -299,46 +316,42 @@ export function GuestInvitationView({
                       key={i}
                       className="rounded-xl py-2"
                       style={{
-                        background:
-                          textColor === "#ffffff"
-                            ? "rgba(255,255,255,0.10)"
-                            : "rgba(0,0,0,0.06)",
-                        border: `1px solid ${accent}66`,
+                        background: textColor === "#ffffff" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                        border: `1px solid ${accent}33`,
                       }}
                     >
-                      <p
-                        className="font-display text-2xl font-bold tabular-nums"
-                        style={{ color: textColor }}
-                      >
+                      <p className="font-display text-2xl font-bold" style={{ color: accent }}>
                         {toArabicDigits(String(u.v).padStart(2, "0"))}
                       </p>
                       <p className="text-[10px]" style={{ color: softText }}>{u.l}</p>
                     </div>
                   ))}
                 </div>
-              </>
-            ) : phase === "during" ? (
-              <p className="font-display text-2xl font-bold" style={{ color: accent }}>بدأ الحفل الآن .. أهلاً ومرحباً بكم</p>
-            ) : phase === "after" ? (
-              <p className="font-display text-3xl font-bold tracking-wide" style={{ color: accent }}>انتهى الحفل</p>
-            ) : null}
-            {phase !== "after" && vis.start_time ? (
-              <>
-                <div className="mt-5 inline-block rounded-lg px-4 py-2" style={{ background: accent + "12" }}>
-                  <p className="text-[11px]" style={{ color: softText }}>يبدأ الحفل الساعة</p>
-                  <p className="text-lg font-bold" style={{ color: textColor }}>{formatArabicClock12(new Date(startMs))}</p>
-                </div>
-                <p className="mt-3 text-sm" style={{ color: softText }}>{formatArabicFullDate(new Date(startMs))}</p>
-                {vis.end_time ? (
-                  <p className="mt-2 text-xs" style={{ color: softText }}>ينتهي الساعة {formatArabicClock12(new Date(endMs))}</p>
-                ) : null}
-              </>
-            ) : (
-              phase === "after" ? <p className="mt-3 text-xs" style={{ color: softText }}>شكراً لكم على المشاركة</p> : null
-            )}
-          </Card>
+              ) : !declined && phase === "during" ? (
+                <p className="font-display text-2xl font-bold" style={{ color: accent }}>بدأ الحفل الآن .. أهلاً ومرحباً بكم</p>
+              ) : !declined && phase === "after" ? (
+                <p className="font-display text-3xl font-bold tracking-wide" style={{ color: accent }}>انتهى الحفل</p>
+              ) : null}
+
+              {!declined && phase !== "after" && vis.start_time ? (
+                <p className="mt-5 text-[11px] tracking-[0.18em]" style={{ color: softText }}>
+                  {formatArabicClock12(new Date(startMs))}
+                  {vis.end_time ? <> · حتى {formatArabicClock12(new Date(endMs))}</> : null}
+                  {event.location ? <> · {event.location}</> : null}
+                </p>
+              ) : null}
+
+              <div className="mx-auto mt-5 h-px w-16" style={{ background: accent }} />
+
+              {vis.description && event.description ? (
+                <p className="mt-5 text-sm leading-relaxed" style={{ color: textColor }}>{event.description}</p>
+              ) : null}
+            </div>
+          </div>
         </section>
-        ) : null}
+
+        {/* (timer section merged into the luxury card above) */}
+        {false && timerRef ? <section ref={timerRef} /> : null}
 
         {/* Location — hidden when guest declined */}
         {!declined && vis.location && (event.location || event.location_url) ? (
