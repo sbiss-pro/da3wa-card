@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SiteFooter } from "@/components/site-footer";
 import {
   BarChart3,
   CheckCircle2,
@@ -685,16 +686,7 @@ function Index() {
         </Link>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-border/50 py-8 text-center text-xs tracking-wider text-muted-foreground">
-        <div className="mx-auto mb-4 flex max-w-6xl flex-wrap justify-center gap-5 px-5 text-[11px]">
-          <a href="#what-you-get" className="hover:text-foreground transition">ماذا ستحصل؟</a>
-          <a href="#dashboard" className="hover:text-foreground transition">لوحة المتابعة</a>
-          <a href="#pricing" className="hover:text-foreground transition">الأسعار</a>
-          <a href="/auth" className="hover:text-foreground transition">تسجيل الدخول</a>
-        </div>
-        © {new Date().getFullYear()} invitly · جميع الحقوق محفوظة
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
