@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /c/
+Disallow: /i/
+Disallow: /dashboard
+Disallow: /events/
+
+Sitemap: https://da3wa-card.lovable.app/sitemap.xml
