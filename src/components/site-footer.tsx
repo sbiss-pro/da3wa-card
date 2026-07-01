@@ -38,7 +38,7 @@ export function SiteFooter() {
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             <li><Link to="/" className="transition hover:text-foreground">الرئيسية</Link></li>
             <li><Link to="/contact" className="transition hover:text-foreground">تواصل معنا</Link></li>
-            <li><Link to="/auth" className="transition hover:text-foreground">تسجيل الدخول</Link></li>
+            <li><a href="https://wa.me/966500000000" target="_blank" rel="noreferrer noopener" className="transition hover:text-foreground">اطلب الخدمة عبر واتساب</a></li>
           </ul>
         </div>
         <div>

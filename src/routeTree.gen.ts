@@ -16,6 +16,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OwnerKeyRouteImport } from './routes/owner.$key'
 import { Route as ITokenRouteImport } from './routes/i.$token'
 import { Route as CLoginRouteImport } from './routes/c.login'
 import { Route as CEventRouteImport } from './routes/c.event'
@@ -58,6 +59,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerKeyRoute = OwnerKeyRouteImport.update({
+  id: '/owner/$key',
+  path: '/owner/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ITokenRoute = ITokenRouteImport.update({
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/owner/$key': typeof OwnerKeyRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/owner/$key': typeof OwnerKeyRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/owner/$key': typeof OwnerKeyRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/owner/$key'
     | '/events/$eventId'
     | '/events/new'
     | '/api/public/proxy'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/owner/$key'
     | '/events/$eventId'
     | '/events/new'
     | '/api/public/proxy'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/owner/$key'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
     | '/api/public/proxy'
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   CEventRoute: typeof CEventRoute
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
+  OwnerKeyRoute: typeof OwnerKeyRoute
   ApiPublicProxyRoute: typeof ApiPublicProxyRoute
   IPreviewEventIdRoute: typeof IPreviewEventIdRoute
 }
@@ -280,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/$key': {
+      id: '/owner/$key'
+      path: '/owner/$key'
+      fullPath: '/owner/$key'
+      preLoaderRoute: typeof OwnerKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/i/$token': {
@@ -376,6 +396,7 @@ const rootRouteChildren: RootRouteChildren = {
   CEventRoute: CEventRoute,
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
+  OwnerKeyRoute: OwnerKeyRoute,
   ApiPublicProxyRoute: ApiPublicProxyRoute,
   IPreviewEventIdRoute: IPreviewEventIdRoute,
 }

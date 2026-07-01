@@ -4,5 +4,7 @@ Disallow: /c/
 Disallow: /i/
 Disallow: /dashboard
 Disallow: /events/
+Disallow: /auth
+Disallow: /owner/
 
 Sitemap: https://da3wa-card.lovable.app/sitemap.xml
