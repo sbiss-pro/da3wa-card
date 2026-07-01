@@ -184,13 +184,15 @@ function Index() {
             >
               {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
-            <Link
-              to="/auth"
+            <a
+              href="https://wa.me/966500000000?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D8%A8%D8%AD%D8%AC%D8%B2%20%D8%AE%D8%AF%D9%85%D8%A9%20%D8%AF%D8%B9%D9%88%D8%A7%D8%AA"
+              target="_blank"
+              rel="noreferrer noopener"
               className="group inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-[12px] font-semibold text-primary transition hover:bg-primary/20"
             >
-              احجز دعوتك
-              <ChevronLeft className="h-3.5 w-3.5 transition group-hover:-translate-x-0.5" />
-            </Link>
+              <MessageCircle className="h-3.5 w-3.5" />
+              احجز عبر واتساب
+            </a>
           </div>
         </div>
       </header>
@@ -219,12 +221,15 @@ function Index() {
               تابع من قبِل ومن اعتذر، واختر شكل بطاقتك الفاخرة.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-end">
-              <Link
-                to="/auth"
+              <a
+                href="https://wa.me/966500000000?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D8%A8%D8%AD%D8%AC%D8%B2%20%D8%AE%D8%AF%D9%85%D8%A9%20%D8%AF%D8%B9%D9%88%D8%A7%D8%AA"
+                target="_blank"
+                rel="noreferrer noopener"
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90"
               >
-                احجز دعوتك الآن
-              </Link>
+                <MessageCircle className="h-4 w-4" />
+                تواصل عبر واتساب
+              </a>
               <a
                 href="#what-you-get"
                 className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
@@ -655,16 +660,18 @@ function Index() {
                   </li>
                 ))}
               </ul>
-              <Link
-                to="/auth"
+              <a
+                href="https://wa.me/966500000000?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D8%A8%D8%AD%D8%AC%D8%B2%20%D8%A8%D8%A7%D9%82%D8%A9%20"
+                target="_blank"
+                rel="noreferrer noopener"
                 className={`block w-full rounded-xl py-2.5 text-center text-sm font-bold transition ${
                   p.featured
                     ? "bg-primary text-primary-foreground hover:opacity-90"
                     : "border border-border hover:border-primary/50 hover:text-primary"
                 }`}
               >
-                احجز الآن
-              </Link>
+                احجز عبر واتساب
+              </a>
             </article>
           ))}
         </div>
@@ -678,12 +685,15 @@ function Index() {
           <span className="text-primary"> احجز الآن.</span>
         </p>
         <p className="mt-3 text-sm text-muted-foreground">نتواصل معك خلال ٢٤ ساعة من الحجز</p>
-        <Link
-          to="/auth"
+        <a
+          href="https://wa.me/966500000000?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D8%A8%D8%AD%D8%AC%D8%B2%20%D8%AE%D8%AF%D9%85%D8%A9%20%D8%AF%D8%B9%D9%88%D8%A7%D8%AA"
+          target="_blank"
+          rel="noreferrer noopener"
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-bold text-primary-foreground transition hover:opacity-90"
         >
-          احجز دعوتك الآن ✦
-        </Link>
+          <MessageCircle className="h-4 w-4" />
+          احجز عبر واتساب ✦
+        </a>
       </section>
 
       <SiteFooter />
