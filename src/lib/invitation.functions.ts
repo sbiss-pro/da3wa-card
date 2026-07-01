@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const tokenSchema = z.object({ token: z.string().min(8).max(64) });
 const eventIdSchema = z.object({ event_id: z.string().uuid() });
@@ -35,9 +36,17 @@ export const getInvitation = createServerFn({ method: "GET" })
  * guest invitation page with dummy data. Does NOT touch the guests table.
  */
 export const getEventForPreview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => eventIdSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Verify caller owns the event before returning private config.
+    const { data: owner } = await supabaseAdmin
+      .from("events")
+      .select("host_id")
+      .eq("id", data.event_id)
+      .maybeSingle();
+    if (!owner || owner.host_id !== context.userId) throw new Error("NOT_FOUND");
     const { data: event, error } = await supabaseAdmin
       .from("events")
       .select("id,name,event_type,event_date,location,location_url,description,template_config")

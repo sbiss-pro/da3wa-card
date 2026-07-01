@@ -15,19 +15,38 @@ function safeUrl(raw: string | null): URL | null {
   try {
     const u = new URL(raw);
     if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-    // Block private/loopback hosts to avoid SSRF.
-    const h = u.hostname.toLowerCase();
-    if (
-      h === "localhost" ||
-      h.endsWith(".local") ||
-      h.startsWith("127.") ||
-      h.startsWith("10.") ||
-      h.startsWith("169.254.") ||
-      h.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(h)
-    ) return null;
+    if (!safeHost(u.hostname)) return null;
     return u;
   } catch { return null; }
+}
+
+function safeHost(hostname: string): boolean {
+  let h = hostname.toLowerCase();
+  // Strip brackets from IPv6 literals.
+  if (h.startsWith("[") && h.endsWith("]")) h = h.slice(1, -1);
+  if (
+    h === "localhost" ||
+    h === "0.0.0.0" ||
+    h === "::" ||
+    h === "::1" ||
+    h.endsWith(".local") ||
+    h.endsWith(".internal") ||
+    h.startsWith("127.") ||
+    h.startsWith("10.") ||
+    h.startsWith("169.254.") ||
+    h.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
+    // IPv6 unique-local (fc00::/7) and link-local (fe80::/10)
+    /^fc[0-9a-f]{2}:/.test(h) ||
+    /^fd[0-9a-f]{2}:/.test(h) ||
+    /^fe[89ab][0-9a-f]:/.test(h) ||
+    // IPv4-mapped IPv6 (::ffff:x.x.x.x) — reject blanket to avoid bypass
+    h.startsWith("::ffff:") ||
+    // Cloud metadata endpoints
+    h === "100.100.100.200" ||
+    h === "metadata.google.internal"
+  ) return false;
+  return true;
 }
 
 export const Route = createFileRoute("/api/public/proxy")({
@@ -40,10 +59,34 @@ export const Route = createFileRoute("/api/public/proxy")({
           return new Response("invalid url", { status: 400, headers: CORS });
         }
         try {
-          const upstream = await fetch(url.toString(), {
-            redirect: "follow",
-            headers: { "User-Agent": "DawatiProxy/1.0", Accept: "image/*,application/pdf,*/*" },
-          });
+          // Manually follow redirects so every hop is re-validated against safeHost.
+          let currentUrl: URL = url;
+          let upstream: Response | null = null;
+          for (let hop = 0; hop < 5; hop++) {
+            const res = await fetch(currentUrl.toString(), {
+              redirect: "manual",
+              headers: { "User-Agent": "DawatiProxy/1.0", Accept: "image/*,application/pdf,*/*" },
+            });
+            if (res.status >= 300 && res.status < 400) {
+              const loc = res.headers.get("location");
+              if (!loc) { upstream = res; break; }
+              let nextUrl: URL;
+              try { nextUrl = new URL(loc, currentUrl); } catch { return new Response("invalid redirect", { status: 502, headers: CORS }); }
+              if (nextUrl.protocol !== "http:" && nextUrl.protocol !== "https:") {
+                return new Response("blocked redirect", { status: 502, headers: CORS });
+              }
+              if (!safeHost(nextUrl.hostname)) {
+                return new Response("blocked redirect", { status: 502, headers: CORS });
+              }
+              currentUrl = nextUrl;
+              continue;
+            }
+            upstream = res;
+            break;
+          }
+          if (!upstream) {
+            return new Response("too many redirects", { status: 502, headers: CORS });
+          }
           if (!upstream.ok || !upstream.body) {
             return new Response("upstream error", { status: 502, headers: CORS });
           }
