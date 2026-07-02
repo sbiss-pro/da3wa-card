@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { HostShell } from "@/components/host-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Calendar as CalIcon, Users, TrendingUp } from "lucide-react";
+import { Plus, Calendar as CalIcon, Users, TrendingUp, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { eventTypeLabel, formatArabicDate } from "@/lib/event-utils";
+import { getMyPermissions } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "لوحة التحكم — INVITLY" }] }),
@@ -18,6 +19,7 @@ function Dashboard() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [canAdmin, setCanAdmin] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +34,9 @@ function Dashboard() {
       }
       setLoading(false);
     })();
+    getMyPermissions()
+      .then((p) => setCanAdmin(p.isSuperAdmin || p.isAdmin || p.isEditor))
+      .catch(() => setCanAdmin(false));
   }, []);
 
   const upcoming = events.filter(e => new Date(e.event_date) > new Date()).length;
@@ -45,7 +50,14 @@ function Dashboard() {
           <h1 className="font-display text-3xl font-bold">لوحة التحكم</h1>
           <p className="text-muted-foreground">إدارة فعالياتك ومدعويك</p>
         </div>
-        <Link to="/events/new"><Button className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> فعالية جديدة</Button></Link>
+        <div className="flex items-center gap-2">
+          {canAdmin && (
+            <Link to="/admin">
+              <Button variant="outline"><Shield className="ms-1 h-4 w-4" /> لوحة الإدارة</Button>
+            </Link>
+          )}
+          <Link to="/events/new"><Button className="gold-gradient text-primary-foreground"><Plus className="ms-1 h-4 w-4" /> فعالية جديدة</Button></Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
