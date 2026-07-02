@@ -1,49 +1,95 @@
-## التحديثات المطلوبة على نظام إدارة الفعاليات
+# خطة التنفيذ الشاملة
 
-### 1. صفحة معاينة البطاقة ببيانات وهمية
-- تعديل `GuestPagePreview` في `src/routes/_authenticated/events.$eventId.tsx` بحيث لا يستخدم توكن ضيف حقيقي.
-- إنشاء مسار معاينة جديد `src/routes/i.preview.$eventId.tsx` يعرض بطاقة الدعوة ببيانات وهمية:
-  - اسم: "ضيف كريم"
-  - لقب: "السيد"
-  - رقم: "+966 5X XXX XXXX"
-  - عدد مرافقين: حسب الإعداد العام للحدث
-- توجيه `iframe` المعاينة لهذا المسار بدلاً من توكن حقيقي.
+## 1) قاعدة البيانات (Migration)
 
-### 2. ربط ديناميكي بين نموذج الفعالية والبطاقة
-- تمرير حقول الحدث (الاسم، النوع، التاريخ، الوقت، المكان، رابط الموقع، الوصف) من `events.$eventId.tsx` إلى `InvitationCard` و`i.$token.tsx`.
-- عرضها داخل البطاقة بحيث تنعكس فوراً عند الحفظ.
-- زر "حفظ" يقوم بـ `setPreviewKey++` لتحديث المعاينة (موجود).
+### جدول `site_content` — محتوى الصفحة الرئيسية الديناميكي
+- `id` (singleton = 'home')
+- `sections` (JSONB) — مصفوفة أقسام مرتّبة، كل قسم يحوي: `key`, `type` (hero/stats/features/testimonials/cta/gallery/text)، `visible`, `order`, `data` (نصوص/أرقام/صور/روابط)
+- `theme` (JSONB) — ألوان العلامة (primary, accent, background, foreground, gold, emerald)، الخطوط
+- `branding` (JSONB) — اسم الموقع، الشعار، رقم الواتساب
+- `updated_by`, `updated_at`
 
-### 3. أدوات تحكم النصوص (Typography Controls)
-إضافة لقسم "بطاقة الدعوة" في حساب المنظم:
-- اختيار نوع الخط لكل كتلة (اسم الفعالية، التاريخ، المكان، الوصف، التذييل) من قائمة خطوط عربية: Tajawal، Amiri، Cairo، Noto Naskh Arabic، Reem Kufi، Almarai.
-- منتقي لون لكل كتلة.
-- حجم خط (slider) لكل كتلة.
-- تخزينها في `template_config.typography = { title: {font, color, size}, ... }`.
-- تطبيقها في `i.$token.tsx`.
+RLS:
+- قراءة: `anon` + `authenticated` (المحتوى عام)
+- كتابة: فقط `has_role(auth.uid(), 'admin')` أو `has_role(auth.uid(), 'editor')`
 
-### 4. منطق اعتذار الضيوف
-- في `src/routes/i.$token.tsx`: إخفاء قسم الموقع (العنوان النصي + خريطة Google + رابط الموقع) إذا كانت `guest.rsvp_status === "declined"`.
+### إضافة دور `editor` لـ enum `app_role`
+- `ALTER TYPE app_role ADD VALUE 'editor'`
 
-### 5. تحسين خطوط الواجهة الافتراضية
-- رفع الأحجام الافتراضية في `i.$token.tsx` (اسم الحدث، التواريخ، الموقع) مع الاعتماد على Tajawal/Amiri.
-- التعديلات من لوحة المنظم تتجاوز الافتراضي.
+### دالة `is_super_admin(uid)` 
+- تُرجع true فقط لبريد `saeedbiss@hotmail.com` (تُقرأ من `auth.users.email`)
+- SECURITY DEFINER, search_path=public
 
-### 6. نقل الحد الأقصى للمرافقين إلى قسم إدارة المدعوين
-- إزالة حقل `max_companions` من تبويب "بطاقة الدعوة".
-- إضافته كإعداد أعلى تبويب "المدعوون" في `events.$eventId.tsx`.
-- رفع الحد الأقصى من 11 إلى **10**:
-  - `submitRsvp` zod: `.max(10)` بدلاً من 11.
-  - واجهات الضيف والمنظم.
+### تعديل `user_roles`
+- سياسة: Super Admin وحده يستطيع INSERT/UPDATE/DELETE على الأدوار
+- سياسة قراءة: كل مستخدم يقرأ دوره + Super Admin يقرأ الجميع
 
-### الملفات المتأثرة
-- `src/components/invitation-card.tsx` — إضافة دعم typography وحقول الحدث.
-- `src/routes/_authenticated/events.$eventId.tsx` — نقل max_companions، إضافة لوحة Typography، تحديث المعاينة.
-- `src/routes/i.$token.tsx` — تطبيق typography، إخفاء الموقع للمعتذر، تكبير الخطوط.
-- `src/routes/i.preview.$eventId.tsx` — مسار معاينة جديد ببيانات وهمية (مسار عام).
-- `src/lib/invitation.functions.ts` — تخفيض الحد إلى 10.
+### Seed
+- إدراج صف افتراضي في `site_content` بمحتوى الصفحة الحالية
 
-### ملاحظات تقنية
-- مسار المعاينة `i.preview.$eventId` سيستدعي بيانات الحدث فقط (server function عام جديد `getEventPreview`) ويولّد ضيف وهمي محلياً — لا يلامس جدول `guests`.
-- جميع تغييرات `template_config` تبقى متوافقة مع البيانات القديمة (الحقول الجديدة اختيارية).
-- لا يوجد تعديل على قاعدة البيانات.
+## 2) Server Functions (`src/lib/admin.functions.ts`)
+
+- `getSiteContent` — عام (بدون auth) لجلب محتوى الصفحة الرئيسية
+- `updateSiteContent` — محمي بـ `requireSupabaseAuth` + تحقق من دور admin/editor
+- `listUsers` — Super Admin فقط، عبر `supabaseAdmin.auth.admin.listUsers()`
+- `assignRole` / `revokeRole` — Super Admin فقط (تحقق `is_super_admin`)
+- `getMyPermissions` — يُرجع `{ isSuperAdmin, isAdmin, isEditor }`
+
+كل الدوال المميزة تتحقق من الدور داخل الـ handler، ولا يُستورد `client.server` إلا داخل الـ handler عبر `await import`.
+
+## 3) لوحة Super Admin (`/_authenticated/admin/*`)
+
+### التوجيه
+- `admin/route.tsx` — layout يتحقق من `isSuperAdmin` أو `isEditor`؛ غير المصرح يُحوَّل لـ `/dashboard`
+- `admin/index.tsx` — نظرة عامة (عدد المستخدمين، الفعاليات، آخر التعديلات)
+- `admin/users.tsx` — Super Admin فقط: قائمة المستخدمين + تعيين/سحب أدوار (admin/editor/user)
+- `admin/homepage.tsx` — محرر الصفحة الرئيسية الشامل
+
+### محرر الصفحة الرئيسية (`admin/homepage.tsx`)
+تبويبات:
+1. **الأقسام (Sections)**: قائمة بالسحب والإفلات (drag & drop) — إعادة ترتيب، إخفاء/إظهار، إضافة/حذف. لكل قسم فورم حسب نوعه:
+   - Hero: عنوان، وصف، زر CTA، صورة خلفية
+   - Stats: مصفوفة (رقم + تسمية)
+   - Features: مصفوفة (أيقونة/صورة + عنوان + وصف)
+   - Testimonials: مصفوفة اقتباسات
+   - Gallery: مصفوفة صور
+   - Text/CTA حر
+2. **الألوان والعلامة (Theme)**: color pickers لكل متغيّر (primary, accent, gold, emerald, background, foreground) + معاينة حيّة
+3. **العلامة التجارية (Branding)**: اسم الموقع، رقم الواتساب، الشعار
+4. **معاينة (Preview)**: iframe لـ `/` مع refresh key
+
+زر "حفظ التغييرات" يُرسل الحالة كاملة عبر `updateSiteContent`.
+
+## 4) الصفحة الرئيسية الديناميكية (`src/routes/index.tsx`)
+
+- Loader يستدعي `getSiteContent()` (يعمل SSR)
+- يُصيّر الأقسام بالترتيب حسب `order` + `visible`
+- ألوان الـ theme تُحقن عبر `<style>` inline بمتغيرات CSS على `:root` (يتجاوز `styles.css` للألوان الديناميكية فقط)
+- كل قسم مكوّن مستقل: `<HeroSection>`, `<StatsSection>`, `<FeaturesSection>`... إلخ
+- fallback لمحتوى افتراضي عند فشل التحميل
+
+## 5) إصلاحات وحماية
+
+- فحص كل الروابط: `/auth` مخفي، أزرار WhatsApp تعمل، روابط footer صحيحة
+- التأكد من أن `/admin/*` غير مفهرس (`robots.txt` + meta noindex)
+- تقييد `updateSiteContent` بتحقق مزدوج (middleware + دور)
+- منع Super Admin من سحب دوره الخاص
+- التأكد من أن قراءة `site_content` بواسطة `anon` تُرجع فقط الحقول العامة (لا تحوي أسرار)
+- ربط `/owner/9x2k7q4mvp-invitly-2026` بتحقق إضافي: بعد الدخول، إن لم يكن Super Admin يظهر خطأ
+
+## 6) الوصول (UX)
+
+- Super Admin يرى زر "لوحة الإدارة" في `/dashboard`
+- Editor يرى زر "تحرير الصفحة الرئيسية" فقط
+- كل النصوص عربية RTL، متسقة مع الهوية الحالية (INVITLY، الذهبي/الزمرّدي)
+
+## التفاصيل التقنية
+
+- Migration واحد يحوي: enum alter, is_super_admin, site_content, RLS/GRANTs, seed
+- `admin.functions.ts` يستخدم `requireSupabaseAuth` + `has_role` RPC + `supabaseAdmin` (dynamic import) لعمليات auth.admin
+- Theme dynamic: `<style>{`:root{--primary:${theme.primary};...}`}</style>` في `__root.tsx` أو `index.tsx`
+- drag & drop: `@dnd-kit/core` + `@dnd-kit/sortable` (تثبيت جديد)
+- Color picker: مكوّن HTML `<input type="color">` مغلّف بواجهة عربية
+- عند تحميل الصفحة الرئيسية، تُخزَّن ألوان الـ theme في CSS variables وتُطبَّق فوراً بدون flash
+
+هذه خطة كبيرة لكن مترابطة. عند الموافقة سأنفّذها على دفعة migration + كود موحّدة.
