@@ -28,6 +28,7 @@ import { Route as IPreviewEventIdRouteImport } from './routes/i.preview.$eventId
 import { Route as ApiPublicProxyRouteImport } from './routes/api/public/proxy'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events.new'
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -125,6 +126,11 @@ const AuthenticatedEventsEventIdRoute =
     path: '/events/$eventId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
   '/api/public/proxy': typeof ApiPublicProxyRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/admin/users'
     | '/events/$eventId'
     | '/events/new'
     | '/api/public/proxy'
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/admin/users'
     | '/events/$eventId'
     | '/events/new'
     | '/api/public/proxy'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/_authenticated/admin/users'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
     | '/api/public/proxy'
@@ -401,15 +413,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEventsEventIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
 
