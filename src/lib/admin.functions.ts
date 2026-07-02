@@ -3,12 +3,20 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [k: string]: JsonValue };
+
 export type SiteSection = {
   key: string;
   type: "hero" | "stats" | "features" | "cta" | "text" | "testimonials" | "gallery";
   visible: boolean;
   order: number;
-  data: Record<string, unknown>;
+  data: { [k: string]: JsonValue };
 };
 
 export type SiteTheme = {
