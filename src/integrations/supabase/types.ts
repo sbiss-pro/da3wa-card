@@ -244,6 +244,36 @@ export type Database = {
           },
         ]
       }
+      site_content: {
+        Row: {
+          branding: Json
+          created_at: string
+          id: string
+          sections: Json
+          theme: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branding?: Json
+          created_at?: string
+          id: string
+          sections?: Json
+          theme?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branding?: Json
+          created_at?: string
+          id?: string
+          sections?: Json
+          theme?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -277,6 +307,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "editor"
