@@ -29,6 +29,7 @@ import { Route as ApiPublicProxyRouteImport } from './routes/api/public/proxy'
 import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authenticated/events.new'
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
+import { Route as AuthenticatedAdminHomepageRouteImport } from './routes/_authenticated/admin/homepage'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -131,6 +132,12 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedAdminHomepageRoute =
+  AuthenticatedAdminHomepageRouteImport.update({
+    id: '/homepage',
+    path: '/homepage',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/events/new': typeof AuthenticatedEventsNewRoute
@@ -189,6 +198,7 @@ export interface FileRoutesById {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/_authenticated/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
   '/_authenticated/events/new': typeof AuthenticatedEventsNewRoute
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
     | '/events/new'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
     | '/events/new'
@@ -254,6 +266,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/owner/$key'
+    | '/_authenticated/admin/homepage'
     | '/_authenticated/admin/users'
     | '/_authenticated/events/$eventId'
     | '/_authenticated/events/new'
@@ -420,16 +433,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/homepage': {
+      id: '/_authenticated/admin/homepage'
+      path: '/homepage'
+      fullPath: '/admin/homepage'
+      preLoaderRoute: typeof AuthenticatedAdminHomepageRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminHomepageRoute: typeof AuthenticatedAdminHomepageRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminHomepageRoute: AuthenticatedAdminHomepageRoute,
     AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }

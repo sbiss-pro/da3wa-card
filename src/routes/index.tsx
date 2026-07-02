@@ -1,31 +1,22 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
-import {
-  BarChart3,
-  CheckCircle2,
-  ChevronLeft,
-  Clock,
-  MessageCircle,
-  QrCode,
-  Sparkles,
-  Sun,
-  Moon,
-  Users,
-  XCircle,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { MessageCircle, Sparkles } from "lucide-react";
+import { getSiteContent, type SiteContent, type SiteSection } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "invitly — دعوات إلكترونية فاخرة لمناسبتك" },
+      { title: "INVITLY — دعوات فاخرة تليق بمناسباتكم" },
       {
         name: "description",
         content:
-          "احجز خدمة دعوات فاخرة لمناسبتك — بطاقة مخصصة، إرسال عبر واتساب، ولوحة تتابع فيها ردود ضيوفك.",
+          "منصة INVITLY لإدارة الدعوات الفاخرة وتأكيد الحضور بلمسة زمرّدية ذهبية.",
       },
     ],
   }),
+  loader: () => getSiteContent(),
+  errorComponent: () => <div dir="rtl" className="grid min-h-screen place-items-center">تعذر تحميل الصفحة.</div>,
+  notFoundComponent: () => <div dir="rtl" className="grid min-h-screen place-items-center">الصفحة غير موجودة.</div>,
   component: Index,
 });
 
