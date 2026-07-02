@@ -6,5 +6,7 @@ Disallow: /dashboard
 Disallow: /events/
 Disallow: /auth
 Disallow: /owner/
+Disallow: /admin
+Disallow: /admin/
 
 Sitemap: https://da3wa-card.lovable.app/sitemap.xml
