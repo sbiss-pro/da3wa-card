@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
 import { getMyPermissions } from "@/lib/admin.functions";
-import { LayoutDashboard, Users, Palette } from "lucide-react";
+import { LayoutDashboard, Users, Palette, Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
@@ -56,9 +56,10 @@ function AdminLayout() {
             الصفحة الرئيسية
           </TabLink>
           {perms.isSuperAdmin && (
-            <TabLink to="/admin/users" icon={<Users className="h-4 w-4" />}>
-              المستخدمون
-            </TabLink>
+            <>
+              <TabLink to="/admin/users" icon={<Users className="h-4 w-4" />}>المستخدمون</TabLink>
+              <TabLink to="/admin/events" icon={<Calendar className="h-4 w-4" />}>الفعاليات</TabLink>
+            </>
           )}
         </nav>
       </header>
@@ -74,7 +75,7 @@ function TabLink({
   icon,
   children,
 }: {
-  to: "/admin" | "/admin/homepage" | "/admin/users";
+  to: "/admin" | "/admin/homepage" | "/admin/users" | "/admin/events";
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
