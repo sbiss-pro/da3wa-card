@@ -35,6 +35,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
 import { Route as AuthenticatedAdminHomepageRouteImport } from './routes/_authenticated/admin/homepage'
+import { Route as AuthenticatedAdminEventsRouteImport } from './routes/_authenticated/admin/events'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -169,6 +170,12 @@ const AuthenticatedAdminHomepageRoute =
     path: '/homepage',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminEventsRoute =
+  AuthenticatedAdminEventsRouteImport.update({
+    id: '/events',
+    path: '/events',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -215,6 +223,7 @@ export interface FileRoutesByTo {
   '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -244,6 +253,7 @@ export interface FileRoutesById {
   '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/_authenticated/admin/events': typeof AuthenticatedAdminEventsRoute
   '/_authenticated/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/o-portal/$key'
     | '/o/login'
     | '/owner/$key'
+    | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/o-portal/$key'
     | '/o/login'
     | '/owner/$key'
+    | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/o-portal/$key'
     | '/o/login'
     | '/owner/$key'
+    | '/_authenticated/admin/events'
     | '/_authenticated/admin/homepage'
     | '/_authenticated/admin/users'
     | '/_authenticated/events/$eventId'
@@ -540,10 +553,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHomepageRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/events': {
+      id: '/_authenticated/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AuthenticatedAdminEventsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminEventsRoute: typeof AuthenticatedAdminEventsRoute
   AuthenticatedAdminHomepageRoute: typeof AuthenticatedAdminHomepageRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -551,6 +572,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminEventsRoute: AuthenticatedAdminEventsRoute,
     AuthenticatedAdminHomepageRoute: AuthenticatedAdminHomepageRoute,
     AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
