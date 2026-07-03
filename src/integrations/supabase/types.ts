@@ -72,6 +72,7 @@ export type Database = {
           location: string | null
           location_url: string | null
           name: string
+          owner_user_id: string | null
           slug: string
           template_config: Json
           updated_at: string
@@ -86,6 +87,7 @@ export type Database = {
           location?: string | null
           location_url?: string | null
           name: string
+          owner_user_id?: string | null
           slug?: string
           template_config?: Json
           updated_at?: string
@@ -100,6 +102,7 @@ export type Database = {
           location?: string | null
           location_url?: string | null
           name?: string
+          owner_user_id?: string | null
           slug?: string
           template_config?: Json
           updated_at?: string
@@ -310,7 +313,7 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user" | "editor"
+      app_role: "admin" | "user" | "editor" | "owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -438,7 +441,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "editor"],
+      app_role: ["admin", "user", "editor", "owner"],
     },
   },
 } as const
