@@ -16,7 +16,7 @@ function OwnerPortal() {
   const { key } = useParams({ from: "/owner/$key" });
 
   useEffect(() => {
-    if (key === OWNER_KEY) navigate({ to: "/auth", replace: true });
+    if (key === OWNER_KEY) navigate({ to: "/sa-login", replace: true });
   }, [key, navigate]);
 
   if (key === OWNER_KEY) {
