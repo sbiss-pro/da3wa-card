@@ -2,8 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { assignRole, listAllUsers, revokeRole } from "@/lib/admin.functions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  assignRole,
+  listAllUsers,
+  revokeRole,
+  createUserAccount,
+  deleteUserAccount,
+  setUserBanned,
+} from "@/lib/admin.functions";
 import { toast } from "sonner";
+import { Trash2, Ban, ShieldCheck, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   ssr: false,
@@ -22,7 +32,10 @@ type Row = {
 const ROLES = [
   { key: "admin", label: "مدير" },
   { key: "editor", label: "محرر" },
+  { key: "owner", label: "مالك فعالية" },
 ] as const;
+
+type Role = (typeof ROLES)[number]["key"];
 
 function UsersAdmin() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -45,7 +58,7 @@ function UsersAdmin() {
     load();
   }, []);
 
-  const toggleRole = async (userId: string, role: "admin" | "editor", has: boolean) => {
+  const toggleRole = async (userId: string, role: Role, has: boolean) => {
     setBusy(`${userId}:${role}`);
     try {
       if (has) {
@@ -63,14 +76,102 @@ function UsersAdmin() {
     }
   };
 
+  const [newEmail, setNewEmail] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [newRole, setNewRole] = useState<Role | "user">("editor");
+  const [creating, setCreating] = useState(false);
+
+  const createUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    try {
+      await createUserAccount({ data: { email: newEmail.trim(), password: newPass, role: newRole } });
+      toast.success("تم إنشاء الحساب");
+      setNewEmail("");
+      setNewPass("");
+      await load();
+    } catch (err) {
+      toast.error("تعذر إنشاء الحساب", { description: (err as Error).message });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const removeUser = async (id: string, email: string) => {
+    if (!confirm(`حذف الحساب ${email}؟ لا يمكن التراجع.`)) return;
+    setBusy(`${id}:del`);
+    try {
+      await deleteUserAccount({ data: { targetUserId: id } });
+      toast.success("تم الحذف");
+      await load();
+    } catch (e) {
+      toast.error("فشل الحذف", { description: (e as Error).message });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const banUser = async (id: string, banned: boolean) => {
+    setBusy(`${id}:ban`);
+    try {
+      await setUserBanned({ data: { targetUserId: id, banned } });
+      toast.success(banned ? "تم تعطيل الحساب" : "تم تفعيل الحساب");
+      await load();
+    } catch (e) {
+      toast.error("فشل التنفيذ", { description: (e as Error).message });
+    } finally {
+      setBusy("");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-bold">إدارة المستخدمين</h1>
         <p className="mt-2 text-muted-foreground">
-          امنح أو اسحب صلاحيات المدير/المحرر. المدير الأعلى فقط يستطيع هذا الإجراء.
+          إنشاء الحسابات ومنح الصلاحيات وتعطيلها وحذفها. المدير الأعلى فقط يستطيع هذه الإجراءات.
         </p>
       </div>
+
+      <Card className="p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <UserPlus className="h-4 w-4 text-gold" />
+          <h2 className="font-display text-lg font-bold">إنشاء حساب جديد</h2>
+        </div>
+        <form onSubmit={createUser} className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1">
+            <Label htmlFor="ne">البريد</Label>
+            <Input id="ne" type="email" dir="ltr" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="np">كلمة المرور</Label>
+            <Input id="np" type="text" required minLength={8} value={newPass} onChange={(e) => setNewPass(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="nr">الدور</Label>
+            <select
+              id="nr"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as Role | "user")}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="admin">مدير</option>
+              <option value="editor">محرر</option>
+              <option value="owner">مالك فعالية</option>
+              <option value="user">مستخدم عادي</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Button type="submit" disabled={creating} className="w-full gold-gradient text-primary-foreground">
+              {creating ? "..." : "إنشاء"}
+            </Button>
+          </div>
+        </form>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          التسجيل العام مغلق. الحسابات لا تُنشأ إلا من هنا.
+        </p>
+      </Card>
 
       <Card className="overflow-hidden p-0">
         {loading ? (
@@ -100,13 +201,22 @@ function UsersAdmin() {
                         size="sm"
                         variant={has ? "default" : "outline"}
                         disabled={busy === busyKey}
-                        onClick={() => toggleRole(u.id, r.key as "admin" | "editor", has)}
+                        onClick={() => toggleRole(u.id, r.key, has)}
                         className={has ? "gold-gradient text-primary-foreground" : ""}
                       >
                         {has ? `إزالة ${r.label}` : `منح ${r.label}`}
                       </Button>
                     );
                   })}
+                  <Button size="sm" variant="outline" disabled={busy === `${u.id}:ban`} onClick={() => banUser(u.id, true)}>
+                    <Ban className="ms-1 h-3.5 w-3.5" /> تعطيل
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={busy === `${u.id}:ban`} onClick={() => banUser(u.id, false)}>
+                    <ShieldCheck className="ms-1 h-3.5 w-3.5" /> تفعيل
+                  </Button>
+                  <Button size="sm" variant="destructive" disabled={busy === `${u.id}:del`} onClick={() => removeUser(u.id, u.email)}>
+                    <Trash2 className="ms-1 h-3.5 w-3.5" /> حذف
+                  </Button>
                 </div>
               </div>
             ))}
