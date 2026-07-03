@@ -77,8 +77,8 @@ function CoordinatorLogin() {
               {loading ? "..." : "دخول"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            هل أنت منظّم الفعالية؟ <Link to="/auth" className="text-gold underline">سجّل دخولاً كمضيف</Link>
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            الدخول مخصص للمنسّقين المعتمدين فقط.
           </p>
         </Card>
       </div>
