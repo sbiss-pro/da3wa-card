@@ -11,15 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SaLoginRouteImport } from './routes/sa-login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OwnerKeyRouteImport } from './routes/owner.$key'
+import { Route as OLoginRouteImport } from './routes/o.login'
+import { Route as OPortalKeyRouteImport } from './routes/o-portal.$key'
 import { Route as ITokenRouteImport } from './routes/i.$token'
 import { Route as CLoginRouteImport } from './routes/c.login'
 import { Route as CEventRouteImport } from './routes/c.event'
+import { Route as CPortalKeyRouteImport } from './routes/c-portal.$key'
+import { Route as AuthenticatedOwnerPortalRouteImport } from './routes/_authenticated/owner-portal'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
@@ -30,6 +35,7 @@ import { Route as AuthenticatedEventsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEventsEventIdRouteImport } from './routes/_authenticated/events.$eventId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
 import { Route as AuthenticatedAdminHomepageRouteImport } from './routes/_authenticated/admin/homepage'
+import { Route as AuthenticatedAdminEventsRouteImport } from './routes/_authenticated/admin/events'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -39,6 +45,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaLoginRoute = SaLoginRouteImport.update({
+  id: '/sa-login',
+  path: '/sa-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -70,6 +81,16 @@ const OwnerKeyRoute = OwnerKeyRouteImport.update({
   path: '/owner/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OLoginRoute = OLoginRouteImport.update({
+  id: '/o/login',
+  path: '/o/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OPortalKeyRoute = OPortalKeyRouteImport.update({
+  id: '/o-portal/$key',
+  path: '/o-portal/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ITokenRoute = ITokenRouteImport.update({
   id: '/i/$token',
   path: '/i/$token',
@@ -85,6 +106,17 @@ const CEventRoute = CEventRouteImport.update({
   path: '/c/event',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CPortalKeyRoute = CPortalKeyRouteImport.update({
+  id: '/c-portal/$key',
+  path: '/c-portal/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedOwnerPortalRoute =
+  AuthenticatedOwnerPortalRouteImport.update({
+    id: '/owner-portal',
+    path: '/owner-portal',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntegrationsRoute =
   AuthenticatedIntegrationsRouteImport.update({
     id: '/integrations',
@@ -138,21 +170,33 @@ const AuthenticatedAdminHomepageRoute =
     path: '/homepage',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminEventsRoute =
+  AuthenticatedAdminEventsRouteImport.update({
+    id: '/events',
+    path: '/events',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/owner-portal': typeof AuthenticatedOwnerPortalRoute
+  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/o-portal/$key': typeof OPortalKeyRoute
+  '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -166,14 +210,20 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/owner-portal': typeof AuthenticatedOwnerPortalRoute
+  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/o-portal/$key': typeof OPortalKeyRoute
+  '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -189,15 +239,21 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
+  '/_authenticated/owner-portal': typeof AuthenticatedOwnerPortalRoute
+  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
+  '/o-portal/$key': typeof OPortalKeyRoute
+  '/o/login': typeof OLoginRoute
   '/owner/$key': typeof OwnerKeyRoute
+  '/_authenticated/admin/events': typeof AuthenticatedAdminEventsRoute
   '/_authenticated/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/events/$eventId': typeof AuthenticatedEventsEventIdRoute
@@ -213,15 +269,21 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/admin'
     | '/dashboard'
     | '/integrations'
+    | '/owner-portal'
+    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/o-portal/$key'
+    | '/o/login'
     | '/owner/$key'
+    | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
@@ -235,14 +297,20 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/dashboard'
     | '/integrations'
+    | '/owner-portal'
+    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/o-portal/$key'
+    | '/o/login'
     | '/owner/$key'
+    | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
     | '/events/$eventId'
@@ -257,15 +325,21 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
+    | '/_authenticated/owner-portal'
+    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
+    | '/o-portal/$key'
+    | '/o/login'
     | '/owner/$key'
+    | '/_authenticated/admin/events'
     | '/_authenticated/admin/homepage'
     | '/_authenticated/admin/users'
     | '/_authenticated/events/$eventId'
@@ -281,11 +355,15 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   PrivacyRoute: typeof PrivacyRoute
+  SaLoginRoute: typeof SaLoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  CPortalKeyRoute: typeof CPortalKeyRoute
   CEventRoute: typeof CEventRoute
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
+  OPortalKeyRoute: typeof OPortalKeyRoute
+  OLoginRoute: typeof OLoginRoute
   OwnerKeyRoute: typeof OwnerKeyRoute
   ApiPublicProxyRoute: typeof ApiPublicProxyRoute
   IPreviewEventIdRoute: typeof IPreviewEventIdRoute
@@ -305,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sa-login': {
+      id: '/sa-login'
+      path: '/sa-login'
+      fullPath: '/sa-login'
+      preLoaderRoute: typeof SaLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -349,6 +434,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/o/login': {
+      id: '/o/login'
+      path: '/o/login'
+      fullPath: '/o/login'
+      preLoaderRoute: typeof OLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o-portal/$key': {
+      id: '/o-portal/$key'
+      path: '/o-portal/$key'
+      fullPath: '/o-portal/$key'
+      preLoaderRoute: typeof OPortalKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/i/$token': {
       id: '/i/$token'
       path: '/i/$token'
@@ -369,6 +468,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/event'
       preLoaderRoute: typeof CEventRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/c-portal/$key': {
+      id: '/c-portal/$key'
+      path: '/c-portal/$key'
+      fullPath: '/c-portal/$key'
+      preLoaderRoute: typeof CPortalKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/owner-portal': {
+      id: '/_authenticated/owner-portal'
+      path: '/owner-portal'
+      fullPath: '/owner-portal'
+      preLoaderRoute: typeof AuthenticatedOwnerPortalRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/integrations': {
       id: '/_authenticated/integrations'
@@ -440,10 +553,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHomepageRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/events': {
+      id: '/_authenticated/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AuthenticatedAdminEventsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminEventsRoute: typeof AuthenticatedAdminEventsRoute
   AuthenticatedAdminHomepageRoute: typeof AuthenticatedAdminHomepageRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -451,6 +572,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminEventsRoute: AuthenticatedAdminEventsRoute,
     AuthenticatedAdminHomepageRoute: AuthenticatedAdminHomepageRoute,
     AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -465,6 +587,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
+  AuthenticatedOwnerPortalRoute: typeof AuthenticatedOwnerPortalRoute
   AuthenticatedEventsEventIdRoute: typeof AuthenticatedEventsEventIdRoute
   AuthenticatedEventsNewRoute: typeof AuthenticatedEventsNewRoute
 }
@@ -473,6 +596,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
+  AuthenticatedOwnerPortalRoute: AuthenticatedOwnerPortalRoute,
   AuthenticatedEventsEventIdRoute: AuthenticatedEventsEventIdRoute,
   AuthenticatedEventsNewRoute: AuthenticatedEventsNewRoute,
 }
@@ -486,11 +610,15 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   PrivacyRoute: PrivacyRoute,
+  SaLoginRoute: SaLoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  CPortalKeyRoute: CPortalKeyRoute,
   CEventRoute: CEventRoute,
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
+  OPortalKeyRoute: OPortalKeyRoute,
+  OLoginRoute: OLoginRoute,
   OwnerKeyRoute: OwnerKeyRoute,
   ApiPublicProxyRoute: ApiPublicProxyRoute,
   IPreviewEventIdRoute: IPreviewEventIdRoute,
@@ -498,13 +626,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

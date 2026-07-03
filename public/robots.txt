@@ -1,12 +1,13 @@
 User-agent: *
 Allow: /
-Disallow: /c/
-Disallow: /i/
-Disallow: /dashboard
-Disallow: /events/
-Disallow: /auth
-Disallow: /owner/
 Disallow: /admin
-Disallow: /admin/
+Disallow: /sa-login
+Disallow: /o/login
+Disallow: /c/login
+Disallow: /owner
+Disallow: /o-portal
+Disallow: /c-portal
+Disallow: /owner-portal
+Disallow: /auth
 
 Sitemap: https://da3wa-card.lovable.app/sitemap.xml
