@@ -1,95 +1,79 @@
-# خطة التنفيذ الشاملة
+# خطة: فصل تسجيلات الدخول وأدوار الأحداث + قيود إنشاء الحسابات
 
-## 1) قاعدة البيانات (Migration)
+## 1) صفحات تسجيل دخول منفصلة (روابط سرية)
 
-### جدول `site_content` — محتوى الصفحة الرئيسية الديناميكي
-- `id` (singleton = 'home')
-- `sections` (JSONB) — مصفوفة أقسام مرتّبة، كل قسم يحوي: `key`, `type` (hero/stats/features/testimonials/cta/gallery/text)، `visible`, `order`, `data` (نصوص/أرقام/صور/روابط)
-- `theme` (JSONB) — ألوان العلامة (primary, accent, background, foreground, gold, emerald)، الخطوط
-- `branding` (JSONB) — اسم الموقع، الشعار، رقم الواتساب
-- `updated_by`, `updated_at`
+- **المدير الأعلى (Super Admin)** — فقط `saeedbiss@hotmail.com`.
+  - رابط سري جديد فقط: `/owner/9x2k7q4mvp-invitly-2026` يقود إلى صفحة تسجيل دخول مستقلة `/sa-login` (مخفية، `noindex`، لا روابط لها).
+  - عند الدخول: إن كان البريد ≠ حساب المدير الأعلى → رفض فوري ورسالة "غير مصرح".
+  - صفحة `/auth` العامة السابقة تُلغى كواجهة دخول عامة (redirect → الصفحة الرئيسية). فقط الروابط السرية أدناه تصل إلى تسجيل الدخول.
 
-RLS:
-- قراءة: `anon` + `authenticated` (المحتوى عام)
-- كتابة: فقط `has_role(auth.uid(), 'admin')` أو `has_role(auth.uid(), 'editor')`
+- **المنسّق (Coordinator)** — صفحة مستقلة على رابط سري جديد:
+  - `/c-portal/7h3n2r8w-coord` → `/c/login` (نموذج المنسّق الحالي).
+  - إخفاء كامل من الواجهة العامة (لا روابط، `noindex`).
 
-### إضافة دور `editor` لـ enum `app_role`
-- `ALTER TYPE app_role ADD VALUE 'editor'`
+- **مالك الحدث (Event Owner)** — صفحة مستقلة برابط سري:
+  - `/o-portal/5m9p4t6q-owner` → `/o/login` تسجيل دخول Supabase (email/password) خاص فقط بمالكي الأحداث.
+  - رفض أي حساب لا يمتلك دور `owner`.
 
-### دالة `is_super_admin(uid)` 
-- تُرجع true فقط لبريد `saeedbiss@hotmail.com` (تُقرأ من `auth.users.email`)
-- SECURITY DEFINER, search_path=public
+- سيتم عرض الروابط الثلاثة السرية لك في الشات فقط.
 
-### تعديل `user_roles`
-- سياسة: Super Admin وحده يستطيع INSERT/UPDATE/DELETE على الأدوار
-- سياسة قراءة: كل مستخدم يقرأ دوره + Super Admin يقرأ الجميع
+## 2) الأدوار (RBAC)
 
-### Seed
-- إدراج صف افتراضي في `site_content` بمحتوى الصفحة الحالية
+- توسيع `app_role` بإضافة `owner` (بالإضافة للأدوار الحالية: `admin`, `editor`, `user`, `coordinator`).
+- المدير الأعلى يُحدَّد حصراً بالبريد `saeedbiss@hotmail.com` عبر الدالة الموجودة `is_super_admin()`.
+- إسناد جدول `events` لحقل جديد `owner_user_id uuid` (FK → `auth.users`) بجانب المنسّق الحالي.
+- المنسّق: يعمل فقط على أحداثه (كما هو الآن) — لا تغيير.
+- المالك: يقرأ فقط إحصائيات أحداثه المسندة.
 
-## 2) Server Functions (`src/lib/admin.functions.ts`)
+## 3) لوحة مالك الحدث (قراءة فقط)
 
-- `getSiteContent` — عام (بدون auth) لجلب محتوى الصفحة الرئيسية
-- `updateSiteContent` — محمي بـ `requireSupabaseAuth` + تحقق من دور admin/editor
-- `listUsers` — Super Admin فقط، عبر `supabaseAdmin.auth.admin.listUsers()`
-- `assignRole` / `revokeRole` — Super Admin فقط (تحقق `is_super_admin`)
-- `getMyPermissions` — يُرجع `{ isSuperAdmin, isAdmin, isEditor }`
+- `/_authenticated/owner` (SSR off) — تُعرض فقط إن كان للمستخدم دور `owner`.
+- هيكل الصفحة جاهز لعرض إحصائيات لكل حدث مسنَد: عدد الدعوات، المؤكدون، الحضور الفعلي (سيُعبَّأ لاحقاً بالبيانات التي ستزوّدنا بها).
+- لا أزرار إنشاء/تعديل/حذف مطلقاً.
 
-كل الدوال المميزة تتحقق من الدور داخل الـ handler، ولا يُستورد `client.server` إلا داخل الـ handler عبر `await import`.
+## 4) قيود إنشاء الحسابات
 
-## 3) لوحة Super Admin (`/_authenticated/admin/*`)
+- **Supabase Auth**: تعطيل التسجيل العام (`disable_signup=true`).
+- إزالة تبويب "إنشاء حساب" من كل صفحات الدخول.
+- المدير الأعلى فقط يستطيع من `/admin/users`:
+  - إنشاء حساب (admin/editor/coordinator/owner) عبر `supabaseAdmin.auth.admin.createUser`.
+  - تعديل/تفعيل/تعطيل/حذف الحسابات.
+  - إسناد/سحب الأدوار.
+- كل الدوال المميزة تتحقق من `is_super_admin()` قبل التنفيذ.
 
-### التوجيه
-- `admin/route.tsx` — layout يتحقق من `isSuperAdmin` أو `isEditor`؛ غير المصرح يُحوَّل لـ `/dashboard`
-- `admin/index.tsx` — نظرة عامة (عدد المستخدمين، الفعاليات، آخر التعديلات)
-- `admin/users.tsx` — Super Admin فقط: قائمة المستخدمين + تعيين/سحب أدوار (admin/editor/user)
-- `admin/homepage.tsx` — محرر الصفحة الرئيسية الشامل
+## 5) الأمان و RBAC على مستوى المسارات
 
-### محرر الصفحة الرئيسية (`admin/homepage.tsx`)
-تبويبات:
-1. **الأقسام (Sections)**: قائمة بالسحب والإفلات (drag & drop) — إعادة ترتيب، إخفاء/إظهار، إضافة/حذف. لكل قسم فورم حسب نوعه:
-   - Hero: عنوان، وصف، زر CTA، صورة خلفية
-   - Stats: مصفوفة (رقم + تسمية)
-   - Features: مصفوفة (أيقونة/صورة + عنوان + وصف)
-   - Testimonials: مصفوفة اقتباسات
-   - Gallery: مصفوفة صور
-   - Text/CTA حر
-2. **الألوان والعلامة (Theme)**: color pickers لكل متغيّر (primary, accent, gold, emerald, background, foreground) + معاينة حيّة
-3. **العلامة التجارية (Branding)**: اسم الموقع، رقم الواتساب، الشعار
-4. **معاينة (Preview)**: iframe لـ `/` مع refresh key
+- `beforeLoad` على كل مسار محمي يستدعي `getMyPermissions` ويوجّه:
+  - `/admin/*` → super admin / admin / editor فقط.
+  - `/owner/*` (Event Owner) → دور `owner` فقط.
+  - `/dashboard`, `/events/*` → المستخدم صاحب الحدث فقط.
+  - المنسّق يبقى على `/c/*` بجلسته الحالية.
+- سياسات RLS جديدة/محدَّثة:
+  - `events`: SELECT للمالك عندما `owner_user_id = auth.uid()`.
+  - `guests`, `scan_logs`: SELECT للمالك عبر ربطها بأحداثه (قراءة فقط، لا INSERT/UPDATE/DELETE).
+- منع تصعيد الصلاحيات: لا يمكن لأي دور غير Super Admin الكتابة على `user_roles`.
+- `robots.txt`: منع فهرسة كل الروابط السرية والصفحات المحمية.
 
-زر "حفظ التغييرات" يُرسل الحالة كاملة عبر `updateSiteContent`.
+## تفاصيل تقنية
 
-## 4) الصفحة الرئيسية الديناميكية (`src/routes/index.tsx`)
+**ملفات جديدة:**
+- `src/routes/sa-login.tsx` — دخول المدير الأعلى (يتحقق من البريد بعد الدخول).
+- `src/routes/o.login.tsx` — دخول المالك.
+- `src/routes/o-portal.$key.tsx`, `src/routes/c-portal.$key.tsx` — بوابات سرية.
+- `src/routes/_authenticated/owner/route.tsx` + `owner/index.tsx` — لوحة المالك (read-only).
+- `src/lib/owner.functions.ts` — قراءة إحصائيات أحداث المالك.
+- توسعة `src/lib/admin.functions.ts` بـ `createUser`, `deleteUser`, `setUserActive`.
 
-- Loader يستدعي `getSiteContent()` (يعمل SSR)
-- يُصيّر الأقسام بالترتيب حسب `order` + `visible`
-- ألوان الـ theme تُحقن عبر `<style>` inline بمتغيرات CSS على `:root` (يتجاوز `styles.css` للألوان الديناميكية فقط)
-- كل قسم مكوّن مستقل: `<HeroSection>`, `<StatsSection>`, `<FeaturesSection>`... إلخ
-- fallback لمحتوى افتراضي عند فشل التحميل
+**تعديلات:**
+- `src/routes/auth.tsx` → redirect إلى `/`.
+- `src/routes/index.tsx`, `src/components/site-footer.tsx` → إزالة أي روابط دخول.
+- `src/routes/_authenticated/admin/users.tsx` → إضافة إنشاء/حذف/تعطيل + إسناد دور `owner`.
+- migration: إضافة `owner` للـ enum، `events.owner_user_id`، سياسات RLS للمالك، دالة `has_any_role`.
+- `supabase--configure_auth` → `disable_signup=true`.
 
-## 5) إصلاحات وحماية
+**الروابط السرية النهائية (سأعرضها لك في الرد بعد التنفيذ):**
+- Super Admin: `/owner/9x2k7q4mvp-invitly-2026` (نفس السري الحالي)
+- Coordinator portal: مفتاح جديد
+- Owner portal: مفتاح جديد
 
-- فحص كل الروابط: `/auth` مخفي، أزرار WhatsApp تعمل، روابط footer صحيحة
-- التأكد من أن `/admin/*` غير مفهرس (`robots.txt` + meta noindex)
-- تقييد `updateSiteContent` بتحقق مزدوج (middleware + دور)
-- منع Super Admin من سحب دوره الخاص
-- التأكد من أن قراءة `site_content` بواسطة `anon` تُرجع فقط الحقول العامة (لا تحوي أسرار)
-- ربط `/owner/9x2k7q4mvp-invitly-2026` بتحقق إضافي: بعد الدخول، إن لم يكن Super Admin يظهر خطأ
-
-## 6) الوصول (UX)
-
-- Super Admin يرى زر "لوحة الإدارة" في `/dashboard`
-- Editor يرى زر "تحرير الصفحة الرئيسية" فقط
-- كل النصوص عربية RTL، متسقة مع الهوية الحالية (INVITLY، الذهبي/الزمرّدي)
-
-## التفاصيل التقنية
-
-- Migration واحد يحوي: enum alter, is_super_admin, site_content, RLS/GRANTs, seed
-- `admin.functions.ts` يستخدم `requireSupabaseAuth` + `has_role` RPC + `supabaseAdmin` (dynamic import) لعمليات auth.admin
-- Theme dynamic: `<style>{`:root{--primary:${theme.primary};...}`}</style>` في `__root.tsx` أو `index.tsx`
-- drag & drop: `@dnd-kit/core` + `@dnd-kit/sortable` (تثبيت جديد)
-- Color picker: مكوّن HTML `<input type="color">` مغلّف بواجهة عربية
-- عند تحميل الصفحة الرئيسية، تُخزَّن ألوان الـ theme في CSS variables وتُطبَّق فوراً بدون flash
-
-هذه خطة كبيرة لكن مترابطة. عند الموافقة سأنفّذها على دفعة migration + كود موحّدة.
+هل أبدأ التنفيذ بهذه الخطة؟
