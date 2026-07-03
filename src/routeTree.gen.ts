@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SaLoginRouteImport } from './routes/sa-login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -39,6 +40,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaLoginRoute = SaLoginRouteImport.update({
+  id: '/sa-login',
+  path: '/sa-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/privacy': typeof PrivacyRoute
+  '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/admin'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/dashboard'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/privacy'
+    | '/sa-login'
     | '/sitemap.xml'
     | '/terms'
     | '/_authenticated/admin'
@@ -281,6 +293,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   PrivacyRoute: typeof PrivacyRoute
+  SaLoginRoute: typeof SaLoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   CEventRoute: typeof CEventRoute
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sa-login': {
+      id: '/sa-login'
+      path: '/sa-login'
+      fullPath: '/sa-login'
+      preLoaderRoute: typeof SaLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -486,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   PrivacyRoute: PrivacyRoute,
+  SaLoginRoute: SaLoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   CEventRoute: CEventRoute,
