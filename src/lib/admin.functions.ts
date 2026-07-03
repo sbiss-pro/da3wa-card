@@ -166,7 +166,7 @@ export const listAllUsers = createServerFn({ method: "GET" })
 
 export const assignRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" }) => d)
+  .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" | "owner" }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: superRow } = await supabase.rpc(
@@ -187,7 +187,7 @@ export const assignRole = createServerFn({ method: "POST" })
 
 export const revokeRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" }) => d)
+  .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" | "owner" }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: superRow } = await supabase.rpc(
@@ -205,6 +205,79 @@ export const revokeRole = createServerFn({ method: "POST" })
       .delete()
       .eq("user_id", data.targetUserId)
       .eq("role", data.role as never);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/* ---------- Super Admin: user lifecycle ---------- */
+
+async function assertSuperAdmin(ctx: { supabase: ReturnType<typeof Object>; userId: string } | { supabase: unknown; userId: string }) {
+  const c = ctx as { supabase: { rpc: (n: string, a: unknown) => Promise<{ data: unknown }> }; userId: string };
+  const { data } = await c.supabase.rpc("is_super_admin", { _user_id: c.userId });
+  if (!data) throw new Error("Forbidden");
+}
+
+export const createUserAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { email: string; password: string; role: "admin" | "editor" | "coordinator" | "owner" | "user" }) => d)
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+    const uid = created.user?.id;
+    if (!uid) throw new Error("Failed to create user");
+    if (data.role !== "user") {
+      const { error: rErr } = await supabaseAdmin
+        .from("user_roles")
+        .upsert({ user_id: uid, role: data.role as never }, { onConflict: "user_id,role" });
+      if (rErr) throw new Error(rErr.message);
+    }
+    return { ok: true as const, userId: uid };
+  });
+
+export const deleteUserAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { targetUserId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    if (data.targetUserId === context.userId) throw new Error("Cannot delete your own account");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.targetUserId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const setUserBanned = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { targetUserId: string; banned: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    if (data.targetUserId === context.userId) throw new Error("Cannot change your own account status");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+      ban_duration: data.banned ? "876000h" : "none",
+    } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/* ---------- Assign event owner ---------- */
+
+export const assignEventOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { event_id: string; owner_user_id: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("events")
+      .update({ owner_user_id: data.owner_user_id } as never)
+      .eq("id", data.event_id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
