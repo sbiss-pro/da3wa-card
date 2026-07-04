@@ -96,16 +96,18 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const [{ data: superRow }, { data: adminRow }, { data: editorRow }] = await Promise.all([
-      supabase.rpc("is_super_admin" as never, { _user_id: userId } as never),
-      supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-      supabase.rpc("has_role" as never, { _user_id: userId, _role: "editor" } as never),
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: authUser }, { data: roleRows }] = await Promise.all([
+      supabaseAdmin.auth.admin.getUserById(userId),
+      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
     ]);
+    const roles = new Set((roleRows ?? []).map((r) => r.role as string));
+    const email = (authUser?.user?.email ?? "").toLowerCase();
     return {
-      isSuperAdmin: Boolean(superRow),
-      isAdmin: Boolean(adminRow),
-      isEditor: Boolean(editorRow),
+      isSuperAdmin: email === "saeedbiss@hotmail.com",
+      isAdmin: roles.has("admin"),
+      isEditor: roles.has("editor"),
     };
   });
 
@@ -114,13 +116,8 @@ export const updateSiteContent = createServerFn({ method: "POST" })
   .inputValidator((data: { content: SiteContent }) => data)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // authorize: admin, editor, or super admin
-    const [{ data: adminRow }, { data: editorRow }, { data: superRow }] = await Promise.all([
-      supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-      supabase.rpc("has_role" as never, { _user_id: userId, _role: "editor" } as never),
-      supabase.rpc("is_super_admin" as never, { _user_id: userId } as never),
-    ]);
-    if (!adminRow && !editorRow && !superRow) {
+    const perms = await checkPermissions(userId);
+    if (!perms.isAdmin && !perms.isEditor && !perms.isSuperAdmin) {
       throw new Error("Forbidden");
     }
     const { error } = await supabase
@@ -139,12 +136,8 @@ export const updateSiteContent = createServerFn({ method: "POST" })
 export const listAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data: superRow } = await supabase.rpc(
-      "is_super_admin" as never,
-      { _user_id: userId } as never,
-    );
-    if (!superRow) throw new Error("Forbidden");
+    const { userId } = context;
+    if (!(await checkPermissions(userId)).isSuperAdmin) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
     if (error) throw new Error(error.message);
@@ -168,12 +161,8 @@ export const assignRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" | "owner" }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: superRow } = await supabase.rpc(
-      "is_super_admin" as never,
-      { _user_id: userId } as never,
-    );
-    if (!superRow) throw new Error("Forbidden");
+    const { userId } = context;
+    if (!(await checkPermissions(userId)).isSuperAdmin) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("user_roles")
@@ -189,12 +178,8 @@ export const revokeRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { targetUserId: string; role: "admin" | "editor" | "user" | "owner" }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: superRow } = await supabase.rpc(
-      "is_super_admin" as never,
-      { _user_id: userId } as never,
-    );
-    if (!superRow) throw new Error("Forbidden");
+    const { userId } = context;
+    if (!(await checkPermissions(userId)).isSuperAdmin) throw new Error("Forbidden");
     // Do not allow super admin to revoke their own admin role via this endpoint
     if (data.targetUserId === userId && data.role === "admin") {
       throw new Error("Cannot revoke your own admin role");
@@ -211,10 +196,23 @@ export const revokeRole = createServerFn({ method: "POST" })
 
 /* ---------- Super Admin: user lifecycle ---------- */
 
-async function assertSuperAdmin(ctx: { supabase: ReturnType<typeof Object>; userId: string } | { supabase: unknown; userId: string }) {
-  const c = ctx as { supabase: { rpc: (n: string, a: unknown) => Promise<{ data: unknown }> }; userId: string };
-  const { data } = await c.supabase.rpc("is_super_admin", { _user_id: c.userId });
-  if (!data) throw new Error("Forbidden");
+async function checkPermissions(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [{ data: authUser }, { data: roleRows }] = await Promise.all([
+    supabaseAdmin.auth.admin.getUserById(userId),
+    supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+  ]);
+  const roles = new Set((roleRows ?? []).map((r) => r.role as string));
+  const email = (authUser?.user?.email ?? "").toLowerCase();
+  return {
+    isSuperAdmin: email === "saeedbiss@hotmail.com",
+    isAdmin: roles.has("admin"),
+    isEditor: roles.has("editor"),
+  };
+}
+
+async function assertSuperAdmin(ctx: { userId: string }) {
+  if (!(await checkPermissions(ctx.userId)).isSuperAdmin) throw new Error("Forbidden");
 }
 
 export const createUserAccount = createServerFn({ method: "POST" })
