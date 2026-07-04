@@ -16,6 +16,9 @@ import {
   type SiteSection,
   type SiteTheme,
   type SiteBranding,
+  type SiteSocial,
+  type SitePages,
+  type SitePage,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/homepage")({
@@ -55,6 +58,8 @@ function HomepageEditor() {
     setContent({ ...content, sections: sections.map((s, i) => ({ ...s, order: i })) });
   const setTheme = (theme: SiteTheme) => setContent({ ...content, theme });
   const setBranding = (branding: SiteBranding) => setContent({ ...content, branding });
+  const setSocial = (social: SiteSocial) => setContent({ ...content, social });
+  const setPages = (pages: SitePages) => setContent({ ...content, pages });
 
   return (
     <div className="space-y-6">
@@ -80,6 +85,8 @@ function HomepageEditor() {
           <TabsTrigger value="sections">الأقسام</TabsTrigger>
           <TabsTrigger value="theme">الألوان</TabsTrigger>
           <TabsTrigger value="branding">العلامة</TabsTrigger>
+          <TabsTrigger value="social">الفوتر</TabsTrigger>
+          <TabsTrigger value="pages">الصفحات</TabsTrigger>
           <TabsTrigger value="preview">معاينة</TabsTrigger>
         </TabsList>
 
@@ -93,6 +100,14 @@ function HomepageEditor() {
 
         <TabsContent value="branding" className="mt-6">
           <BrandingEditor branding={content.branding} onChange={setBranding} />
+        </TabsContent>
+
+        <TabsContent value="social" className="mt-6">
+          <SocialEditor social={content.social} onChange={setSocial} />
+        </TabsContent>
+
+        <TabsContent value="pages" className="mt-6">
+          <PagesEditor pages={content.pages} onChange={setPages} />
         </TabsContent>
 
         <TabsContent value="preview" className="mt-6">
