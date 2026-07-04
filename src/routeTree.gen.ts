@@ -17,13 +17,10 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as OwnerKeyRouteImport } from './routes/owner.$key'
 import { Route as OLoginRouteImport } from './routes/o.login'
-import { Route as OPortalKeyRouteImport } from './routes/o-portal.$key'
 import { Route as ITokenRouteImport } from './routes/i.$token'
 import { Route as CLoginRouteImport } from './routes/c.login'
 import { Route as CEventRouteImport } from './routes/c.event'
-import { Route as CPortalKeyRouteImport } from './routes/c-portal.$key'
 import { Route as AuthenticatedOwnerPortalRouteImport } from './routes/_authenticated/owner-portal'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -76,19 +73,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OwnerKeyRoute = OwnerKeyRouteImport.update({
-  id: '/owner/$key',
-  path: '/owner/$key',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OLoginRoute = OLoginRouteImport.update({
   id: '/o/login',
   path: '/o/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OPortalKeyRoute = OPortalKeyRouteImport.update({
-  id: '/o-portal/$key',
-  path: '/o-portal/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ITokenRoute = ITokenRouteImport.update({
@@ -104,11 +91,6 @@ const CLoginRoute = CLoginRouteImport.update({
 const CEventRoute = CEventRouteImport.update({
   id: '/c/event',
   path: '/c/event',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CPortalKeyRoute = CPortalKeyRouteImport.update({
-  id: '/c-portal/$key',
-  path: '/c-portal/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedOwnerPortalRoute =
@@ -189,13 +171,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/owner-portal': typeof AuthenticatedOwnerPortalRoute
-  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
-  '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
-  '/owner/$key': typeof OwnerKeyRoute
   '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -216,13 +195,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/owner-portal': typeof AuthenticatedOwnerPortalRoute
-  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
-  '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
-  '/owner/$key': typeof OwnerKeyRoute
   '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -246,13 +222,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/owner-portal': typeof AuthenticatedOwnerPortalRoute
-  '/c-portal/$key': typeof CPortalKeyRoute
   '/c/event': typeof CEventRoute
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
-  '/o-portal/$key': typeof OPortalKeyRoute
   '/o/login': typeof OLoginRoute
-  '/owner/$key': typeof OwnerKeyRoute
   '/_authenticated/admin/events': typeof AuthenticatedAdminEventsRoute
   '/_authenticated/admin/homepage': typeof AuthenticatedAdminHomepageRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -276,13 +249,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/owner-portal'
-    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
-    | '/o-portal/$key'
     | '/o/login'
-    | '/owner/$key'
     | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
@@ -303,13 +273,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/owner-portal'
-    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
-    | '/o-portal/$key'
     | '/o/login'
-    | '/owner/$key'
     | '/admin/events'
     | '/admin/homepage'
     | '/admin/users'
@@ -332,13 +299,10 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
     | '/_authenticated/owner-portal'
-    | '/c-portal/$key'
     | '/c/event'
     | '/c/login'
     | '/i/$token'
-    | '/o-portal/$key'
     | '/o/login'
-    | '/owner/$key'
     | '/_authenticated/admin/events'
     | '/_authenticated/admin/homepage'
     | '/_authenticated/admin/users'
@@ -358,13 +322,10 @@ export interface RootRouteChildren {
   SaLoginRoute: typeof SaLoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
-  CPortalKeyRoute: typeof CPortalKeyRoute
   CEventRoute: typeof CEventRoute
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
-  OPortalKeyRoute: typeof OPortalKeyRoute
   OLoginRoute: typeof OLoginRoute
-  OwnerKeyRoute: typeof OwnerKeyRoute
   ApiPublicProxyRoute: typeof ApiPublicProxyRoute
   IPreviewEventIdRoute: typeof IPreviewEventIdRoute
 }
@@ -427,25 +388,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/owner/$key': {
-      id: '/owner/$key'
-      path: '/owner/$key'
-      fullPath: '/owner/$key'
-      preLoaderRoute: typeof OwnerKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/o/login': {
       id: '/o/login'
       path: '/o/login'
       fullPath: '/o/login'
       preLoaderRoute: typeof OLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/o-portal/$key': {
-      id: '/o-portal/$key'
-      path: '/o-portal/$key'
-      fullPath: '/o-portal/$key'
-      preLoaderRoute: typeof OPortalKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/i/$token': {
@@ -467,13 +414,6 @@ declare module '@tanstack/react-router' {
       path: '/c/event'
       fullPath: '/c/event'
       preLoaderRoute: typeof CEventRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/c-portal/$key': {
-      id: '/c-portal/$key'
-      path: '/c-portal/$key'
-      fullPath: '/c-portal/$key'
-      preLoaderRoute: typeof CPortalKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/owner-portal': {
@@ -613,13 +553,10 @@ const rootRouteChildren: RootRouteChildren = {
   SaLoginRoute: SaLoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
-  CPortalKeyRoute: CPortalKeyRoute,
   CEventRoute: CEventRoute,
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
-  OPortalKeyRoute: OPortalKeyRoute,
   OLoginRoute: OLoginRoute,
-  OwnerKeyRoute: OwnerKeyRoute,
   ApiPublicProxyRoute: ApiPublicProxyRoute,
   IPreviewEventIdRoute: IPreviewEventIdRoute,
 }
