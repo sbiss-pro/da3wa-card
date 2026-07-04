@@ -196,7 +196,11 @@ export const updateSiteContent = createServerFn({ method: "POST" })
       .update({
         sections: data.content.sections as never,
         theme: data.content.theme as never,
-        branding: data.content.branding as never,
+        branding: {
+          ...data.content.branding,
+          social: data.content.social,
+          pages: data.content.pages,
+        } as never,
         updated_by: userId,
       })
       .eq("id", "home");
