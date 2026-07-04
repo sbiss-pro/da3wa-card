@@ -17,7 +17,10 @@ export const listCoordinators = createServerFn({ method: "GET" })
       .select("id,name,username,last_login_at,created_at")
       .eq("event_id", data.event_id)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[listCoordinators]", error);
+      throw new Error("حدث خطأ، يرجى المحاولة لاحقاً");
+    }
     return rows ?? [];
   });
 
@@ -45,7 +48,8 @@ export const createCoordinator = createServerFn({ method: "POST" })
       .single();
     if (error) {
       if (error.code === "23505") throw new Error("اسم المستخدم مستخدم بالفعل");
-      throw new Error(error.message);
+      console.error("[createCoordinator]", error);
+      throw new Error("حدث خطأ، يرجى المحاولة لاحقاً");
     }
     return row;
   });
@@ -71,7 +75,8 @@ export const updateCoordinator = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("coordinators").update(patch).eq("id", data.id);
     if (error) {
       if (error.code === "23505") throw new Error("اسم المستخدم مستخدم بالفعل");
-      throw new Error(error.message);
+      console.error("[updateCoordinator]", error);
+      throw new Error("حدث خطأ، يرجى المحاولة لاحقاً");
     }
     return { ok: true };
   });
@@ -81,7 +86,10 @@ export const deleteCoordinator = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("coordinators").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[deleteCoordinator]", error);
+      throw new Error("حدث خطأ، يرجى المحاولة لاحقاً");
+    }
     return { ok: true };
   });
 
@@ -296,7 +304,10 @@ export const coordinatorMarkNoteSeen = createServerFn({ method: "POST" })
       .eq("event_id", row.event_id)
       .select("id,name,title,phone,rsvp_status,companions_count,notes,notes_seen_at,token,checked_in_at")
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[coordinatorMarkNoteSeen]", error);
+      throw new Error("حدث خطأ، يرجى المحاولة لاحقاً");
+    }
     if (!updated) throw new Error("المدعو غير موجود");
     return updated;
   });
