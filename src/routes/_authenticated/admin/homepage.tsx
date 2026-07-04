@@ -16,6 +16,9 @@ import {
   type SiteSection,
   type SiteTheme,
   type SiteBranding,
+  type SiteSocial,
+  type SitePages,
+  type SitePage,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/homepage")({
@@ -55,6 +58,8 @@ function HomepageEditor() {
     setContent({ ...content, sections: sections.map((s, i) => ({ ...s, order: i })) });
   const setTheme = (theme: SiteTheme) => setContent({ ...content, theme });
   const setBranding = (branding: SiteBranding) => setContent({ ...content, branding });
+  const setSocial = (social: SiteSocial) => setContent({ ...content, social });
+  const setPages = (pages: SitePages) => setContent({ ...content, pages });
 
   return (
     <div className="space-y-6">
@@ -80,6 +85,8 @@ function HomepageEditor() {
           <TabsTrigger value="sections">الأقسام</TabsTrigger>
           <TabsTrigger value="theme">الألوان</TabsTrigger>
           <TabsTrigger value="branding">العلامة</TabsTrigger>
+          <TabsTrigger value="social">الفوتر</TabsTrigger>
+          <TabsTrigger value="pages">الصفحات</TabsTrigger>
           <TabsTrigger value="preview">معاينة</TabsTrigger>
         </TabsList>
 
@@ -93,6 +100,14 @@ function HomepageEditor() {
 
         <TabsContent value="branding" className="mt-6">
           <BrandingEditor branding={content.branding} onChange={setBranding} />
+        </TabsContent>
+
+        <TabsContent value="social" className="mt-6">
+          <SocialEditor social={content.social} onChange={setSocial} />
+        </TabsContent>
+
+        <TabsContent value="pages" className="mt-6">
+          <PagesEditor pages={content.pages} onChange={setPages} />
         </TabsContent>
 
         <TabsContent value="preview" className="mt-6">
@@ -400,6 +415,79 @@ function Field({
       <Label className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</Label>
       {children}
     </div>
+  );
+}
+
+function SocialEditor({ social, onChange }: { social: SiteSocial; onChange: (s: SiteSocial) => void }) {
+  const set = (k: keyof SiteSocial, v: string) => onChange({ ...social, [k]: v });
+  const fields: Array<{ key: keyof SiteSocial; label: string; placeholder: string }> = [
+    { key: "twitter", label: "رابط تويتر", placeholder: "https://twitter.com/..." },
+    { key: "instagram", label: "رابط انستقرام", placeholder: "https://instagram.com/..." },
+    { key: "email", label: "البريد الإلكتروني", placeholder: "hello@example.com" },
+    { key: "phone", label: "رقم الهاتف", placeholder: "+9661..." },
+  ];
+  return (
+    <Card className="p-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        {fields.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <Input dir="ltr" placeholder={f.placeholder} value={social[f.key]} onChange={(e) => set(f.key, e.target.value)} />
+          </Field>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">تظهر هذه الروابط في فوتر الموقع وصفحة تواصل معنا. اترك الحقل فارغاً لإخفاء الأيقونة.</p>
+    </Card>
+  );
+}
+
+function PagesEditor({ pages, onChange }: { pages: SitePages; onChange: (p: SitePages) => void }) {
+  const keys: Array<{ k: keyof SitePages; label: string }> = [
+    { k: "about", label: "من نحن" },
+    { k: "contact", label: "تواصل معنا" },
+    { k: "privacy", label: "سياسة الخصوصية" },
+    { k: "terms", label: "الشروط والأحكام" },
+  ];
+  return (
+    <Tabs defaultValue="about" className="w-full">
+      <TabsList>
+        {keys.map((it) => (
+          <TabsTrigger key={it.k} value={it.k}>{it.label}</TabsTrigger>
+        ))}
+      </TabsList>
+      {keys.map((it) => (
+        <TabsContent key={it.k} value={it.k} className="mt-4">
+          <PageEditor
+            page={pages[it.k]}
+            onChange={(v) => onChange({ ...pages, [it.k]: v })}
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+function PageEditor({ page, onChange }: { page: SitePage; onChange: (p: SitePage) => void }) {
+  const set = (k: keyof SitePage, v: string) => onChange({ ...page, [k]: v });
+  return (
+    <Card className="p-6">
+      <div className="grid gap-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="نص علوي (eyebrow)">
+            <Input value={page.eyebrow} onChange={(e) => set("eyebrow", e.target.value)} />
+          </Field>
+          <Field label="العنوان">
+            <Input value={page.title} onChange={(e) => set("title", e.target.value)} />
+          </Field>
+        </div>
+        <Field label="النص الفرعي">
+          <Input value={page.subtitle} onChange={(e) => set("subtitle", e.target.value)} />
+        </Field>
+        <Field label="محتوى الصفحة">
+          <Textarea rows={14} value={page.body} onChange={(e) => set("body", e.target.value)} />
+        </Field>
+        <p className="text-xs text-muted-foreground">تدعم أسطر متعددة — كل سطر جديد سيظهر كما هو على الصفحة.</p>
+      </div>
+    </Card>
   );
 }
 

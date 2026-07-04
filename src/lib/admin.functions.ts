@@ -34,10 +34,33 @@ export type SiteBranding = {
   logoUrl: string;
 };
 
+export type SiteSocial = {
+  twitter: string;
+  instagram: string;
+  email: string;
+  phone: string;
+};
+
+export type SitePage = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  body: string;
+};
+
+export type SitePages = {
+  about: SitePage;
+  contact: SitePage;
+  privacy: SitePage;
+  terms: SitePage;
+};
+
 export type SiteContent = {
   sections: SiteSection[];
   theme: SiteTheme;
   branding: SiteBranding;
+  social: SiteSocial;
+  pages: SitePages;
   updated_at?: string;
 };
 
@@ -67,6 +90,38 @@ const DEFAULT_CONTENT: SiteContent = {
     emerald: "#0f3d2e",
   },
   branding: { siteName: "INVITLY", whatsappNumber: "966500000000", logoUrl: "" },
+  social: {
+    twitter: "https://twitter.com/invitly",
+    instagram: "https://instagram.com/invitly",
+    email: "hello@invitly.app",
+    phone: "+966110000000",
+  },
+  pages: {
+    about: {
+      eyebrow: "ABOUT US",
+      title: "من نحن",
+      subtitle: "قصة INVITLY وشغفنا بصناعة تجارب دعوات فاخرة.",
+      body: "INVITLY منصة سعودية متخصصة في إدارة الدعوات الرقمية الفاخرة.\n\nنقدم تجربة متكاملة من تصميم البطاقة، وإرسال الدعوات عبر واتساب، وتأكيد الحضور، إلى إدارة قوائم الضيوف في لوحة واحدة أنيقة.\n\nهدفنا أن تتفرغ لضيوفك وتترك التفاصيل علينا.",
+    },
+    contact: {
+      eyebrow: "CONTACT US",
+      title: "تواصل معنا",
+      subtitle: "نحن هنا لمساعدتك — اختر القناة الأنسب لك وسنرد خلال ساعات العمل.",
+      body: "ساعات العمل: الأحد – الخميس، ٩ صباحاً – ٦ مساءً.\n\nللاستفسارات العامة راسلنا عبر البريد أو واتساب.\nللدعم الفني اتصل بالرقم أعلاه.",
+    },
+    privacy: {
+      eyebrow: "PRIVACY POLICY",
+      title: "سياسة الخصوصية",
+      subtitle: "نضع خصوصية بياناتك وبيانات ضيوفك في مقدمة أولوياتنا.",
+      body: "١. البيانات التي نجمعها\nبيانات الحساب: الاسم، البريد الإلكتروني، رقم الجوال.\nبيانات الفعالية: الاسم، التاريخ، الموقع، الوصف.\nبيانات الضيوف: الاسم، رقم الجوال، حالة الرد.\n\n٢. كيف نستخدم بياناتك\nتقديم خدمة الدعوات وإدارة قوائم المدعوين.\nإرسال إشعارات الدعوات والتذكيرات عبر واتساب.\nتحسين تجربة المستخدم وأداء المنصة.\n\n٣. مشاركة البيانات\nلا نبيع بياناتك لأي طرف ثالث.\n\n٤. أمان البيانات\nنستخدم اتصالات مشفرة (HTTPS) وحماية RLS على قاعدة البيانات.\n\n٥. حقوقك\nيمكنك طلب نسخة من بياناتك، تصحيحها، أو حذفها في أي وقت.",
+    },
+    terms: {
+      eyebrow: "TERMS OF SERVICE",
+      title: "الشروط والأحكام",
+      subtitle: "باستخدامك للمنصة فإنك توافق على الشروط التالية.",
+      body: "١. قبول الشروط\nإنشاؤك حساباً أو استخدامك لأي من خدماتنا يعني موافقتك على هذه الشروط.\n\n٢. الاستخدام المسموح\nيُسمح باستخدام المنصة لإدارة الدعوات فقط، ويُمنع أي استخدام غير قانوني.\n\n٣. الملكية الفكرية\nجميع الحقوق الفكرية للمنصة محفوظة لـ INVITLY.\n\n٤. المسؤولية\nالمنظم مسؤول عن دقة البيانات التي يدخلها وعن التواصل مع ضيوفه.\n\n٥. التعديلات\nنحتفظ بحق تعديل الشروط في أي وقت مع إشعار المستخدمين.",
+    },
+  },
 };
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
@@ -89,9 +144,25 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
       ...DEFAULT_CONTENT.branding,
       ...(data.branding as unknown as Partial<SiteBranding>),
     },
+    social: {
+      ...DEFAULT_CONTENT.social,
+      ...((data.branding as unknown as { social?: Partial<SiteSocial> })?.social ?? {}),
+    },
+    pages: mergePages(
+      (data.branding as unknown as { pages?: Partial<SitePages> })?.pages,
+    ),
     updated_at: data.updated_at,
   } as SiteContent;
 });
+
+function mergePages(input: Partial<SitePages> | undefined): SitePages {
+  const src = input ?? {};
+  const out = { ...DEFAULT_CONTENT.pages };
+  (Object.keys(out) as Array<keyof SitePages>).forEach((k) => {
+    out[k] = { ...out[k], ...(src[k] ?? {}) };
+  });
+  return out;
+}
 
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -125,7 +196,11 @@ export const updateSiteContent = createServerFn({ method: "POST" })
       .update({
         sections: data.content.sections as never,
         theme: data.content.theme as never,
-        branding: data.content.branding as never,
+        branding: {
+          ...data.content.branding,
+          social: data.content.social,
+          pages: data.content.pages,
+        } as never,
         updated_by: userId,
       })
       .eq("id", "home");

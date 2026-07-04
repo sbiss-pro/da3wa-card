@@ -93,7 +93,7 @@ function Index() {
         ))}
       </main>
 
-      <SiteFooter />
+      <SiteFooter branding={branding} social={content.social} />
     </div>
   );
 }
