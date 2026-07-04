@@ -8,8 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 
-const SUPER_ADMIN_EMAIL = "saeedbiss@hotmail.com";
-
 export const Route = createFileRoute("/sa-login")({
   ssr: false,
   head: () => ({
@@ -29,9 +27,7 @@ function SaLogin() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL) {
-        navigate({ to: "/admin" });
-      }
+      if (data.user) navigate({ to: "/admin" });
     });
   }, [navigate]);
 
@@ -40,9 +36,6 @@ function SaLogin() {
     if (loading) return;
     setLoading(true);
     try {
-      if (email.trim().toLowerCase() !== SUPER_ADMIN_EMAIL) {
-        throw new Error("غير مصرح");
-      }
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
       toast.success("مرحباً بك");
