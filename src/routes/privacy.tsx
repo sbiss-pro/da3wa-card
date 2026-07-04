@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalShell } from "@/components/legal-shell";
+import { getSiteContent, type SiteContent } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -12,63 +13,16 @@ export const Route = createFileRoute("/privacy")({
     ],
     links: [{ rel: "canonical", href: "https://da3wa-card.lovable.app/privacy" }],
   }),
+  loader: () => getSiteContent(),
   component: PrivacyPage,
 });
 
 function PrivacyPage() {
+  const c = Route.useLoaderData() as SiteContent;
+  const p = c.pages.privacy;
   return (
-    <LegalShell
-      eyebrow="PRIVACY POLICY"
-      title="سياسة الخصوصية"
-      subtitle="نحن في INVITLY نضع خصوصية بياناتك وبيانات ضيوفك في مقدمة أولوياتنا."
-    >
-      <h2>١. البيانات التي نجمعها</h2>
-      <p>عند استخدامك للمنصة قد نجمع البيانات التالية:</p>
-      <ul>
-        <li>بيانات الحساب: الاسم، البريد الإلكتروني، رقم الجوال.</li>
-        <li>بيانات الفعالية: الاسم، التاريخ، الموقع، الوصف.</li>
-        <li>بيانات الضيوف التي يدخلها المنظم: الاسم، رقم الجوال، حالة الرد.</li>
-        <li>بيانات تقنية: عنوان IP، نوع المتصفح، وقت الزيارة لأغراض الأمان والتحليل.</li>
-      </ul>
-
-      <h2>٢. كيف نستخدم بياناتك</h2>
-      <ul>
-        <li>تقديم خدمة الدعوات وإدارة قوائم المدعوين.</li>
-        <li>إرسال إشعارات الدعوات والتذكيرات عبر واتساب.</li>
-        <li>تحسين تجربة المستخدم وأداء المنصة.</li>
-        <li>الحماية من الاستخدام غير المشروع وحفظ سجلات الأمان.</li>
-      </ul>
-
-      <h2>٣. مشاركة البيانات</h2>
-      <p>
-        لا نبيع بياناتك لأي طرف ثالث. قد نشارك بعض البيانات مع مزودي خدمات
-        موثوقين (مثل مزود قاعدة البيانات ومزود الرسائل) فقط بالقدر اللازم
-        لتشغيل المنصة، وكلهم ملزمون بسرية البيانات.
-      </p>
-
-      <h2>٤. أمان البيانات</h2>
-      <p>
-        نستخدم اتصالات مشفرة (HTTPS) لجميع عمليات نقل البيانات، ونحفظ قاعدة
-        البيانات خلف صلاحيات RLS لضمان عدم وصول أي مستخدم لبيانات غيره.
-      </p>
-
-      <h2>٥. حقوقك</h2>
-      <ul>
-        <li>طلب نسخة من بياناتك في أي وقت.</li>
-        <li>طلب تصحيح أو حذف بياناتك.</li>
-        <li>سحب موافقتك على استخدام بياناتك.</li>
-      </ul>
-
-      <h2>٦. الاحتفاظ بالبيانات</h2>
-      <p>
-        نحتفظ ببيانات الفعالية لمدة ١٢ شهراً بعد انتهائها لأغراض التقارير، ثم
-        يتم حذفها تلقائياً ما لم يطلب المنظم تمديد المدة.
-      </p>
-
-      <h2>٧. التواصل معنا</h2>
-      <p>
-        لأي استفسار حول الخصوصية تواصل معنا عبر صفحة <strong>تواصل معنا</strong>.
-      </p>
+    <LegalShell eyebrow={p.eyebrow} title={p.title} subtitle={p.subtitle}>
+      <p className="whitespace-pre-line">{p.body}</p>
     </LegalShell>
   );
 }
