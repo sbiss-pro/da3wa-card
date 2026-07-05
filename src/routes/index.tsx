@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { MessageCircle, Sparkles, PartyPopper, Gift, Star, Heart } from "lucide-react";
 import {
   getSiteContent,
   type SiteContent,
@@ -103,18 +103,33 @@ function SectionRenderer({ section }: { section: SiteSection }) {
 
   if (section.type === "hero") {
     return (
-      <section className="relative">
-        <div className="mx-auto max-w-6xl px-5 py-20 text-center sm:py-28">
+      <section className="relative overflow-hidden">
+        {/* Cartoon 3D floating decorations */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-0">
+          <span className="absolute left-[6%] top-[18%] grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground toon-shadow animate-float-y">
+            <PartyPopper className="h-7 w-7" />
+          </span>
+          <span className="absolute right-[8%] top-[12%] grid h-16 w-16 place-items-center rounded-full gold-gradient text-primary-foreground toon-shadow animate-float-y-2">
+            <Gift className="h-8 w-8" />
+          </span>
+          <span className="absolute right-[14%] bottom-[10%] grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground toon-shadow animate-wobble-3d">
+            <Star className="h-6 w-6" />
+          </span>
+          <span className="absolute left-[10%] bottom-[16%] grid h-12 w-12 place-items-center rounded-full bg-card text-primary border-2 border-primary/40 toon-shadow animate-float-y">
+            <Heart className="h-6 w-6" />
+          </span>
+        </div>
+        <div className="relative mx-auto max-w-6xl px-5 py-20 text-center sm:py-28">
           {typeof d.eyebrow === "string" && d.eyebrow && (
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
+            <span className="animate-pop-in inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
               <Sparkles className="h-3 w-3" />
               {d.eyebrow}
             </span>
           )}
-          <h1 className="mt-6 font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl">
+          <h1 className="animate-pop-in mt-6 font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl" style={{ animationDelay: "0.1s" }}>
             {str(d.title)}
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p className="animate-pop-in mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg" style={{ animationDelay: "0.2s" }}>
             {str(d.subtitle)}
           </p>
           {typeof d.ctaHref === "string" && d.ctaHref && (
@@ -122,7 +137,8 @@ function SectionRenderer({ section }: { section: SiteSection }) {
               href={d.ctaHref}
               target="_blank"
               rel="noreferrer noopener"
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition hover:opacity-90"
+              className="animate-pop-in mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground toon-shadow transition hover:-translate-y-0.5 hover:scale-[1.03]"
+              style={{ animationDelay: "0.3s" }}
             >
               <MessageCircle className="h-4 w-4" />
               {str(d.ctaLabel) || "تواصل"}
@@ -168,9 +184,10 @@ function SectionRenderer({ section }: { section: SiteSection }) {
           {items.map((it, i) => (
             <article
               key={i}
-              className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-md transition hover:border-primary/50"
+              className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-md transition hover:border-primary/50 hover:-translate-y-1 hover:shadow-2xl"
+              style={{ transitionDuration: "300ms" }}
             >
-              <div className="mb-4 grid h-10 w-10 place-items-center rounded-xl gold-gradient text-primary-foreground">
+              <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl gold-gradient text-primary-foreground toon-shadow transition group-hover:rotate-6 group-hover:scale-110">
                 <Sparkles className="h-5 w-5" />
               </div>
               <h3 className="font-display text-base font-bold">{it.title}</h3>
@@ -223,11 +240,35 @@ function SectionRenderer({ section }: { section: SiteSection }) {
 }
 
 function themeVars(t: SiteTheme): React.CSSProperties {
-  // Inject as CSS custom properties. Tailwind uses --primary etc. — we set
-  // the closest matches. Colors that fail to parse as hex are ignored.
+  // Inject as CSS custom properties so Tailwind tokens (--primary, --accent,
+  // --background, --foreground, --gold, --emerald-*) all reflect admin choices.
   const style: React.CSSProperties & Record<string, string> = {};
-  if (isHex(t.primary)) style["--primary" as string] = t.primary;
-  if (isHex(t.accent)) style["--accent" as string] = t.accent;
+  if (isHex(t.primary)) {
+    style["--primary"] = t.primary;
+    style["--ring"] = t.primary;
+    style["--sidebar-primary"] = t.primary;
+  }
+  if (isHex(t.accent)) {
+    style["--accent"] = t.accent;
+  }
+  if (isHex(t.background)) {
+    style["--background"] = t.background;
+    style["--card"] = t.background;
+    style["--popover"] = t.background;
+  }
+  if (isHex(t.foreground)) {
+    style["--foreground"] = t.foreground;
+    style["--card-foreground"] = t.foreground;
+    style["--popover-foreground"] = t.foreground;
+  }
+  if (isHex(t.gold)) {
+    style["--gold"] = t.gold;
+    style["--gold-soft"] = t.gold;
+  }
+  if (isHex(t.emerald)) {
+    style["--emerald-deep"] = t.emerald;
+    style["--emerald-mid"] = t.emerald;
+  }
   return style;
 }
 
