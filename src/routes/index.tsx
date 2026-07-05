@@ -223,11 +223,35 @@ function SectionRenderer({ section }: { section: SiteSection }) {
 }
 
 function themeVars(t: SiteTheme): React.CSSProperties {
-  // Inject as CSS custom properties. Tailwind uses --primary etc. — we set
-  // the closest matches. Colors that fail to parse as hex are ignored.
+  // Inject as CSS custom properties so Tailwind tokens (--primary, --accent,
+  // --background, --foreground, --gold, --emerald-*) all reflect admin choices.
   const style: React.CSSProperties & Record<string, string> = {};
-  if (isHex(t.primary)) style["--primary" as string] = t.primary;
-  if (isHex(t.accent)) style["--accent" as string] = t.accent;
+  if (isHex(t.primary)) {
+    style["--primary"] = t.primary;
+    style["--ring"] = t.primary;
+    style["--sidebar-primary"] = t.primary;
+  }
+  if (isHex(t.accent)) {
+    style["--accent"] = t.accent;
+  }
+  if (isHex(t.background)) {
+    style["--background"] = t.background;
+    style["--card"] = t.background;
+    style["--popover"] = t.background;
+  }
+  if (isHex(t.foreground)) {
+    style["--foreground"] = t.foreground;
+    style["--card-foreground"] = t.foreground;
+    style["--popover-foreground"] = t.foreground;
+  }
+  if (isHex(t.gold)) {
+    style["--gold"] = t.gold;
+    style["--gold-soft"] = t.gold;
+  }
+  if (isHex(t.emerald)) {
+    style["--emerald-deep"] = t.emerald;
+    style["--emerald-mid"] = t.emerald;
+  }
   return style;
 }
 
