@@ -354,6 +354,38 @@ function ThemeEditor({ theme, onChange }: { theme: SiteTheme; onChange: (t: Site
   ];
   return (
     <Card className="p-6">
+      <div className="mb-6">
+        <Label className="mb-2 block text-xs font-semibold text-muted-foreground">
+          ثيمات جاهزة — اضغط لتطبيق الألوان على جميع صفحات الموقع
+        </Label>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {THEME_PRESETS.map((p) => (
+            <button
+              key={p.name}
+              type="button"
+              onClick={() => onChange(p.theme)}
+              className="group flex items-center gap-3 rounded-lg border border-border bg-background/60 p-3 text-start transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+            >
+              <div className="flex -space-x-1 rtl:space-x-reverse">
+                {[p.theme.background, p.theme.primary, p.theme.accent, p.theme.gold].map((c, i) => (
+                  <span
+                    key={i}
+                    className="h-7 w-7 rounded-full border-2 border-background shadow"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">{p.name}</p>
+                <p className="text-[11px] text-muted-foreground">{p.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          تطبيق الثيم يحدّث القيم في الحقول أدناه — اضغط "حفظ التغييرات" أعلى الصفحة لتفعيله على الموقع.
+        </p>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         {fields.map((f) => (
           <Field key={f.key} label={f.label}>
@@ -372,6 +404,49 @@ function ThemeEditor({ theme, onChange }: { theme: SiteTheme; onChange: (t: Site
     </Card>
   );
 }
+
+const THEME_PRESETS: Array<{ name: string; desc: string; theme: SiteTheme }> = [
+  {
+    name: "زمرّدي وذهبي",
+    desc: "الفخامة العربية الكلاسيكية",
+    theme: { primary: "#0f3d2e", accent: "#c8a24a", gold: "#c8a24a", emerald: "#0f3d2e", background: "#faf7f0", foreground: "#111827" },
+  },
+  {
+    name: "ملكي أزرق",
+    desc: "أناقة رسمية بلمسة ذهبية",
+    theme: { primary: "#1e3a8a", accent: "#fbbf24", gold: "#fbbf24", emerald: "#1e3a8a", background: "#f8fafc", foreground: "#0f172a" },
+  },
+  {
+    name: "وردي وذهبي",
+    desc: "رومانسي ناعم للأعراس",
+    theme: { primary: "#be185d", accent: "#f59e0b", gold: "#f59e0b", emerald: "#be185d", background: "#fdf2f8", foreground: "#1f2937" },
+  },
+  {
+    name: "أسود وفضّي",
+    desc: "عصري وفخم",
+    theme: { primary: "#e5e7eb", accent: "#9ca3af", gold: "#d1d5db", emerald: "#374151", background: "#0a0a0a", foreground: "#f9fafb" },
+  },
+  {
+    name: "بيج ونحاسي",
+    desc: "دافئ وتقليدي",
+    theme: { primary: "#7c2d12", accent: "#b45309", gold: "#d97706", emerald: "#7c2d12", background: "#f5f0e6", foreground: "#1c1917" },
+  },
+  {
+    name: "بنفسجي ملكي",
+    desc: "جريء وفاخر",
+    theme: { primary: "#7c3aed", accent: "#f0abfc", gold: "#e9d5ff", emerald: "#7c3aed", background: "#1a0b2e", foreground: "#faf5ff" },
+  },
+  {
+    name: "زيتوني ذهبي",
+    desc: "طبيعي وهادئ",
+    theme: { primary: "#3d4a2a", accent: "#d4af37", gold: "#d4af37", emerald: "#3d4a2a", background: "#f7f5ec", foreground: "#1c1917" },
+  },
+  {
+    name: "تركوازي ومرجاني",
+    desc: "منعش وحيوي",
+    theme: { primary: "#0d9488", accent: "#fb7185", gold: "#f59e0b", emerald: "#0d9488", background: "#f0fdfa", foreground: "#134e4a" },
+  },
+];
 
 function BrandingEditor({
   branding,
