@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
-import { MessageCircle, Sparkles, PartyPopper, Gift, Star, Heart } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import {
   getSiteContent,
   type SiteContent,
@@ -225,23 +225,28 @@ function SectionRenderer({ section }: { section: SiteSection }) {
 }
 
 function themeVars(t: SiteTheme): React.CSSProperties {
-  // Inject as CSS custom properties so Tailwind tokens (--primary, --accent,
-  // --background, --foreground, --gold, --emerald-*) all reflect admin choices.
   const style: React.CSSProperties & Record<string, string> = {};
   if (isHex(t.primary)) {
     style["--primary"] = t.primary;
     style["--ring"] = t.primary;
     style["--sidebar-primary"] = t.primary;
+    style["--primary-foreground"] = contrastOn(t.primary);
   }
   if (isHex(t.accent)) {
     style["--accent"] = t.accent;
+    style["--accent-foreground"] = contrastOn(t.accent);
   }
   if (isHex(t.background)) {
     style["--background"] = t.background;
     style["--card"] = t.background;
     style["--popover"] = t.background;
+    const fg = isHex(t.foreground) ? t.foreground : contrastOn(t.background);
+    style["--foreground"] = fg;
+    style["--card-foreground"] = fg;
+    style["--popover-foreground"] = fg;
+    style["--muted-foreground"] = mixHex(fg, t.background, 0.65);
   }
-  if (isHex(t.foreground)) {
+  if (isHex(t.foreground) && !isHex(t.background)) {
     style["--foreground"] = t.foreground;
     style["--card-foreground"] = t.foreground;
     style["--popover-foreground"] = t.foreground;
@@ -259,6 +264,35 @@ function themeVars(t: SiteTheme): React.CSSProperties {
 
 function isHex(v: unknown): v is string {
   return typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h.slice(0, 6);
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+function contrastOn(hex: string): string {
+  if (!isHex(hex)) return "#ffffff";
+  const [r, g, b] = hexToRgb(hex);
+  // Relative luminance
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6 ? "#0b1220" : "#ffffff";
+}
+
+function mixHex(a: string, b: string, weightA: number): string {
+  if (!isHex(a) || !isHex(b)) return a;
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const w = Math.min(1, Math.max(0, weightA));
+  const r = Math.round(ar * w + br * (1 - w));
+  const g = Math.round(ag * w + bg * (1 - w));
+  const bl = Math.round(ab * w + bb * (1 - w));
+  return `#${[r, g, bl].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function withAlpha(hex: string, a: number): string {
