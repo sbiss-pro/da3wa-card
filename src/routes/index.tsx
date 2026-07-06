@@ -104,21 +104,6 @@ function SectionRenderer({ section }: { section: SiteSection }) {
   if (section.type === "hero") {
     return (
       <section className="relative overflow-hidden">
-        {/* Cartoon 3D floating decorations */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-0">
-          <span className="absolute left-[6%] top-[18%] grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground toon-shadow animate-float-y">
-            <PartyPopper className="h-7 w-7" />
-          </span>
-          <span className="absolute right-[8%] top-[12%] grid h-16 w-16 place-items-center rounded-full gold-gradient text-primary-foreground toon-shadow animate-float-y-2">
-            <Gift className="h-8 w-8" />
-          </span>
-          <span className="absolute right-[14%] bottom-[10%] grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground toon-shadow animate-wobble-3d">
-            <Star className="h-6 w-6" />
-          </span>
-          <span className="absolute left-[10%] bottom-[16%] grid h-12 w-12 place-items-center rounded-full bg-card text-primary border-2 border-primary/40 toon-shadow animate-float-y">
-            <Heart className="h-6 w-6" />
-          </span>
-        </div>
         <div className="relative mx-auto max-w-6xl px-5 py-20 text-center sm:py-28">
           {typeof d.eyebrow === "string" && d.eyebrow && (
             <span className="animate-pop-in inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
