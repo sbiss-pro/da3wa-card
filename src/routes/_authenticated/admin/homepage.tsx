@@ -258,7 +258,12 @@ function SectionDataForm({
   }
 
   if (section.type === "features") {
-    const items = (Array.isArray(d.items) ? d.items : []) as Array<{ title: string; desc: string }>;
+    const items = (Array.isArray(d.items) ? d.items : []) as Array<{
+      title: string;
+      desc: string;
+      iconColor?: string;
+      iconFg?: string;
+    }>;
     return (
       <div className="space-y-3">
         <div className="grid gap-3 md:grid-cols-2">
@@ -269,6 +274,27 @@ function SectionDataForm({
             <Input value={str(d.subtitle)} onChange={(e) => set("subtitle", e.target.value)} />
           </Field>
         </div>
+        <Field label="لون الأيقونات الافتراضي (يطبَّق على كل بطاقة لم تُخصَّص) — اتركه فارغاً لاستخدام الذهبي التلقائي">
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={str(d.iconColor) || "#c8a24a"}
+              onChange={(e) => set("iconColor", e.target.value)}
+              className="h-10 w-14 cursor-pointer rounded border border-border bg-background"
+            />
+            <Input
+              placeholder="#c8a24a"
+              value={str(d.iconColor)}
+              onChange={(e) => set("iconColor", e.target.value)}
+              className="font-mono"
+            />
+            {str(d.iconColor) && (
+              <Button size="sm" variant="ghost" onClick={() => set("iconColor", "")}>
+                إعادة تعيين
+              </Button>
+            )}
+          </div>
+        </Field>
         <ArrayEditor
           items={items}
           onChange={(v) => set("items", v)}
@@ -277,6 +303,42 @@ function SectionDataForm({
             <div className="grid gap-2">
               <Input placeholder="العنوان" value={item.title} onChange={(e) => upd({ ...item, title: e.target.value })} />
               <Textarea placeholder="الوصف" value={item.desc} onChange={(e) => upd({ ...item, desc: e.target.value })} />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <Label className="mb-1 block text-[11px] text-muted-foreground">لون خلفية الأيقونة</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={item.iconColor || "#c8a24a"}
+                      onChange={(e) => upd({ ...item, iconColor: e.target.value })}
+                      className="h-9 w-12 cursor-pointer rounded border border-border bg-background"
+                    />
+                    <Input
+                      placeholder="افتراضي"
+                      value={item.iconColor || ""}
+                      onChange={(e) => upd({ ...item, iconColor: e.target.value })}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-1 block text-[11px] text-muted-foreground">لون الأيقونة نفسها</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={item.iconFg || "#ffffff"}
+                      onChange={(e) => upd({ ...item, iconFg: e.target.value })}
+                      className="h-9 w-12 cursor-pointer rounded border border-border bg-background"
+                    />
+                    <Input
+                      placeholder="تلقائي حسب التباين"
+                      value={item.iconFg || ""}
+                      onChange={(e) => upd({ ...item, iconFg: e.target.value })}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         />
