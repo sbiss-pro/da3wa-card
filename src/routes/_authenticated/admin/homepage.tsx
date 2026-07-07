@@ -295,7 +295,7 @@ function SectionDataForm({
             )}
           </div>
         </Field>
-        <ArrayEditor
+        <ArrayEditor<{ title: string; desc: string; iconColor?: string; iconFg?: string }>
           items={items}
           onChange={(v) => set("items", v)}
           newItem={() => ({ title: "ميزة", desc: "الوصف" })}
