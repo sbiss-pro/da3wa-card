@@ -154,7 +154,13 @@ function SectionRenderer({ section }: { section: SiteSection }) {
   }
 
   if (section.type === "features") {
-    const items = (Array.isArray(d.items) ? d.items : []) as Array<{ title: string; desc: string }>;
+    const items = (Array.isArray(d.items) ? d.items : []) as Array<{
+      title: string;
+      desc: string;
+      iconColor?: string;
+      iconFg?: string;
+    }>;
+    const defaultIconBg = isHex(str(d.iconColor)) ? str(d.iconColor) : "";
     return (
       <section className="mx-auto max-w-6xl px-5 py-20">
         <div className="mb-10 text-center">
@@ -166,19 +172,31 @@ function SectionRenderer({ section }: { section: SiteSection }) {
           )}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-          {items.map((it, i) => (
+          {items.map((it, i) => {
+            const bg = isHex(it.iconColor) ? it.iconColor! : defaultIconBg;
+            const fg = isHex(it.iconFg) ? it.iconFg! : bg ? contrastOn(bg) : "";
+            const iconStyle: React.CSSProperties = bg
+              ? { background: bg, color: fg }
+              : {};
+            return (
             <article
               key={i}
               className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-md transition hover:border-primary/50 hover:-translate-y-1 hover:shadow-2xl"
               style={{ transitionDuration: "300ms" }}
             >
-              <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl gold-gradient text-primary-foreground toon-shadow transition group-hover:rotate-6 group-hover:scale-110">
+              <div
+                className={`mb-4 grid h-11 w-11 place-items-center rounded-xl toon-shadow transition group-hover:rotate-6 group-hover:scale-110 ${
+                  bg ? "" : "gold-gradient text-primary-foreground"
+                }`}
+                style={iconStyle}
+              >
                 <Sparkles className="h-5 w-5" />
               </div>
               <h3 className="font-display text-base font-bold">{it.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{it.desc}</p>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
     );
