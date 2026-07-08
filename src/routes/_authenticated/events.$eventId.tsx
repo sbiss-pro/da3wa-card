@@ -1555,19 +1555,21 @@ function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow 
 /* ---------------- Per-event Integrations ---------------- */
 function EventIntegrationsTab({ eventId }: { eventId: string }) {
   const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
+  const [savedCfg, setSavedCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [loaded, setLoaded] = useState(false);
   const tplRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setCfg(getWhatsAppConfig(eventId));
+    const c = getWhatsAppConfig(eventId);
+    setCfg(c);
+    setSavedCfg(c);
     setLoaded(true);
   }, [eventId]);
 
   const save = () => {
-    saveWhatsAppConfig(
-      { ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) },
-      eventId,
-    );
+    const next = { ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) };
+    saveWhatsAppConfig(next, eventId);
+    setSavedCfg(next);
     toast.success("تم حفظ إعدادات هذه الفعالية");
   };
 
@@ -1582,7 +1584,8 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
     requestAnimationFrame(() => { el.focus(); const pos = start + tag.length; el.setSelectionRange(pos, pos); });
   };
 
-  const preview = applyTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE, {
+  // Preview reflects only saved state — edits apply after pressing "حفظ".
+  const preview = applyTemplate(savedCfg.message_template || DEFAULT_WA_TEMPLATE, {
     title: "المكرم", name: "محمد بن سعيد", url: "https://da3wa-card.lovable.app/i/abc123",
   });
 
@@ -1654,10 +1657,20 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
           ))}
           <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, message_template: DEFAULT_WA_TEMPLATE })}>إعادة للنص الافتراضي</Button>
         </div>
+        <div className="mb-3 space-y-2">
+          <Label>رابط صورة الدعوة</Label>
+          <Input
+            dir="ltr"
+            value={cfg.image_url || ""}
+            onChange={(e) => setCfg({ ...cfg, image_url: e.target.value.slice(0, 500) })}
+            placeholder="https://example.com/invitation.jpg"
+          />
+          <p className="text-xs text-muted-foreground">تظهر أعلى الرسالة كبطاقة تفاعلية في واتساب.</p>
+        </div>
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
-        <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف.</p>
+        <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف. لن تظهر التعديلات في المعاينة إلا بعد الضغط على «حفظ».</p>
         <div className="mt-5">
-          <WhatsAppMobilePreview message={preview} />
+          <WhatsAppMobilePreview message={preview} imageUrl={savedCfg.image_url} />
         </div>
         <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> حفظ القالب

@@ -4,6 +4,7 @@ export type WhatsAppConfig = {
   instance_id: string;
   sender: string;
   message_template?: string;
+  image_url?: string;
 };
 const KEY = "dawati_whatsapp_config";
 const TPL_KEY = "dawati_whatsapp_template";
@@ -18,6 +19,7 @@ export const DEFAULT_WA_CONFIG: WhatsAppConfig = {
   instance_id: "",
   sender: "",
   message_template: DEFAULT_WA_TEMPLATE,
+  image_url: "",
 };
 /**
  * Read WhatsApp config. If eventId is provided, prefer per-event config
