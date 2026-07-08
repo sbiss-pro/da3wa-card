@@ -1,6 +1,16 @@
-import { MessageCircle, Phone, Video, ArrowLeft, Check } from "lucide-react";
+import { MessageCircle, Phone, Video, ArrowLeft, Check, CheckCircle2, XCircle, MapPin, ImageIcon } from "lucide-react";
 
-export function WhatsAppMobilePreview({ message, senderName = "INVITLY" }: { message: string; senderName?: string }) {
+export function WhatsAppMobilePreview({
+  message,
+  senderName = "INVITLY",
+  imageUrl,
+  showButtons = true,
+}: {
+  message: string;
+  senderName?: string;
+  imageUrl?: string;
+  showButtons?: boolean;
+}) {
   const now = new Date();
   const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
@@ -48,21 +58,54 @@ export function WhatsAppMobilePreview({ message, senderName = "INVITLY" }: { mes
 
             {/* Outgoing bubble */}
             <div className="flex justify-end">
-              <div className="relative max-w-[85%] rounded-2xl rounded-tr-sm bg-[#005c4b] px-3 py-2 text-[13px] leading-7 shadow">
-                <p className="whitespace-pre-wrap break-words text-right">
-                  {parts.map((p, i) =>
-                    /^https?:\/\//.test(p) ? (
-                      <span key={i} className="text-sky-300 underline underline-offset-2">{p}</span>
-                    ) : (
-                      <span key={i}>{p}</span>
-                    ),
-                  )}
-                </p>
-                <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-white/70">
-                  <span>{time}</span>
-                  <Check className="h-3 w-3" />
-                  <Check className="-ms-2 h-3 w-3 text-sky-300" />
+              <div className="relative max-w-[88%] overflow-hidden rounded-2xl rounded-tr-sm bg-[#005c4b] text-[13px] leading-7 shadow">
+                {imageUrl ? (
+                  <div className="bg-black/20 p-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl}
+                      alt="invitation"
+                      className="h-40 w-full rounded-xl object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  </div>
+                ) : (
+                  <div className="m-1 grid h-40 place-items-center rounded-xl bg-black/30 text-white/50">
+                    <div className="flex flex-col items-center gap-1 text-[10px]">
+                      <ImageIcon className="h-6 w-6" />
+                      <span>صورة الدعوة</span>
+                    </div>
+                  </div>
+                )}
+                <div className="px-3 pt-2">
+                  <p className="whitespace-pre-wrap break-words text-right">
+                    {parts.map((p, i) =>
+                      /^https?:\/\//.test(p) ? (
+                        <span key={i} className="text-sky-300 underline underline-offset-2">{p}</span>
+                      ) : (
+                        <span key={i}>{p}</span>
+                      ),
+                    )}
+                  </p>
+                  <div className="mb-1 mt-1 flex items-center justify-end gap-1 text-[10px] text-white/70">
+                    <span>{time}</span>
+                    <Check className="h-3 w-3" />
+                    <Check className="-ms-2 h-3 w-3 text-sky-300" />
+                  </div>
                 </div>
+                {showButtons ? (
+                  <div className="mt-1 divide-y divide-white/10 border-t border-white/10 bg-[#014034]">
+                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                      <CheckCircle2 className="h-4 w-4" /> قبول الدعوة
+                    </button>
+                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                      <XCircle className="h-4 w-4" /> الاعتذار عن الدعوة
+                    </button>
+                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                      <MapPin className="h-4 w-4" /> موقع المناسبة
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
