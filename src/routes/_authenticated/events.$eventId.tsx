@@ -347,6 +347,29 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           <p className="text-xs text-muted-foreground">
             تُستخرج الألوان تلقائياً من صورة الدعوة. يمكنك تعديل أي لون يدوياً — يظل لون النصوص يُحسب تلقائياً لضمان الوضوح والقراءة فوق أي خلفية.
           </p>
+          <div className="space-y-2 rounded-lg border border-border/60 bg-background/40 p-3">
+            <Label className="text-xs font-bold">ثيمات جاهزة للبطاقة</Label>
+            <p className="text-[11px] text-muted-foreground">اضغط أي ثيم لتطبيق ألوانه فوراً، ثم عدّل أي لون يدوياً إن أردت.</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {CARD_THEMES.map((t) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  onClick={() => applyCardTheme(t.palette)}
+                  className="group flex flex-col items-start gap-1 rounded-lg border border-border/60 bg-background p-2 text-right transition hover:border-gold hover:shadow-md"
+                  title={t.desc}
+                >
+                  <div className="flex h-6 w-full overflow-hidden rounded">
+                    {t.palette.map((c, i) => (
+                      <div key={i} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <div className="text-[11px] font-bold leading-tight">{t.name}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {palette.map((c, i) => (
               <div key={i} className="space-y-1">
