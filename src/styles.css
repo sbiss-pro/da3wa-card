@@ -181,8 +181,8 @@
 }
 
 @utility gold-gradient {
-  background: linear-gradient(135deg, oklch(0.78 0.13 85), oklch(0.88 0.08 88));
-  color: oklch(0.16 0.04 168);
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  color: var(--primary-foreground);
 }
 @utility text-gold {
   color: oklch(0.82 0.12 85);
