@@ -225,6 +225,20 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
     setCfg({ ...cfg, palette: next });
   };
   const resetColors = () => setCfg({ ...cfg, palette: undefined, colors: undefined });
+  const CARD_THEMES: { name: string; desc: string; palette: [string, string, string, string] }[] = [
+    { name: "زمرّدي وذهبي", desc: "فخامة كلاسيكية", palette: ["#0f3d2e", "#c8a24a", "#f7f1e6", "#1a5240"] },
+    { name: "أسود وذهبي", desc: "أناقة راقية",  palette: ["#0a0a0a", "#d4af37", "#f5efe0", "#1c1c1c"] },
+    { name: "بيج ونحاسي",   desc: "دافئ وهادئ",  palette: ["#f5ecd9", "#b45309", "#ffffff", "#e8d9b8"] },
+    { name: "وردي وذهبي",   desc: "أنثوي راقٍ",  palette: ["#fdf2f8", "#be185d", "#ffffff", "#fbd0e0"] },
+    { name: "ملكي أزرق",    desc: "رسمي وفاخر",  palette: ["#0b1f4d", "#fbbf24", "#eef2ff", "#1e3a8a"] },
+    { name: "بنفسجي ملكي",  desc: "غامض وجذّاب", palette: ["#1e1033", "#c084fc", "#f5f0ff", "#3b1f66"] },
+    { name: "تركوازي ومرجاني", desc: "منعش وحيوي", palette: ["#083344", "#fb7185", "#ecfeff", "#0d9488"] },
+    { name: "زيتوني وذهبي", desc: "طبيعي وهادئ", palette: ["#3d4a2a", "#d4af37", "#f4f1e6", "#5a6b3c"] },
+    { name: "رمادي وفضّي",  desc: "حداثي ومحايد", palette: ["#1f2937", "#c0c0c0", "#f8fafc", "#374151"] },
+    { name: "قرنفلي وذهبي", desc: "ناعم وأنيق",   palette: ["#fff1f2", "#a16207", "#ffffff", "#fecdd3"] },
+  ];
+  const applyCardTheme = (p: [string, string, string, string]) =>
+    setCfg({ ...cfg, palette: [...p], colors: undefined });
 
   const vis = {
     event_name: cfg.visibility?.event_name ?? true,
@@ -333,6 +347,29 @@ function BuilderTab({ event, onSaved, guests, inviteUrl }: { event: EventRow; on
           <p className="text-xs text-muted-foreground">
             تُستخرج الألوان تلقائياً من صورة الدعوة. يمكنك تعديل أي لون يدوياً — يظل لون النصوص يُحسب تلقائياً لضمان الوضوح والقراءة فوق أي خلفية.
           </p>
+          <div className="space-y-2 rounded-lg border border-border/60 bg-background/40 p-3">
+            <Label className="text-xs font-bold">ثيمات جاهزة للبطاقة</Label>
+            <p className="text-[11px] text-muted-foreground">اضغط أي ثيم لتطبيق ألوانه فوراً، ثم عدّل أي لون يدوياً إن أردت.</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {CARD_THEMES.map((t) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  onClick={() => applyCardTheme(t.palette)}
+                  className="group flex flex-col items-start gap-1 rounded-lg border border-border/60 bg-background p-2 text-right transition hover:border-gold hover:shadow-md"
+                  title={t.desc}
+                >
+                  <div className="flex h-6 w-full overflow-hidden rounded">
+                    {t.palette.map((c, i) => (
+                      <div key={i} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <div className="text-[11px] font-bold leading-tight">{t.name}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {palette.map((c, i) => (
               <div key={i} className="space-y-1">
