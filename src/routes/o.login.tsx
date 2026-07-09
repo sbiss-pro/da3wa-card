@@ -9,8 +9,18 @@ import { getMyPermissions } from "@/lib/admin.functions";
 import { toast } from "sonner";
 import { Eye } from "lucide-react";
 
+function safeNext(next: string | undefined): string | null {
+  if (!next) return null;
+  // Only allow same-origin relative paths.
+  if (!next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
 export const Route = createFileRoute("/o/login")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "بوابة المالك" },
@@ -22,6 +32,8 @@ export const Route = createFileRoute("/o/login")({
 
 function OwnerLogin() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const nextPath = safeNext(next);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,6 +42,10 @@ function OwnerLogin() {
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
+      if (nextPath) {
+        window.location.replace(nextPath);
+        return;
+      }
       try {
         const perms = (await getMyPermissions()) as { isSuperAdmin: boolean };
         if (perms.isSuperAdmin) navigate({ to: "/admin" });
@@ -38,7 +54,7 @@ function OwnerLogin() {
         /* stay */
       }
     })();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +63,11 @@ function OwnerLogin() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
-      navigate({ to: "/owner-portal" });
+      if (nextPath) {
+        window.location.replace(nextPath);
+      } else {
+        navigate({ to: "/owner-portal" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "تعذر الدخول");
     } finally {

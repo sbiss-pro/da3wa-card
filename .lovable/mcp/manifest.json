@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://mlonsswirlezkrybtzma.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "invitly-mcp",
+      "version": "0.1.0",
+      "title": "INVITLY"
+    },
+    "tools": [
+      {
+        "name": "whoami",
+        "title": "من أنا",
+        "description": "Return the signed-in INVITLY user id and email for the current MCP session.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_events",
+        "title": "قائمة فعالياتي",
+        "description": "List INVITLY events the signed-in user hosts or owns. Returns id, name, event_date, event_type, location, and slug.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_event",
+        "title": "تفاصيل فعالية",
+        "description": "Get details for one INVITLY event owned or hosted by the signed-in user. Returns the full event row (name, date, location, description, template_config).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The event UUID."
+            }
+          },
+          "required": [
+            "event_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_event_guests",
+        "title": "قائمة الضيوف",
+        "description": "List guests for an INVITLY event hosted by the signed-in user. Returns name, phone, rsvp_status, companions_count, attended_count, checked_in_at.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The event UUID."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Max rows to return (default 100)."
+            }
+          },
+          "required": [
+            "event_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_event_stats",
+        "title": "إحصائيات الفعالية",
+        "description": "Get RSVP and attendance summary for an INVITLY event: total guests, accepted, declined, pending, attended headcount, and no-show count.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The event UUID."
+            }
+          },
+          "required": [
+            "event_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
