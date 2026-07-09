@@ -17,6 +17,31 @@ export const Route = createFileRoute("/")({
         content:
           "منصة INVITLY لإدارة الدعوات الفاخرة وتأكيد الحضور بلمسة زمرّدية ذهبية.",
       },
+      { property: "og:title", content: "INVITLY — دعوات فاخرة تليق بمناسباتكم" },
+      { property: "og:description", content: "منصة INVITLY لإدارة الدعوات الفاخرة وتأكيد الحضور بلمسة زمرّدية ذهبية." },
+      { property: "og:url", content: "https://da3wa-card.lovable.app/" },
+      { property: "og:type", content: "website" },
+    ],
+    links: [{ rel: "canonical", href: "https://da3wa-card.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "INVITLY",
+          url: "https://da3wa-card.lovable.app/",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "INVITLY",
+          url: "https://da3wa-card.lovable.app/",
+        }),
+      },
     ],
   }),
   loader: () => getSiteContent(),

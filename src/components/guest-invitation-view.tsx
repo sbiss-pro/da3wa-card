@@ -558,7 +558,7 @@ export function GuestInvitationView({
                   background: accent + "10",
                 }}
               >
-                <img src={qr} alt="QR" className="block rounded-lg" />
+                <img src={qr} alt="رمز QR لتسجيل حضور المدعو" className="block rounded-lg" />
                 {/* moving scanline + repeating diagonal noise — screenshot deterrent */}
                 <span aria-hidden className="qr-scanline" />
                 <span aria-hidden className="qr-noise" />

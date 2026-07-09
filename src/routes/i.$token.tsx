@@ -6,7 +6,16 @@ type LoaderData = { guest: GuestData; event: EventData };
 
 export const Route = createFileRoute("/i/$token")({
   ssr: false,
-  head: () => ({ meta: [{ title: "دعوتك — INVITLY" }] }),
+  head: () => ({
+    meta: [
+      { title: "دعوتك — INVITLY" },
+      { name: "description", content: "صفحة دعوتك الشخصية على منصة INVITLY — أكّد حضورك، شاهد تفاصيل المناسبة، واحصل على رمز QR الخاص بك." },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: "دعوتك — INVITLY" },
+      { property: "og:description", content: "دعوة إلكترونية خاصة عبر منصة INVITLY لتأكيد الحضور والاطلاع على تفاصيل المناسبة." },
+      { property: "og:type", content: "website" },
+    ],
+  }),
   component: GuestPage,
   loader: async ({ params }) => {
     try {
