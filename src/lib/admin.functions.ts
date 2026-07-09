@@ -261,18 +261,16 @@ export const revokeRole = createServerFn({ method: "POST" })
 
 async function checkPermissions(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [{ data: superRow }, { data: roleRows }] = await Promise.all([
-    supabaseAdmin
-      .schema("private" as never)
-      .from("super_admins" as never)
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle(),
+  const [{ data: superFlag }, { data: roleRows }] = await Promise.all([
+    supabaseAdmin.rpc(
+      "admin_check_super_admin" as never,
+      { _user_id: userId } as never,
+    ),
     supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
   ]);
   const roles = new Set((roleRows ?? []).map((r) => r.role as string));
   return {
-    isSuperAdmin: Boolean(superRow),
+    isSuperAdmin: superFlag === true,
     isAdmin: roles.has("admin"),
     isEditor: roles.has("editor"),
   };
