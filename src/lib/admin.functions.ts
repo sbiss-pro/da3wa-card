@@ -167,19 +167,7 @@ function mergePages(input: Partial<SitePages> | undefined): SitePages {
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data: authUser }, { data: roleRows }] = await Promise.all([
-      supabaseAdmin.auth.admin.getUserById(userId),
-      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
-    ]);
-    const roles = new Set((roleRows ?? []).map((r) => r.role as string));
-    const email = (authUser?.user?.email ?? "").toLowerCase();
-    return {
-      isSuperAdmin: email === "saeedbiss@hotmail.com",
-      isAdmin: roles.has("admin"),
-      isEditor: roles.has("editor"),
-    };
+    return await checkPermissions(context.userId);
   });
 
 export const updateSiteContent = createServerFn({ method: "POST" })
@@ -273,14 +261,18 @@ export const revokeRole = createServerFn({ method: "POST" })
 
 async function checkPermissions(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [{ data: authUser }, { data: roleRows }] = await Promise.all([
-    supabaseAdmin.auth.admin.getUserById(userId),
+  const [{ data: superRow }, { data: roleRows }] = await Promise.all([
+    supabaseAdmin
+      .schema("private" as never)
+      .from("super_admins" as never)
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle(),
     supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
   ]);
   const roles = new Set((roleRows ?? []).map((r) => r.role as string));
-  const email = (authUser?.user?.email ?? "").toLowerCase();
   return {
-    isSuperAdmin: email === "saeedbiss@hotmail.com",
+    isSuperAdmin: Boolean(superRow),
     isAdmin: roles.has("admin"),
     isEditor: roles.has("editor"),
   };
