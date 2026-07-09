@@ -303,7 +303,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_current_user_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "editor" | "owner"
