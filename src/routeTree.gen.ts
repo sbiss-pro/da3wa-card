@@ -38,6 +38,7 @@ import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminHomepageRouteImport } from './routes/_authenticated/admin/homepage'
 import { Route as AuthenticatedAdminEventsRouteImport } from './routes/_authenticated/admin/events'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -191,6 +192,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/o/login': typeof OLoginRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/o/login': typeof OLoginRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/events': typeof AuthenticatedAdminEventsRoute
   '/admin/homepage': typeof AuthenticatedAdminHomepageRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/c/login': typeof CLoginRoute
   '/i/$token': typeof ITokenRoute
   '/o/login': typeof OLoginRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/events': typeof AuthenticatedAdminEventsRoute
   '/_authenticated/admin/homepage': typeof AuthenticatedAdminHomepageRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/o/login'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/events'
     | '/admin/homepage'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/o/login'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/events'
     | '/admin/homepage'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/c/login'
     | '/i/$token'
     | '/o/login'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/events'
     | '/_authenticated/admin/homepage'
@@ -393,6 +405,7 @@ export interface RootRouteChildren {
   CLoginRoute: typeof CLoginRoute
   ITokenRoute: typeof ITokenRoute
   OLoginRoute: typeof OLoginRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicProxyRoute: typeof ApiPublicProxyRoute
   IPreviewEventIdRoute: typeof IPreviewEventIdRoute
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -665,6 +685,7 @@ const rootRouteChildren: RootRouteChildren = {
   CLoginRoute: CLoginRoute,
   ITokenRoute: ITokenRoute,
   OLoginRoute: OLoginRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicProxyRoute: ApiPublicProxyRoute,
   IPreviewEventIdRoute: IPreviewEventIdRoute,
