@@ -21,6 +21,19 @@ export const DEFAULT_WA_CONFIG: WhatsAppConfig = {
   message_template: DEFAULT_WA_TEMPLATE,
   image_url: "",
 };
+
+/**
+ * Strip sensitive credential fields before persisting anything to
+ * browser storage. API keys / instance IDs / sender numbers must NEVER be
+ * written to localStorage — they belong on the server.
+ */
+function stripCredentials(c: WhatsAppConfig): Partial<WhatsAppConfig> {
+  return {
+    provider: c.provider,
+    message_template: c.message_template,
+    image_url: c.image_url,
+  };
+}
 /**
  * Read WhatsApp config. If eventId is provided, prefer per-event config
  * (falling back to the global one if the event has none yet).
@@ -30,13 +43,18 @@ export function getWhatsAppConfig(eventId?: string): WhatsAppConfig {
     if (eventId) {
       const raw = localStorage.getItem(EVENT_PREFIX + eventId);
       if (raw) {
-        const parsed = { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) };
+        // Merge non-sensitive stored fields only; credentials are never
+        // persisted, so they always come back empty and must be re-entered.
+        const stored = JSON.parse(raw) as Partial<WhatsAppConfig>;
+        const parsed = { ...DEFAULT_WA_CONFIG, ...stripCredentials(stored as WhatsAppConfig) };
         if (!parsed.message_template) parsed.message_template = DEFAULT_WA_TEMPLATE;
         return parsed;
       }
     }
     const raw = localStorage.getItem(KEY);
-    const base = raw ? { ...DEFAULT_WA_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_WA_CONFIG };
+    const base = raw
+      ? { ...DEFAULT_WA_CONFIG, ...stripCredentials(JSON.parse(raw) as WhatsAppConfig) }
+      : { ...DEFAULT_WA_CONFIG };
     const tpl = localStorage.getItem(TPL_KEY);
     if (tpl) base.message_template = tpl;
     if (!base.message_template) base.message_template = DEFAULT_WA_TEMPLATE;
@@ -45,11 +63,13 @@ export function getWhatsAppConfig(eventId?: string): WhatsAppConfig {
 }
 export function saveWhatsAppConfig(c: WhatsAppConfig, eventId?: string) {
   try {
+    // Never persist credentials in localStorage.
+    const safe = stripCredentials(c);
     if (eventId) {
-      localStorage.setItem(EVENT_PREFIX + eventId, JSON.stringify(c));
+      localStorage.setItem(EVENT_PREFIX + eventId, JSON.stringify(safe));
       return;
     }
-    const { message_template, ...rest } = c;
+    const { message_template, ...rest } = safe;
     localStorage.setItem(KEY, JSON.stringify(rest));
     if (message_template) localStorage.setItem(TPL_KEY, message_template);
   } catch { /* ignore */ }
