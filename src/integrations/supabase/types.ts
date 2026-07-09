@@ -303,6 +303,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_check_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_current_user_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
