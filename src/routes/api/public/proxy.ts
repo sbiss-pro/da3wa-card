@@ -10,6 +10,32 @@ const CORS = {
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = /^(image\/|application\/pdf|application\/octet-stream)/i;
 
+/**
+ * Guests are unauthenticated, so the proxy can't require a session — but it
+ * MUST NOT be a general-purpose open proxy either. We restrict callers to
+ * our own origin(s) by validating Origin/Referer, which prevents third-party
+ * sites from abusing it for their own bandwidth or SSRF pivoting.
+ */
+function isAllowedCaller(request: Request): boolean {
+  const self = new URL(request.url).host.toLowerCase();
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const check = (raw: string | null): boolean => {
+    if (!raw) return false;
+    try {
+      const host = new URL(raw).host.toLowerCase();
+      return (
+        host === self ||
+        host.endsWith(".lovable.app") ||
+        host.endsWith(".lovableproject.com") ||
+        host === "invitly.app" ||
+        host.endsWith(".invitly.app")
+      );
+    } catch { return false; }
+  };
+  return check(origin) || check(referer);
+}
+
 function safeUrl(raw: string | null): URL | null {
   if (!raw) return null;
   try {
@@ -54,6 +80,9 @@ export const Route = createFileRoute("/api/public/proxy")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
+        if (!isAllowedCaller(request)) {
+          return new Response("forbidden", { status: 403, headers: CORS });
+        }
         const url = safeUrl(new URL(request.url).searchParams.get("url"));
         if (!url) {
           return new Response("invalid url", { status: 400, headers: CORS });
