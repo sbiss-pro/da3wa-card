@@ -1,15 +1,20 @@
 import { MessageCircle, Phone, Video, ArrowLeft, Check, CheckCircle2, XCircle, MapPin, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 
 export function WhatsAppMobilePreview({
   message,
   senderName = "INVITLY",
   imageUrl,
   showButtons = true,
+  inviteUrl,
+  locationUrl,
 }: {
   message: string;
   senderName?: string;
   imageUrl?: string;
   showButtons?: boolean;
+  inviteUrl?: string;
+  locationUrl?: string;
 }) {
   const now = new Date();
   const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
@@ -95,13 +100,34 @@ export function WhatsAppMobilePreview({
                 </div>
                 {showButtons ? (
                   <div className="mt-1 divide-y divide-white/10 border-t border-white/10 bg-[#014034]">
-                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inviteUrl) window.open(inviteUrl + "#accept", "_blank", "noopener");
+                        else toast.info("سيتم فتح صفحة الدعوة لدى الضيف لتأكيد الحضور");
+                      }}
+                      className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 transition hover:bg-white/5 active:bg-white/10"
+                    >
                       <CheckCircle2 className="h-4 w-4" /> قبول الدعوة
                     </button>
-                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inviteUrl) window.open(inviteUrl + "#decline", "_blank", "noopener");
+                        else toast.info("سيتم فتح صفحة الدعوة لدى الضيف للاعتذار");
+                      }}
+                      className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 transition hover:bg-white/5 active:bg-white/10"
+                    >
                       <XCircle className="h-4 w-4" /> الاعتذار عن الدعوة
                     </button>
-                    <button type="button" className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 hover:bg-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (locationUrl) window.open(locationUrl, "_blank", "noopener");
+                        else toast.info("لم يتم تحديد رابط موقع المناسبة بعد — أضِفه من تبويب «تحرير الفعالية»");
+                      }}
+                      className="flex w-full items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-sky-300 transition hover:bg-white/5 active:bg-white/10"
+                    >
                       <MapPin className="h-4 w-4" /> موقع المناسبة
                     </button>
                   </div>
