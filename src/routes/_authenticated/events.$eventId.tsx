@@ -139,7 +139,7 @@ function EventDetails() {
           <CoordinatorsTab eventId={event.id} />
         </TabsContent>
         <TabsContent value="integrations" className="mt-6">
-          <EventIntegrationsTab eventId={event.id} cardImageUrl={event.template_config?.invitation_image_url || ""} />
+          <EventIntegrationsTab eventId={event.id} cardImageUrl={event.template_config?.invitation_image_url || ""} locationUrl={event.location_url || ""} />
         </TabsContent>
         <TabsContent value="wishes" className="mt-6">
           <WishesWallTab guests={guests} />
@@ -1553,7 +1553,7 @@ function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow 
 }
 
 /* ---------------- Per-event Integrations ---------------- */
-function EventIntegrationsTab({ eventId, cardImageUrl }: { eventId: string; cardImageUrl?: string }) {
+function EventIntegrationsTab({ eventId, cardImageUrl, locationUrl }: { eventId: string; cardImageUrl?: string; locationUrl?: string }) {
   const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [savedCfg, setSavedCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [loaded, setLoaded] = useState(false);
@@ -1686,7 +1686,12 @@ function EventIntegrationsTab({ eventId, cardImageUrl }: { eventId: string; card
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
         <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف. لن تظهر التعديلات في المعاينة إلا بعد الضغط على «حفظ».</p>
         <div className="mt-5">
-          <WhatsAppMobilePreview message={preview} imageUrl={savedCfg.image_url} />
+          <WhatsAppMobilePreview
+            message={preview}
+            imageUrl={savedCfg.image_url}
+            inviteUrl={`/i/preview/${eventId}`}
+            locationUrl={locationUrl || undefined}
+          />
         </div>
         <Button onClick={save} className="mt-4 w-full gold-gradient text-primary-foreground">
           <Save className="ms-2 h-4 w-4" /> حفظ القالب
