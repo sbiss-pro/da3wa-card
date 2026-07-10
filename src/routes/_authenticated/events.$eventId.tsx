@@ -139,7 +139,7 @@ function EventDetails() {
           <CoordinatorsTab eventId={event.id} />
         </TabsContent>
         <TabsContent value="integrations" className="mt-6">
-          <EventIntegrationsTab eventId={event.id} />
+          <EventIntegrationsTab eventId={event.id} cardImageUrl={event.template_config?.invitation_image_url || ""} />
         </TabsContent>
         <TabsContent value="wishes" className="mt-6">
           <WishesWallTab guests={guests} />
@@ -1553,7 +1553,7 @@ function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow 
 }
 
 /* ---------------- Per-event Integrations ---------------- */
-function EventIntegrationsTab({ eventId }: { eventId: string }) {
+function EventIntegrationsTab({ eventId, cardImageUrl }: { eventId: string; cardImageUrl?: string }) {
   const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [savedCfg, setSavedCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [loaded, setLoaded] = useState(false);
@@ -1561,10 +1561,12 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
 
   useEffect(() => {
     const c = getWhatsAppConfig(eventId);
+    // Default: mirror the invitation card image if the user hasn't set one yet.
+    if (!c.image_url && cardImageUrl) c.image_url = cardImageUrl;
     setCfg(c);
     setSavedCfg(c);
     setLoaded(true);
-  }, [eventId]);
+  }, [eventId, cardImageUrl]);
 
   const save = () => {
     const next = { ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) };
@@ -1658,14 +1660,28 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
           <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, message_template: DEFAULT_WA_TEMPLATE })}>إعادة للنص الافتراضي</Button>
         </div>
         <div className="mb-3 space-y-2">
-          <Label>رابط صورة الدعوة</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>رابط صورة الدعوة</Label>
+            {cardImageUrl && (cfg.image_url || "") !== cardImageUrl ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCfg({ ...cfg, image_url: cardImageUrl })}
+              >
+                استخدم صورة بطاقة الدعوة
+              </Button>
+            ) : null}
+          </div>
           <Input
             dir="ltr"
             value={cfg.image_url || ""}
             onChange={(e) => setCfg({ ...cfg, image_url: e.target.value.slice(0, 500) })}
-            placeholder="https://example.com/invitation.jpg"
+            placeholder={cardImageUrl || "https://example.com/invitation.jpg"}
           />
-          <p className="text-xs text-muted-foreground">تظهر أعلى الرسالة كبطاقة تفاعلية في واتساب.</p>
+          <p className="text-xs text-muted-foreground">
+            افتراضياً هي نفس صورة بطاقة الدعوة — يمكنك تغييرها هنا لجعلها مختلفة عن البطاقة إن أردت.
+          </p>
         </div>
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
         <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف. لن تظهر التعديلات في المعاينة إلا بعد الضغط على «حفظ».</p>
