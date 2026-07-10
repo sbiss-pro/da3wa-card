@@ -1660,14 +1660,28 @@ function EventIntegrationsTab({ eventId, cardImageUrl }: { eventId: string; card
           <Button type="button" variant="ghost" size="sm" onClick={() => setCfg({ ...cfg, message_template: DEFAULT_WA_TEMPLATE })}>إعادة للنص الافتراضي</Button>
         </div>
         <div className="mb-3 space-y-2">
-          <Label>رابط صورة الدعوة</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>رابط صورة الدعوة</Label>
+            {cardImageUrl && (cfg.image_url || "") !== cardImageUrl ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCfg({ ...cfg, image_url: cardImageUrl })}
+              >
+                استخدم صورة بطاقة الدعوة
+              </Button>
+            ) : null}
+          </div>
           <Input
             dir="ltr"
             value={cfg.image_url || ""}
             onChange={(e) => setCfg({ ...cfg, image_url: e.target.value.slice(0, 500) })}
-            placeholder="https://example.com/invitation.jpg"
+            placeholder={cardImageUrl || "https://example.com/invitation.jpg"}
           />
-          <p className="text-xs text-muted-foreground">تظهر أعلى الرسالة كبطاقة تفاعلية في واتساب.</p>
+          <p className="text-xs text-muted-foreground">
+            افتراضياً هي نفس صورة بطاقة الدعوة — يمكنك تغييرها هنا لجعلها مختلفة عن البطاقة إن أردت.
+          </p>
         </div>
         <Textarea ref={tplRef} rows={6} value={cfg.message_template || ""} onChange={(e) => setCfg({ ...cfg, message_template: e.target.value.slice(0, 1000) })} placeholder={DEFAULT_WA_TEMPLATE} />
         <p className="mt-1 text-xs text-muted-foreground">الحد الأقصى 1000 حرف. لن تظهر التعديلات في المعاينة إلا بعد الضغط على «حفظ».</p>
