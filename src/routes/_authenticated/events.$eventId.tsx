@@ -139,7 +139,7 @@ function EventDetails() {
           <CoordinatorsTab eventId={event.id} />
         </TabsContent>
         <TabsContent value="integrations" className="mt-6">
-          <EventIntegrationsTab eventId={event.id} />
+          <EventIntegrationsTab eventId={event.id} cardImageUrl={event.template_config?.invitation_image_url || ""} />
         </TabsContent>
         <TabsContent value="wishes" className="mt-6">
           <WishesWallTab guests={guests} />
@@ -1553,7 +1553,7 @@ function EditCoordinatorDialog({ row, onClose, onSaved }: { row: CoordinatorRow 
 }
 
 /* ---------------- Per-event Integrations ---------------- */
-function EventIntegrationsTab({ eventId }: { eventId: string }) {
+function EventIntegrationsTab({ eventId, cardImageUrl }: { eventId: string; cardImageUrl?: string }) {
   const [cfg, setCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [savedCfg, setSavedCfg] = useState<WhatsAppConfig>(DEFAULT_WA_CONFIG);
   const [loaded, setLoaded] = useState(false);
@@ -1561,10 +1561,12 @@ function EventIntegrationsTab({ eventId }: { eventId: string }) {
 
   useEffect(() => {
     const c = getWhatsAppConfig(eventId);
+    // Default: mirror the invitation card image if the user hasn't set one yet.
+    if (!c.image_url && cardImageUrl) c.image_url = cardImageUrl;
     setCfg(c);
     setSavedCfg(c);
     setLoaded(true);
-  }, [eventId]);
+  }, [eventId, cardImageUrl]);
 
   const save = () => {
     const next = { ...cfg, message_template: sanitizeTemplate(cfg.message_template || DEFAULT_WA_TEMPLATE) };
