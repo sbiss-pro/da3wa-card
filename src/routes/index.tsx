@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
 import { MessageCircle, Sparkles } from "lucide-react";
-import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
+import { WhatsAppSimulator } from "@/components/whatsapp-simulator";
 import {
   getSiteContent,
   type SiteContent,
@@ -133,12 +133,7 @@ function Index() {
             </p>
           </div>
           <div className="grid place-items-center">
-            <WhatsAppMobilePreview
-              message={"السلام عليكم أستاذ محمد،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: https://invitly.app/i/demo"}
-              senderName="INVITLY"
-              imageUrl="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80"
-              showButtons
-            />
+            <WhatsAppSimulator />
           </div>
         </section>
       </main>
