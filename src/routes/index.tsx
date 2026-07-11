@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
 import { MessageCircle, Sparkles } from "lucide-react";
+import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
 import {
   getSiteContent,
   type SiteContent,
@@ -116,6 +117,30 @@ function Index() {
         {visible.map((s) => (
           <SectionRenderer key={s.key} section={s} />
         ))}
+
+        {/* WhatsApp interactive preview showcase */}
+        <section className="mx-auto max-w-6xl px-5 py-20">
+          <div className="mb-10 text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
+              <MessageCircle className="h-3 w-3" />
+              معاينة رسالة الواتساب
+            </span>
+            <h2 className="mt-5 font-display text-3xl font-bold sm:text-4xl">
+              هكذا تصل دعوتك إلى ضيوفك
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+              معاينة تفاعلية للرسالة التي يستلمها ضيوفك عبر واتساب — جرّب الأزرار بنفسك.
+            </p>
+          </div>
+          <div className="grid place-items-center">
+            <WhatsAppMobilePreview
+              message={"السلام عليكم أستاذ محمد،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: https://invitly.app/i/demo"}
+              senderName="INVITLY"
+              imageUrl="https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80"
+              showButtons
+            />
+          </div>
+        </section>
       </main>
 
       <SiteFooter branding={branding} social={content.social} />
