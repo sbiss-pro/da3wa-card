@@ -55,12 +55,24 @@ export type SitePages = {
   terms: SitePage;
 };
 
+export type SiteWhatsApp = {
+  senderName: string;
+  imageUrl: string;
+  initialMessage: string;
+  eventDay: string;
+  eventDate: string;
+  eventTime: string;
+  eventLocation: string;
+  eventLocationUrl: string;
+};
+
 export type SiteContent = {
   sections: SiteSection[];
   theme: SiteTheme;
   branding: SiteBranding;
   social: SiteSocial;
   pages: SitePages;
+  whatsapp: SiteWhatsApp;
   updated_at?: string;
 };
 
@@ -122,6 +134,17 @@ const DEFAULT_CONTENT: SiteContent = {
       body: "١. قبول الشروط\nإنشاؤك حساباً أو استخدامك لأي من خدماتنا يعني موافقتك على هذه الشروط.\n\n٢. الاستخدام المسموح\nيُسمح باستخدام المنصة لإدارة الدعوات فقط، ويُمنع أي استخدام غير قانوني.\n\n٣. الملكية الفكرية\nجميع الحقوق الفكرية للمنصة محفوظة لـ INVITLY.\n\n٤. المسؤولية\nالمنظم مسؤول عن دقة البيانات التي يدخلها وعن التواصل مع ضيوفه.\n\n٥. التعديلات\nنحتفظ بحق تعديل الشروط في أي وقت مع إشعار المستخدمين.",
     },
   },
+  whatsapp: {
+    senderName: "INVITLY",
+    imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80",
+    initialMessage:
+      "السلام عليكم أستاذ محمد،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: https://invitly.app/i/demo",
+    eventDay: "يوم الجمعة",
+    eventDate: "١٥ / ٠٨ / ٢٠٢٦",
+    eventTime: "٩:٠٠ مساءً",
+    eventLocation: "قاعة الأمير سلطان — الرياض",
+    eventLocationUrl: "https://maps.google.com/?q=Riyadh",
+  },
 };
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
@@ -151,6 +174,10 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
     pages: mergePages(
       (data.branding as unknown as { pages?: Partial<SitePages> })?.pages,
     ),
+    whatsapp: {
+      ...DEFAULT_CONTENT.whatsapp,
+      ...((data.branding as unknown as { whatsapp?: Partial<SiteWhatsApp> })?.whatsapp ?? {}),
+    },
     updated_at: data.updated_at,
   } as SiteContent;
 });
@@ -188,6 +215,7 @@ export const updateSiteContent = createServerFn({ method: "POST" })
           ...data.content.branding,
           social: data.content.social,
           pages: data.content.pages,
+          whatsapp: data.content.whatsapp,
         } as never,
         updated_by: userId,
       })
