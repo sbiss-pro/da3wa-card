@@ -133,7 +133,18 @@ function Index() {
             </p>
           </div>
           <div className="grid place-items-center">
-            <WhatsAppSimulator />
+            <WhatsAppSimulator
+              senderName={content.whatsapp.senderName}
+              imageUrl={content.whatsapp.imageUrl}
+              initialMessage={content.whatsapp.initialMessage}
+              eventDetails={{
+                day: content.whatsapp.eventDay,
+                date: content.whatsapp.eventDate,
+                time: content.whatsapp.eventTime,
+                location: content.whatsapp.eventLocation,
+                locationUrl: content.whatsapp.eventLocationUrl,
+              }}
+            />
           </div>
         </section>
       </main>
