@@ -15,6 +15,7 @@ import {
   Mic,
   Camera,
   MoreVertical,
+  RotateCcw,
 } from "lucide-react";
 
 type Msg = {
@@ -81,20 +82,37 @@ export function WhatsAppSimulator({
     locationUrl: string;
   };
 }) {
-  const [messages, setMessages] = useState<Msg[]>([
+  const buildInitial = (): Msg[] => [
     {
-      id: uid(),
+      id: "initial",
       from: "me",
-      time: now(),
+      time: "",
       text: initialMessage,
       imageUrl,
       showButtons: true,
     },
-  ]);
+  ];
+  const [messages, setMessages] = useState<Msg[]>(buildInitial);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [rsvp, setRsvp] = useState<"accepted" | "declined" | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Set the initial timestamp on the client only to avoid SSR hydration mismatch.
+  useEffect(() => {
+    setMessages((m) =>
+      m.length === 1 && m[0].id === "initial" && !m[0].time
+        ? [{ ...m[0], time: now() }]
+        : m,
+    );
+  }, []);
+
+  const handleReset = () => {
+    setInput("");
+    setTyping(false);
+    setRsvp(null);
+    setMessages(buildInitial().map((m) => ({ ...m, time: now() })));
+  };
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -296,9 +314,20 @@ export function WhatsAppSimulator({
           </div>
         </div>
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">
-        محاكي واتساب تفاعلي — جرّب الأزرار وأرسل رسالة
-      </p>
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={handleReset}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-[11px] font-medium text-foreground/80 backdrop-blur transition hover:border-primary/50 hover:text-primary"
+          aria-label="إعادة تشغيل المحاكي"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          إعادة المعاينة
+        </button>
+        <span className="text-[11px] text-muted-foreground">
+          محاكي واتساب تفاعلي — جرّب الأزرار وأرسل رسالة
+        </span>
+      </div>
 
       <style>{`
         .dot-typing {
