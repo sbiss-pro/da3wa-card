@@ -19,6 +19,7 @@ import {
   type SiteSocial,
   type SitePages,
   type SitePage,
+  type SiteWhatsApp,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/homepage")({
@@ -60,6 +61,7 @@ function HomepageEditor() {
   const setBranding = (branding: SiteBranding) => setContent({ ...content, branding });
   const setSocial = (social: SiteSocial) => setContent({ ...content, social });
   const setPages = (pages: SitePages) => setContent({ ...content, pages });
+  const setWhatsapp = (whatsapp: SiteWhatsApp) => setContent({ ...content, whatsapp });
 
   return (
     <div className="space-y-6">
@@ -87,6 +89,7 @@ function HomepageEditor() {
           <TabsTrigger value="branding">العلامة</TabsTrigger>
           <TabsTrigger value="social">الفوتر</TabsTrigger>
           <TabsTrigger value="pages">الصفحات</TabsTrigger>
+          <TabsTrigger value="whatsapp">محاكي واتساب</TabsTrigger>
           <TabsTrigger value="preview">معاينة</TabsTrigger>
         </TabsList>
 
@@ -108,6 +111,10 @@ function HomepageEditor() {
 
         <TabsContent value="pages" className="mt-6">
           <PagesEditor pages={content.pages} onChange={setPages} />
+        </TabsContent>
+
+        <TabsContent value="whatsapp" className="mt-6">
+          <WhatsappEditor whatsapp={content.whatsapp} onChange={setWhatsapp} />
         </TabsContent>
 
         <TabsContent value="preview" className="mt-6">
@@ -630,6 +637,49 @@ function PageEditor({ page, onChange }: { page: SitePage; onChange: (p: SitePage
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+function WhatsappEditor({
+  whatsapp,
+  onChange,
+}: {
+  whatsapp: SiteWhatsApp;
+  onChange: (w: SiteWhatsApp) => void;
+}) {
+  const set = (k: keyof SiteWhatsApp, v: string) => onChange({ ...whatsapp, [k]: v });
+  return (
+    <Card className="p-6">
+      <p className="mb-4 text-xs text-muted-foreground">
+        هذه القيم تظهر في محاكي الواتساب على الصفحة الرئيسية فقط.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label="اسم المُرسِل (رأس المحادثة)">
+          <Input value={whatsapp.senderName} onChange={(e) => set("senderName", e.target.value)} />
+        </Field>
+        <Field label="رابط صورة الدعوة">
+          <Input dir="ltr" value={whatsapp.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} />
+        </Field>
+        <Field label="نص الرسالة الأولى" className="md:col-span-2">
+          <Textarea rows={5} value={whatsapp.initialMessage} onChange={(e) => set("initialMessage", e.target.value)} />
+        </Field>
+        <Field label="اليوم (مثال: يوم الجمعة)">
+          <Input value={whatsapp.eventDay} onChange={(e) => set("eventDay", e.target.value)} />
+        </Field>
+        <Field label="التاريخ">
+          <Input value={whatsapp.eventDate} onChange={(e) => set("eventDate", e.target.value)} />
+        </Field>
+        <Field label="الوقت">
+          <Input value={whatsapp.eventTime} onChange={(e) => set("eventTime", e.target.value)} />
+        </Field>
+        <Field label="اسم الموقع">
+          <Input value={whatsapp.eventLocation} onChange={(e) => set("eventLocation", e.target.value)} />
+        </Field>
+        <Field label="رابط الموقع (خرائط جوجل)" className="md:col-span-2">
+          <Input dir="ltr" value={whatsapp.eventLocationUrl} onChange={(e) => set("eventLocationUrl", e.target.value)} />
+        </Field>
+      </div>
+    </Card>
+  );
 }
 
 function sectionLabel(t: SiteSection["type"]): string {
