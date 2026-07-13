@@ -845,6 +845,13 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
       </Card>
 
       <EditGuestDialog guest={editing} onClose={() => setEditing(null)} onSaved={reload} />
+      <SendWhatsAppDialog
+        guest={waSendGuest}
+        onClose={() => setWaSendGuest(null)}
+        eventId={event.id}
+        cardImageUrl={event.template_config?.invitation_image_url || ""}
+        inviteUrl={inviteUrl}
+      />
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{filtered.length} مدعو</span>
