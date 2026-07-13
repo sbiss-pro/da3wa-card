@@ -820,6 +820,14 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="إرسال واتساب لهذا الضيف"
+                        onClick={() => setWaSendGuest(g)}
+                      >
+                        <MessageCircle className="h-4 w-4 text-emerald-600" />
+                      </Button>
                       <Button variant="ghost" size="icon" title="تعديل" onClick={() => setEditing(g)}>
                         <Pencil className="h-4 w-4 text-gold" />
                       </Button>
