@@ -557,6 +557,7 @@ function GuestsTab({ event, guests, reload, inviteUrl }: { event: EventRow; gues
   const [waProgress, setWaProgress] = useState<{ processed: number; total: number; sent: number; failed: number; skipped: number; currentName: string; etaSeconds: number } | null>(null);
   const waAbortRef = useRef<AbortController | null>(null);
   const [editing, setEditing] = useState<Guest | null>(null);
+  const [waSendGuest, setWaSendGuest] = useState<Guest | null>(null);
 
   const handleFile = (file: File) => {
     const lower = file.name.toLowerCase();
