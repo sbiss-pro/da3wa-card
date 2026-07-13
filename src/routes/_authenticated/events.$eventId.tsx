@@ -1888,3 +1888,97 @@ function WishesWallTab({ guests }: { guests: Guest[] }) {
   );
 }
 
+function SendWhatsAppDialog({ guest, onClose, eventId, cardImageUrl, inviteUrl }: {
+  guest: Guest | null;
+  onClose: () => void;
+  eventId: string;
+  cardImageUrl: string;
+  inviteUrl: (t: string) => string;
+}) {
+  const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [phone, setPhone] = useState("");
+
+  useEffect(() => {
+    if (!guest) return;
+    const cfg = getWhatsAppConfig(eventId);
+    const { title, name } = splitTitleName(guest.name);
+    const url = inviteUrl(guest.token);
+    const tpl = cfg.message_template || DEFAULT_WA_TEMPLATE;
+    setMessage(applyTemplate(tpl, { title, name, url }));
+    setImageUrl(cfg.image_url || cardImageUrl || "");
+    setPhone(guest.phone || "");
+  }, [guest, eventId, cardImageUrl, inviteUrl]);
+
+  if (!guest) return null;
+  const { title, name } = splitTitleName(guest.name);
+
+  const buildText = () => {
+    const img = imageUrl.trim();
+    // WhatsApp auto-previews the first URL. Putting the image URL on its own
+    // first line makes the invitation image appear as a rich preview.
+    return img ? `${img}\n\n${message}` : message;
+  };
+
+  const openWhatsApp = () => {
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      toast.error("رقم الجوال غير صالح");
+      return;
+    }
+    const digits = normalized.replace(/\D/g, "");
+    const text = encodeURIComponent(buildText());
+    const link = `https://wa.me/${digits}?text=${text}`;
+    window.open(link, "_blank", "noopener,noreferrer");
+    onClose();
+  };
+
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(buildText());
+      toast.success("تم نسخ الرسالة");
+    } catch {
+      toast.error("تعذّر النسخ");
+    }
+  };
+
+  return (
+    <Dialog open={!!guest} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>إرسال دعوة واتساب — {title ? `${title} ` : ""}{name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>رقم الجوال</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" placeholder="+9665xxxxxxxx" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>رابط صورة الدعوة (اختياري)</Label>
+            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} dir="ltr" placeholder="https://..." />
+            <p className="text-[11px] text-muted-foreground">سيظهر الرابط كمعاينة صورة تلقائياً داخل واتساب.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>نص الرسالة</Label>
+            <Textarea rows={7} value={message} onChange={(e) => setMessage(e.target.value.slice(0, 1500))} />
+            <p className="text-[11px] text-muted-foreground">اسم الضيف ورابط دعوته مضمّنان تلقائياً — يمكنك التعديل قبل الإرسال.</p>
+          </div>
+          {imageUrl.trim() && /^https?:\/\//i.test(imageUrl) ? (
+            <div className="overflow-hidden rounded-lg border border-border">
+              <img src={imageUrl} alt="معاينة صورة الدعوة" className="max-h-48 w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="outline" onClick={copyText}>
+            <Copy className="ms-1 h-4 w-4" /> نسخ الرسالة
+          </Button>
+          <Button onClick={openWhatsApp} className="bg-emerald-600 text-white hover:bg-emerald-700">
+            <MessageCircle className="ms-1 h-4 w-4" /> فتح واتساب وإرسال
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
