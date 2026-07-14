@@ -1898,6 +1898,9 @@ function SendWhatsAppDialog({ guest, onClose, eventId, cardImageUrl, inviteUrl }
   const [message, setMessage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [phone, setPhone] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const canShareFiles = typeof navigator !== "undefined" &&
+    typeof (navigator as Navigator & { canShare?: (d: ShareData) => boolean }).canShare === "function";
 
   useEffect(() => {
     if (!guest) return;
@@ -1918,6 +1921,58 @@ function SendWhatsAppDialog({ guest, onClose, eventId, cardImageUrl, inviteUrl }
     // WhatsApp auto-previews the first URL. Putting the image URL on its own
     // first line makes the invitation image appear as a rich preview.
     return img ? `${img}\n\n${message}` : message;
+  };
+
+  const shareImageFile = async () => {
+    const img = imageUrl.trim();
+    if (!img) {
+      toast.error("لا توجد صورة للإرفاق");
+      return;
+    }
+    setSharing(true);
+    try {
+      const proxyUrl = /^https?:\/\//i.test(img) ? `/api/public/proxy?url=${encodeURIComponent(img)}` : img;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error("fetch-failed");
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "") || "jpg";
+      const file = new File([blob], `invitation.${ext}`, { type: blob.type || "image/jpeg" });
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean; share?: (d: ShareData) => Promise<void> };
+      const data: ShareData = { files: [file], text: message };
+      if (!nav.canShare?.(data) || !nav.share) {
+        toast.error("متصفحك لا يدعم مشاركة الصور مباشرة — استخدم زر «فتح واتساب» بدلاً منه");
+        return;
+      }
+      await nav.share(data);
+      onClose();
+    } catch (e) {
+      if ((e as DOMException)?.name === "AbortError") return;
+      toast.error("تعذّر تحميل الصورة للإرفاق");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const downloadImage = async () => {
+    const img = imageUrl.trim();
+    if (!img) return;
+    try {
+      const proxyUrl = /^https?:\/\//i.test(img) ? `/api/public/proxy?url=${encodeURIComponent(img)}` : img;
+      const res = await fetch(proxyUrl);
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace(/[^a-z0-9]/gi, "") || "jpg";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invitation-${guest?.name || "guest"}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("تم تنزيل الصورة — أرفقها يدوياً في واتساب");
+    } catch {
+      toast.error("تعذّر تنزيل الصورة");
+    }
   };
 
   const openWhatsApp = () => {
@@ -1970,12 +2025,26 @@ function SendWhatsAppDialog({ guest, onClose, eventId, cardImageUrl, inviteUrl }
           ) : null}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="outline" onClick={copyText}>
-            <Copy className="ms-1 h-4 w-4" /> نسخ الرسالة
-          </Button>
-          <Button onClick={openWhatsApp} className="bg-emerald-600 text-white hover:bg-emerald-700">
-            <MessageCircle className="ms-1 h-4 w-4" /> فتح واتساب وإرسال
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={copyText}>
+              <Copy className="ms-1 h-4 w-4" /> نسخ الرسالة
+            </Button>
+            {imageUrl.trim() ? (
+              <Button variant="outline" onClick={downloadImage}>
+                <Download className="ms-1 h-4 w-4" /> تنزيل الصورة
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canShareFiles && imageUrl.trim() ? (
+              <Button onClick={shareImageFile} disabled={sharing} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                <ImageIcon className="ms-1 h-4 w-4" /> {sharing ? "جارٍ التجهيز..." : "إرفاق الصورة ومشاركة"}
+              </Button>
+            ) : null}
+            <Button onClick={openWhatsApp} variant={canShareFiles && imageUrl.trim() ? "outline" : "default"} className={canShareFiles && imageUrl.trim() ? "" : "bg-emerald-600 text-white hover:bg-emerald-700"}>
+              <MessageCircle className="ms-1 h-4 w-4" /> فتح واتساب (نص فقط)
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
