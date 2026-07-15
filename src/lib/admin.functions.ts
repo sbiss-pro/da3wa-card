@@ -64,6 +64,8 @@ export type SiteWhatsApp = {
   eventTime: string;
   eventLocation: string;
   eventLocationUrl: string;
+  visible: boolean;
+  messageSuggestions: { label: string; body: string }[];
 };
 
 export type SiteContent = {
@@ -144,6 +146,29 @@ const DEFAULT_CONTENT: SiteContent = {
     eventTime: "٩:٠٠ مساءً",
     eventLocation: "قاعة الأمير سلطان — الرياض",
     eventLocationUrl: "https://maps.google.com/?q=Riyadh",
+    visible: true,
+    messageSuggestions: [
+      {
+        label: "رسمي أنيق",
+        body:
+          "السلام عليكم [اللقب] [اسم_الضيف]\nيشرّفنا حضوركم مناسبتنا الخاصة.\n\n↗ افتح دعوتك\n[رابط_الدعوة]",
+      },
+      {
+        label: "ودّي مختصر",
+        body:
+          "[اسم_الضيف] 💌\nدعوتك جاهزة — نتشرف بحضورك.\n[رابط_الدعوة]",
+      },
+      {
+        label: "احتفالي فاخر",
+        body:
+          "بكل الفخر نتشرف بدعوتكم\n[اللقب] [اسم_الضيف] ✨\nتفاصيل المناسبة داخل بطاقتكم الرقمية.\n[رابط_الدعوة]",
+      },
+      {
+        label: "تذكير لطيف",
+        body:
+          "تذكير بمناسبتنا [اسم_الضيف] 🌿\nنسعد بتأكيد حضوركم عبر الرابط.\n[رابط_الدعوة]",
+      },
+    ],
   },
 };
 
