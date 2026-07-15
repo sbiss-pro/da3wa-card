@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { MessageCircle, Sparkles, Star } from "lucide-react";
 import { WhatsAppSimulator } from "@/components/whatsapp-simulator";
 import {
   getSiteContent,
@@ -62,6 +62,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const content = Route.useLoaderData() as SiteContent;
   const { sections, theme, branding } = content;
+  const showWhatsapp = content.whatsapp.visible !== false;
   const visible = [...sections]
     .filter((s) => s.visible)
     .sort((a, b) => a.order - b.order);
@@ -118,35 +119,50 @@ function Index() {
           <SectionRenderer key={s.key} section={s} />
         ))}
 
-        {/* WhatsApp interactive preview showcase */}
-        <section className="mx-auto max-w-6xl px-5 py-20">
-          <div className="mb-10 text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
-              <MessageCircle className="h-3 w-3" />
-              معاينة رسالة الواتساب
-            </span>
-            <h2 className="mt-5 font-display text-3xl font-bold sm:text-4xl">
-              هكذا تصل دعوتك إلى ضيوفك
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              معاينة تفاعلية للرسالة التي يستلمها ضيوفك عبر واتساب — جرّب الأزرار بنفسك.
-            </p>
-          </div>
-          <div className="grid place-items-center">
-            <WhatsAppSimulator
-              senderName={content.whatsapp.senderName}
-              imageUrl={content.whatsapp.imageUrl}
-              initialMessage={content.whatsapp.initialMessage}
-              eventDetails={{
-                day: content.whatsapp.eventDay,
-                date: content.whatsapp.eventDate,
-                time: content.whatsapp.eventTime,
-                location: content.whatsapp.eventLocation,
-                locationUrl: content.whatsapp.eventLocationUrl,
-              }}
-            />
-          </div>
-        </section>
+        {showWhatsapp ? (
+          <section className="mx-auto max-w-6xl px-5 py-20">
+            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+              <div className="text-center lg:text-right">
+                <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
+                  <MessageCircle className="h-3 w-3" />
+                  الرسالة كما يستلمها ضيفك
+                </span>
+                <h2 className="font-hero mt-5 text-4xl leading-tight sm:text-5xl">
+                  دعوة واحدة — كاملة، أنيقة، بلمسة شخصية
+                </h2>
+                <p className="font-body-luxe mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground lg:mx-0">
+                  رسالة واحدة تحمل صورة بطاقتك، اسم ضيفك، وزر مباشر لفتح الدعوة —
+                  دون روابط مزعجة أو عبارات دعائية.
+                </p>
+                <ul className="font-body-luxe mt-6 grid gap-2 text-[13px] text-foreground/85 lg:justify-items-start">
+                  <li className="flex items-center justify-center gap-2 lg:justify-start">
+                    <Star className="h-3.5 w-3.5 text-primary" /> صورة الدعوة تظهر تلقائياً
+                  </li>
+                  <li className="flex items-center justify-center gap-2 lg:justify-start">
+                    <Star className="h-3.5 w-3.5 text-primary" /> رابط مختصر ومخفي داخل زر أنيق
+                  </li>
+                  <li className="flex items-center justify-center gap-2 lg:justify-start">
+                    <Star className="h-3.5 w-3.5 text-primary" /> أزرار قبول / اعتذار / الموقع
+                  </li>
+                </ul>
+              </div>
+              <div className="grid place-items-center">
+                <WhatsAppSimulator
+                  senderName={content.whatsapp.senderName}
+                  imageUrl={content.whatsapp.imageUrl}
+                  initialMessage={content.whatsapp.initialMessage}
+                  eventDetails={{
+                    day: content.whatsapp.eventDay,
+                    date: content.whatsapp.eventDate,
+                    time: content.whatsapp.eventTime,
+                    location: content.whatsapp.eventLocation,
+                    locationUrl: content.whatsapp.eventLocationUrl,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+        ) : null}
       </main>
 
       <SiteFooter branding={branding} social={content.social} />
@@ -160,31 +176,62 @@ function SectionRenderer({ section }: { section: SiteSection }) {
   if (section.type === "hero") {
     return (
       <section className="relative overflow-hidden">
-        <div className="relative mx-auto max-w-6xl px-5 py-20 text-center sm:py-28">
-          {typeof d.eyebrow === "string" && d.eyebrow && (
-            <span className="animate-pop-in inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
-              <Sparkles className="h-3 w-3" />
-              {d.eyebrow}
-            </span>
-          )}
-          <h1 className="animate-pop-in mt-6 font-display text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl" style={{ animationDelay: "0.1s" }}>
-            {str(d.title)}
-          </h1>
-          <p className="animate-pop-in mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg" style={{ animationDelay: "0.2s" }}>
-            {str(d.subtitle)}
-          </p>
-          {typeof d.ctaHref === "string" && d.ctaHref && (
-            <a
-              href={d.ctaHref}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="animate-pop-in mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground toon-shadow transition hover:-translate-y-0.5 hover:scale-[1.03]"
-              style={{ animationDelay: "0.3s" }}
-            >
-              <MessageCircle className="h-4 w-4" />
-              {str(d.ctaLabel) || "تواصل"}
-            </a>
-          )}
+        <div className="relative mx-auto max-w-6xl px-5 py-16 sm:py-24">
+          {/* Bento grid hero: main title tile + accent tiles */}
+          <div className="grid gap-4 md:grid-cols-6 md:grid-rows-[auto_auto]">
+            {/* Primary tile — headline */}
+            <div className="animate-pop-in relative overflow-hidden rounded-3xl border border-primary/25 bg-card/50 p-8 backdrop-blur-md md:col-span-4 md:row-span-2 md:p-12">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-70"
+                style={{
+                  background:
+                    "radial-gradient(circle at 20% 10%, rgba(201,168,76,0.18), transparent 55%), radial-gradient(circle at 90% 90%, rgba(201,168,76,0.10), transparent 60%)",
+                }}
+              />
+              <div className="relative">
+                {typeof d.eyebrow === "string" && d.eyebrow && (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-background/40 px-3 py-1 text-[11px] font-medium tracking-[0.2em] text-primary">
+                    <Sparkles className="h-3 w-3" />
+                    {d.eyebrow}
+                  </span>
+                )}
+                <h1 className="font-hero mt-5 text-4xl leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
+                  {str(d.title)}
+                </h1>
+                <p className="font-body-luxe mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  {str(d.subtitle)}
+                </p>
+                {typeof d.ctaHref === "string" && d.ctaHref && (
+                  <a
+                    href={d.ctaHref}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-bold text-primary-foreground toon-shadow transition hover:-translate-y-0.5 hover:scale-[1.03]"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {str(d.ctaLabel) || "تواصل"}
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Accent tile 1 */}
+            <div className="animate-pop-in rounded-3xl border border-primary/20 bg-card/40 p-6 backdrop-blur-md md:col-span-2" style={{ animationDelay: "0.1s" }}>
+              <p className="font-hero text-3xl text-primary">فاخرة</p>
+              <p className="font-body-luxe mt-2 text-xs leading-relaxed text-muted-foreground">
+                بطاقات مصمّمة بلمسة ذهبية تعكس رقي مناسبتك، بدون قوالب مكرّرة.
+              </p>
+            </div>
+
+            {/* Accent tile 2 */}
+            <div className="animate-pop-in rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-6 md:col-span-2" style={{ animationDelay: "0.2s" }}>
+              <p className="font-hero text-3xl">إدارة كاملة</p>
+              <p className="font-body-luxe mt-2 text-xs leading-relaxed text-muted-foreground">
+                إرسال عبر واتساب، تأكيد الحضور، ومسح QR للاستقبال — بلوحة واحدة.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     );
