@@ -13,6 +13,34 @@ const EVENT_PREFIX = "dawati_wa_event::";
 export const DEFAULT_WA_TEMPLATE =
   "السلام عليكم [اللقب] [اسم_الضيف]،\nيسعدنا دعوتكم لحضور مناسبتنا.\nرابط دعوتكم: [رابط_الدعوة]";
 
+/** Built-in message templates surfaced in the "Send WhatsApp" dialog.
+ *  Links are placed on their own line at the end so WhatsApp renders them
+ *  as a compact preview instead of a raw blue URL inside the body. */
+export const WA_MESSAGE_SUGGESTIONS: { label: string; body: string }[] = [
+  {
+    label: "رسمي أنيق",
+    body:
+      "السلام عليكم [اللقب] [اسم_الضيف]\nيشرّفنا حضوركم مناسبتنا الخاصة.\n\n↗ افتح دعوتك\n[رابط_الدعوة]",
+  },
+  {
+    label: "ودّي مختصر",
+    body: "[اسم_الضيف] 💌\nدعوتك جاهزة — نتشرف بحضورك.\n[رابط_الدعوة]",
+  },
+  {
+    label: "احتفالي فاخر",
+    body:
+      "بكل الفخر نتشرف بدعوتكم\n[اللقب] [اسم_الضيف] ✨\nتفاصيل المناسبة داخل بطاقتكم الرقمية.\n[رابط_الدعوة]",
+  },
+  {
+    label: "تذكير لطيف",
+    body: "تذكير بمناسبتنا [اسم_الضيف] 🌿\nنسعد بتأكيد حضوركم عبر الرابط.\n[رابط_الدعوة]",
+  },
+  {
+    label: "افتراضي INVITLY",
+    body: DEFAULT_WA_TEMPLATE,
+  },
+];
+
 export const DEFAULT_WA_CONFIG: WhatsAppConfig = {
   provider: "ultramsg",
   api_key: "",

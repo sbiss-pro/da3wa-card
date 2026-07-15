@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, type WhatsAppConfig } from "@/lib/whatsapp";
+import { getWhatsAppConfig, saveWhatsAppConfig, simulateWhatsAppBlast, normalizePhone, splitTitleName, sanitizeTemplate, applyTemplate, DEFAULT_WA_CONFIG, DEFAULT_WA_TEMPLATE, WA_MESSAGE_SUGGESTIONS, type WhatsAppConfig } from "@/lib/whatsapp";
 import { listCoordinators, createCoordinator, deleteCoordinator, updateCoordinator } from "@/lib/coordinator.functions";
 import { WhatsAppMobilePreview } from "@/components/whatsapp-mobile-preview";
 import { extractPalette, readableTextOn } from "@/lib/palette";
@@ -2015,6 +2015,28 @@ function SendWhatsAppDialog({ guest, onClose, eventId, cardImageUrl, inviteUrl }
           </div>
           <div className="space-y-1.5">
             <Label>نص الرسالة</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {WA_MESSAGE_SUGGESTIONS.map((s) => (
+                <Button
+                  key={s.label}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 rounded-full px-3 text-[11px]"
+                  onClick={() =>
+                    setMessage(
+                      applyTemplate(s.body, {
+                        title,
+                        name,
+                        url: `${window.location.origin}/i/${guest.token}`,
+                      }),
+                    )
+                  }
+                >
+                  {s.label}
+                </Button>
+              ))}
+            </div>
             <Textarea rows={7} value={message} onChange={(e) => setMessage(e.target.value.slice(0, 1500))} />
             <p className="text-[11px] text-muted-foreground">اسم الضيف ورابط دعوته مضمّنان تلقائياً — يمكنك التعديل قبل الإرسال.</p>
           </div>

@@ -647,11 +647,23 @@ function WhatsappEditor({
   onChange: (w: SiteWhatsApp) => void;
 }) {
   const set = (k: keyof SiteWhatsApp, v: string) => onChange({ ...whatsapp, [k]: v });
+  const suggestions = whatsapp.messageSuggestions ?? [];
+  const setSuggestions = (v: { label: string; body: string }[]) =>
+    onChange({ ...whatsapp, messageSuggestions: v });
   return (
     <Card className="p-6">
-      <p className="mb-4 text-xs text-muted-foreground">
-        هذه القيم تظهر في محاكي الواتساب على الصفحة الرئيسية فقط.
-      </p>
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 p-3">
+        <div>
+          <Label className="text-sm font-semibold">إظهار محاكي الواتساب في الصفحة الرئيسية</Label>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            عند إيقاف الخيار يختفي القسم بالكامل من الصفحة الرئيسية للزوار.
+          </p>
+        </div>
+        <Switch
+          checked={whatsapp.visible !== false}
+          onCheckedChange={(v) => onChange({ ...whatsapp, visible: v })}
+        />
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="اسم المُرسِل (رأس المحادثة)">
           <Input value={whatsapp.senderName} onChange={(e) => set("senderName", e.target.value)} />
@@ -677,6 +689,38 @@ function WhatsappEditor({
         <Field label="رابط الموقع (خرائط جوجل)" className="md:col-span-2">
           <Input dir="ltr" value={whatsapp.eventLocationUrl} onChange={(e) => set("eventLocationUrl", e.target.value)} />
         </Field>
+      </div>
+
+      <div className="mt-6 space-y-3 border-t border-border/50 pt-6">
+        <div>
+          <Label className="text-sm font-semibold">قوالب الرسائل المقترحة للضيوف</Label>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            تظهر هذه القوالب في نافذة «إرسال دعوة واتساب» لكل ضيف. استخدم الوسوم:
+            <code className="mx-1 rounded bg-muted px-1">[اللقب]</code>
+            <code className="mx-1 rounded bg-muted px-1">[اسم_الضيف]</code>
+            <code className="mx-1 rounded bg-muted px-1">[رابط_الدعوة]</code>
+          </p>
+        </div>
+        <ArrayEditor<{ label: string; body: string }>
+          items={suggestions}
+          onChange={setSuggestions}
+          newItem={() => ({ label: "قالب جديد", body: "السلام عليكم [اللقب] [اسم_الضيف]\n[رابط_الدعوة]" })}
+          render={(item, upd) => (
+            <div className="grid gap-2">
+              <Input
+                placeholder="اسم القالب"
+                value={item.label}
+                onChange={(e) => upd({ ...item, label: e.target.value })}
+              />
+              <Textarea
+                rows={4}
+                placeholder="نص الرسالة"
+                value={item.body}
+                onChange={(e) => upd({ ...item, body: e.target.value })}
+              />
+            </div>
+          )}
+        />
       </div>
     </Card>
   );
