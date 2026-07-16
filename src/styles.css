@@ -377,3 +377,49 @@
 @media (prefers-reduced-motion: reduce) {
   .lux-pulse-ring { animation: none; }
 }
+
+/* Marquee — endless horizontal scroll for the trust band */
+@keyframes marquee-x {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@utility animate-marquee {
+  animation: marquee-x 32s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
+/* Slow spin for decorative rings */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@utility animate-spin-slow {
+  animation: spin-slow 28s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow { animation: none; }
+}
+
+/* Tilt-in on hover for feature cards */
+@utility tilt-hover {
+  transition: transform 0.5s cubic-bezier(.2,.7,.2,1), box-shadow 0.5s ease;
+}
+.tilt-hover:hover {
+  transform: translateY(-6px) rotate(-0.4deg);
+}
+
+/* Fluid heading — always readable on iPhone SE up to 4K */
+@utility text-fluid-hero {
+  font-size: clamp(2rem, 7vw, 4.75rem);
+  line-height: 1.05;
+}
+@utility text-fluid-h2 {
+  font-size: clamp(1.5rem, 4.5vw, 2.75rem);
+  line-height: 1.15;
+}
+@utility text-fluid-body {
+  font-size: clamp(0.9rem, 1.7vw, 1.05rem);
+  line-height: 1.7;
+}
