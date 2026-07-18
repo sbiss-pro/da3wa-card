@@ -85,6 +85,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#0d1f1a" },
+      { name: "apple-mobile-web-app-title", content: "INVITLY" },
+      { name: "application-name", content: "INVITLY" },
+      { name: "format-detection", content: "telephone=no" },
+      { httpEquiv: "x-ua-compatible", content: "IE=edge" },
+      { name: "robots", content: "index,follow,max-image-preview:large" },
       { title: "INVITLY — منصة دعوات الفعاليات الرقمية" },
       { name: "description", content: "أنشئ دعوات إلكترونية فاخرة للأعراس والمناسبات وأدِر قائمة المدعوين وردودهم بكل سهولة." },
       { property: "og:title", content: "INVITLY — منصة دعوات الفعاليات الرقمية" },
@@ -105,7 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Almarai:wght@400;700;800&family=Noto+Naskh+Arabic:wght@400;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;600;700&family=Cairo:wght@400;600;700;800&family=Reem+Kufi:wght@400;600;700&family=Almarai:wght@400;700;800&family=Noto+Naskh+Arabic:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap",
       },
       {
         rel: "stylesheet",
