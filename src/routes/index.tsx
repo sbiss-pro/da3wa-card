@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/site-footer";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MessageCircle,
   Sparkles,
@@ -12,6 +12,7 @@ import {
   Send,
   ShieldCheck,
   ChevronDown,
+  ArrowUp,
 } from "lucide-react";
 import { WhatsAppSimulator } from "@/components/whatsapp-simulator";
 import {
@@ -220,6 +221,41 @@ function Index() {
       </main>
 
       <SiteFooter branding={branding} social={content.social} />
+      <FloatingActions whatsappNumber={branding.whatsappNumber} />
+    </div>
+  );
+}
+
+function FloatingActions({ whatsappNumber }: { whatsappNumber: string }) {
+  const [showTop, setShowTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <div className="pointer-events-none fixed bottom-5 z-40 flex flex-col items-end gap-3 end-4 sm:bottom-6 sm:end-6">
+      {showTop ? (
+        <button
+          type="button"
+          aria-label="العودة للأعلى"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="pointer-events-auto magnetic grid h-11 w-11 place-items-center rounded-full border border-primary/40 bg-card/80 text-primary shadow-lg backdrop-blur-md hover:bg-primary/10"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      ) : null}
+      <a
+        href={`https://wa.me/${whatsappNumber}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        aria-label="تواصل عبر واتساب"
+        className="pointer-events-auto fab-pulse magnetic inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-2xl hover:bg-[#20bd5a]"
+      >
+        <MessageCircle className="h-5 w-5" />
+        <span className="hidden sm:inline">اطلب الخدمة</span>
+      </a>
     </div>
   );
 }
