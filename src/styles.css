@@ -173,13 +173,24 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "ss02";
+    /* Do NOT enable Latin stylistic sets (ss01/ss02) globally — they break
+       Arabic letter shaping/joining and cause visible gaps between letters. */
+    font-feature-settings: normal;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   html { direction: rtl; }
   .font-display { font-family: var(--font-serif); letter-spacing: 0; font-weight: 700; }
-  .font-hero { font-family: "El Messiri", "Instrument Serif", "Amiri", "Tajawal", serif; letter-spacing: -0.005em; font-weight: 700; }
+  .font-hero { font-family: "El Messiri", "Amiri", "Tajawal", serif; letter-spacing: 0; font-weight: 700; }
   .font-body-luxe { font-family: "IBM Plex Sans Arabic", "Tajawal", system-ui, sans-serif; font-weight: 400; }
+
+  /* Arabic script must NEVER receive letter-spacing — it disconnects joined
+     glyphs and shows gaps between letters. Neutralize Tailwind `tracking-*`
+     utilities across the whole RTL app; Latin-only elements can opt back in
+     by adding the `.latin` class. */
+  [dir="rtl"], [dir="rtl"] * { letter-spacing: 0 !important; }
+  .latin { letter-spacing: revert !important; direction: ltr; unicode-bidi: isolate; }
   ::selection { background: oklch(0.78 0.13 85 / 0.35); color: inherit; }
   a, button { -webkit-tap-highlight-color: transparent; }
   html { scroll-behavior: smooth; }
