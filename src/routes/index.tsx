@@ -13,8 +13,12 @@ import {
   ShieldCheck,
   ChevronDown,
   ArrowUp,
+  Lock,
+  BadgeCheck,
+  Headphones,
+  FileText,
+  CreditCard,
 } from "lucide-react";
-import { WhatsAppSimulator } from "@/components/whatsapp-simulator";
 import {
   getSiteContent,
   type SiteContent,
@@ -75,7 +79,6 @@ export const Route = createFileRoute("/")({
 function Index() {
   const content = Route.useLoaderData() as SiteContent;
   const { sections, theme, branding } = content;
-  const showWhatsapp = content.whatsapp.visible !== false;
   const visible = [...sections]
     .filter((s) => s.visible)
     .sort((a, b) => a.order - b.order);
@@ -174,55 +177,69 @@ function Index() {
         {/* Marquee trust band — endless scroll */}
         <TrustMarquee />
 
-        {showWhatsapp ? (
-          <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-12">
-              <div className="reveal text-center lg:text-right">
-                <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium tracking-wide text-primary backdrop-blur-md">
-                  <MessageCircle className="h-3 w-3" />
-                  الرسالة كما يستلمها ضيفك
-                </span>
-                <h2 className="font-hero mt-5 text-fluid-h2">
-                  دعوة واحدة — كاملة، أنيقة، بلمسة شخصية
-                </h2>
-                <p className="font-body-luxe mx-auto mt-4 max-w-lg text-fluid-body text-muted-foreground lg:mx-0">
-                  رسالة واحدة تحمل صورة بطاقتك، اسم ضيفك، وزر مباشر لفتح الدعوة —
-                  دون روابط مزعجة أو عبارات دعائية.
-                </p>
-                <ul className="font-body-luxe mt-6 grid gap-2 text-[13px] text-foreground/85 lg:justify-items-start">
-                  <li className="flex items-center justify-center gap-2 lg:justify-start">
-                    <Star className="h-3.5 w-3.5 text-primary" /> صورة الدعوة تظهر تلقائياً
-                  </li>
-                  <li className="flex items-center justify-center gap-2 lg:justify-start">
-                    <Star className="h-3.5 w-3.5 text-primary" /> رابط مختصر ومخفي داخل زر أنيق
-                  </li>
-                  <li className="flex items-center justify-center gap-2 lg:justify-start">
-                    <Star className="h-3.5 w-3.5 text-primary" /> أزرار قبول / اعتذار / الموقع
-                  </li>
-                </ul>
-              </div>
-              <div className="reveal grid place-items-center" style={{ transitionDelay: "0.15s" }}>
-                <WhatsAppSimulator
-                  senderName={content.whatsapp.senderName}
-                  imageUrl={content.whatsapp.imageUrl}
-                  initialMessage={content.whatsapp.initialMessage}
-                  eventDetails={{
-                    day: content.whatsapp.eventDay,
-                    date: content.whatsapp.eventDate,
-                    time: content.whatsapp.eventTime,
-                    location: content.whatsapp.eventLocation,
-                    locationUrl: content.whatsapp.eventLocationUrl,
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-        ) : null}
+        {/* Commercial trust strip — signals a real, official business */}
+        <TrustCommercial whatsappNumber={branding.whatsappNumber} />
       </main>
 
       <SiteFooter branding={branding} social={content.social} />
       <FloatingActions whatsappNumber={branding.whatsappNumber} />
     </div>
+  );
+}
+
+function TrustCommercial({ whatsappNumber }: { whatsappNumber: string }) {
+  const badges = [
+    { icon: ShieldCheck, title: "منشأة سعودية موثّقة", desc: "خدمة مسجّلة وتعمل داخل المملكة العربية السعودية" },
+    { icon: Lock, title: "حماية بمعيار SSL", desc: "جميع البيانات مشفّرة أثناء النقل والتخزين" },
+    { icon: CreditCard, title: "دفع آمن عند الطلب", desc: "قنوات دفع موثّقة عبر مزوّدين معتمدين" },
+    { icon: BadgeCheck, title: "ضمان جودة التسليم", desc: "استبدال مجاني إن لم تعجبك النتيجة النهائية" },
+    { icon: Headphones, title: "دعم مباشر عبر واتساب", desc: "من 9 صباحاً حتى 12 منتصف الليل — طوال أيام الأسبوع" },
+    { icon: FileText, title: "فاتورة رسمية عند الطلب", desc: "بمعلومات المنشأة كاملة للأفراد والشركات" },
+  ];
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+      <div className="reveal text-center">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card/60 px-4 py-1.5 text-[11px] font-medium text-primary backdrop-blur-md">
+          <ShieldCheck className="h-3 w-3" />
+          خدمة رسمية موثوقة
+        </span>
+        <h2 className="font-hero mt-5 text-fluid-h2">لماذا يختارنا العملاء بثقة</h2>
+        <p className="mx-auto mt-3 max-w-xl text-fluid-body text-muted-foreground">
+          نلتزم بمعايير عالية في الجودة والخصوصية والدعم — لتقدّم مناسبتك بأفضل صورة، بلا قلق.
+        </p>
+      </div>
+      <div className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        {badges.map((b, i) => (
+          <article
+            key={i}
+            className="reveal tilt-hover group rounded-2xl border border-border/60 bg-card/40 p-5 backdrop-blur-md hover:border-primary/50"
+            style={{ transitionDelay: `${i * 0.06}s` }}
+          >
+            <div className="mb-3 grid h-10 w-10 place-items-center rounded-xl gold-gradient toon-shadow transition group-hover:scale-110">
+              <b.icon className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <h3 className="font-display text-base font-bold">{b.title}</h3>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{b.desc}</p>
+          </article>
+        ))}
+      </div>
+      <div className="reveal mt-10 flex flex-wrap items-center justify-center gap-3 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-3 py-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-primary" /> ملتزمون بنظام حماية البيانات
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-3 py-1.5">
+          <BadgeCheck className="h-3.5 w-3.5 text-primary" /> أكثر من 500 مناسبة تم تنفيذها
+        </span>
+        <a
+          href={`https://wa.me/${whatsappNumber}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 font-medium text-primary transition hover:bg-primary/20"
+        >
+          <MessageCircle className="h-3.5 w-3.5" /> اطلب عرض سعر
+        </a>
+      </div>
+    </section>
   );
 }
 
