@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   MessageCircle,
   Sparkles,
-  Star,
   QrCode,
   Users,
   CalendarCheck,
