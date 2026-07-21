@@ -68,6 +68,37 @@ export type SiteWhatsApp = {
   messageSuggestions: { label: string; body: string }[];
 };
 
+export type SiteCommercial = {
+  crNumber: string;
+  vatNumber: string;
+  address: string;
+  workHours: string;
+  entityName: string;
+  supportEmail: string;
+};
+
+export type PricingPlan = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  highlight: boolean;
+  ctaLabel: string;
+  ctaHref: string;
+};
+
+export type SitePricing = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  plans: PricingPlan[];
+  note: string;
+};
+
+export type SiteRefund = SitePage;
+
 export type SiteContent = {
   sections: SiteSection[];
   theme: SiteTheme;
@@ -75,6 +106,9 @@ export type SiteContent = {
   social: SiteSocial;
   pages: SitePages;
   whatsapp: SiteWhatsApp;
+  commercial: SiteCommercial;
+  pricing: SitePricing;
+  refund: SiteRefund;
   updated_at?: string;
 };
 
@@ -170,6 +204,82 @@ const DEFAULT_CONTENT: SiteContent = {
       },
     ],
   },
+  commercial: {
+    entityName: "مؤسسة INVITLY للدعوات الرقمية",
+    crNumber: "",
+    vatNumber: "",
+    address: "المملكة العربية السعودية — الرياض",
+    workHours: "الأحد – الخميس، ٩ صباحاً – ٦ مساءً",
+    supportEmail: "support@invitly.app",
+  },
+  pricing: {
+    eyebrow: "PRICING",
+    title: "باقات تناسب مناسبتك",
+    subtitle: "أسعار شفافة بدون رسوم مخفية. جميع الأسعار شاملة ضريبة القيمة المضافة.",
+    note: "الأسعار بالريال السعودي. للحجز أو تخصيص باقة تواصل معنا عبر واتساب.",
+    plans: [
+      {
+        id: "basic",
+        name: "الأساسية",
+        price: "٢٩٩",
+        period: "لكل مناسبة",
+        description: "مناسبة للمناسبات الصغيرة حتى ١٠٠ مدعو.",
+        features: [
+          "بطاقة دعوة رقمية فاخرة",
+          "رابط دعوة مخصص لكل ضيف",
+          "تأكيد الحضور RSVP",
+          "لوحة تحكم للمنظم",
+          "دعم فني عبر واتساب",
+        ],
+        highlight: false,
+        ctaLabel: "احجز الأساسية",
+        ctaHref: "https://wa.me/966500000000?text=%D8%A7%D9%84%D8%A8%D8%A7%D9%82%D8%A9%20%D8%A7%D9%84%D8%A3%D8%B3%D8%A7%D8%B3%D9%8A%D8%A9",
+      },
+      {
+        id: "pro",
+        name: "الاحترافية",
+        price: "٥٩٩",
+        period: "لكل مناسبة",
+        description: "الأكثر طلباً — حتى ٣٠٠ مدعو مع دخول QR.",
+        features: [
+          "كل مزايا الباقة الأساسية",
+          "استخراج ألوان تلقائي من صورة الدعوة",
+          "حضور بمسح QR + وضع أوفلاين",
+          "حساب منسق مستقل",
+          "تصدير قوائم Excel",
+          "أولوية في الدعم",
+        ],
+        highlight: true,
+        ctaLabel: "احجز الاحترافية",
+        ctaHref: "https://wa.me/966500000000?text=%D8%A7%D9%84%D8%A8%D8%A7%D9%82%D8%A9%20%D8%A7%D9%84%D8%A7%D8%AD%D8%AA%D8%B1%D8%A7%D9%81%D9%8A%D8%A9",
+      },
+      {
+        id: "vip",
+        name: "VIP",
+        price: "١٬٢٩٩",
+        period: "لكل مناسبة",
+        description: "للمناسبات الكبرى — عدد مدعوين غير محدود.",
+        features: [
+          "كل مزايا الاحترافية",
+          "تصميم مخصص لبطاقة الدعوة",
+          "مدير حساب مخصص",
+          "منسقون متعددون",
+          "تقارير حضور تفصيلية",
+          "دعم مباشر على مدار الحدث",
+        ],
+        highlight: false,
+        ctaLabel: "احجز VIP",
+        ctaHref: "https://wa.me/966500000000?text=%D8%A8%D8%A7%D9%82%D8%A9%20VIP",
+      },
+    ],
+  },
+  refund: {
+    eyebrow: "REFUND POLICY",
+    title: "سياسة الاسترجاع والإلغاء",
+    subtitle: "نلتزم بأنظمة التجارة الإلكترونية في المملكة العربية السعودية.",
+    body:
+      "١. طبيعة الخدمة\nخدمة INVITLY خدمة رقمية تُقدَّم فور تفعيل الاشتراك، وتشمل تصميم بطاقة الدعوة، وإرسال الروابط، وإدارة الردود.\n\n٢. إلغاء الطلب قبل بدء التنفيذ\nيحق للعميل طلب الإلغاء واسترداد المبلغ كاملاً خلال ٢٤ ساعة من الدفع بشرط عدم البدء في تصميم بطاقة الدعوة أو إرسال أي رسالة للضيوف.\n\n٣. بعد بدء التنفيذ\nإذا بدأ فريق العمل في تخصيص التصميم أو تم إرسال أي دعوة لأحد الضيوف، تُحتسب نسبة تنفيذ ٥٠٪ من قيمة الباقة ويُسترد الباقي عند وجود سبب مقبول.\n\n٤. بعد انعقاد المناسبة\nلا يحق الاسترجاع بعد انتهاء تاريخ المناسبة أو بعد استخدام رابط الحضور من قِبل ٢٠٪ أو أكثر من المدعوين.\n\n٥. مدة استرجاع المبلغ\nعند الموافقة على الاسترجاع، يُعاد المبلغ إلى وسيلة الدفع الأصلية خلال ٧ إلى ١٤ يوم عمل حسب سياسة البنك.\n\n٦. كيفية طلب الاسترجاع\nيرجى التواصل عبر واتساب أو البريد الرسمي مع ذكر رقم الطلب وسبب الطلب.\n\n٧. حالات الاستثناء\nنحتفظ بحق رفض طلبات الاسترجاع في حال ثبوت سوء الاستخدام أو محاولة الاحتيال.\n\nهذه السياسة تتوافق مع نظام التجارة الإلكترونية السعودي ولائحته التنفيذية.",
+  },
 };
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
@@ -202,6 +312,18 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
     whatsapp: {
       ...DEFAULT_CONTENT.whatsapp,
       ...((data.branding as unknown as { whatsapp?: Partial<SiteWhatsApp> })?.whatsapp ?? {}),
+    },
+    commercial: {
+      ...DEFAULT_CONTENT.commercial,
+      ...((data.branding as unknown as { commercial?: Partial<SiteCommercial> })?.commercial ?? {}),
+    },
+    pricing: {
+      ...DEFAULT_CONTENT.pricing,
+      ...((data.branding as unknown as { pricing?: Partial<SitePricing> })?.pricing ?? {}),
+    },
+    refund: {
+      ...DEFAULT_CONTENT.refund,
+      ...((data.branding as unknown as { refund?: Partial<SiteRefund> })?.refund ?? {}),
     },
     updated_at: data.updated_at,
   } as SiteContent;
@@ -241,6 +363,9 @@ export const updateSiteContent = createServerFn({ method: "POST" })
           social: data.content.social,
           pages: data.content.pages,
           whatsapp: data.content.whatsapp,
+          commercial: data.content.commercial,
+          pricing: data.content.pricing,
+          refund: data.content.refund,
         } as never,
         updated_by: userId,
       })
