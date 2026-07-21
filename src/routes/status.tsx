@@ -81,7 +81,7 @@ function StatusPage() {
         </div>
       </main>
 
-      <SiteFooter branding={c.branding} social={c.social} />
+      <SiteFooter branding={c.branding} social={c.social} commercial={c.commercial} />
     </div>
   );
 }

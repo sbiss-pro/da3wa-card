@@ -180,7 +180,7 @@ function Index() {
         <TrustCommercial whatsappNumber={branding.whatsappNumber} />
       </main>
 
-      <SiteFooter branding={branding} social={content.social} />
+      <SiteFooter branding={branding} social={content.social} commercial={content.commercial} />
       <FloatingActions whatsappNumber={branding.whatsappNumber} />
     </div>
   );
