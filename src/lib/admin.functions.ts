@@ -363,6 +363,9 @@ export const updateSiteContent = createServerFn({ method: "POST" })
           social: data.content.social,
           pages: data.content.pages,
           whatsapp: data.content.whatsapp,
+          commercial: data.content.commercial,
+          pricing: data.content.pricing,
+          refund: data.content.refund,
         } as never,
         updated_by: userId,
       })
