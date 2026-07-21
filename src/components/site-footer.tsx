@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, MessageCircle, Twitter, Instagram, Phone } from "lucide-react";
-import type { SiteBranding, SiteSocial } from "@/lib/admin.functions";
+import type { SiteBranding, SiteSocial, SiteCommercial } from "@/lib/admin.functions";
 
 const DEFAULT_BRANDING: SiteBranding = {
   siteName: "invitly",
@@ -17,15 +17,17 @@ const DEFAULT_SOCIAL: SiteSocial = {
 export function SiteFooter({
   branding = DEFAULT_BRANDING,
   social = DEFAULT_SOCIAL,
+  commercial,
 }: {
   branding?: SiteBranding;
   social?: SiteSocial;
+  commercial?: SiteCommercial;
 } = {}) {
   const year = new Date().getFullYear();
   const wa = branding.whatsappNumber || DEFAULT_BRANDING.whatsappNumber;
   return (
     <footer dir="rtl" className="border-t border-border/50 bg-background/40 backdrop-blur-xl">
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 md:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 md:grid-cols-5">
         <div className="md:col-span-2">
           <Link to="/" className="flex items-center gap-2.5">
             {branding.logoUrl ? (
@@ -52,6 +54,7 @@ export function SiteFooter({
           <p className="font-display text-xs font-bold tracking-[0.3em] text-primary/80">المنصة</p>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             <li><Link to="/" className="transition hover:text-foreground">الرئيسية</Link></li>
+            <li><Link to="/pricing" className="transition hover:text-foreground">الأسعار</Link></li>
             <li><Link to="/about" className="transition hover:text-foreground">من نحن</Link></li>
             <li><Link to="/contact" className="transition hover:text-foreground">تواصل معنا</Link></li>
             <li><a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer noopener" className="transition hover:text-foreground">اطلب الخدمة عبر واتساب</a></li>
@@ -62,8 +65,22 @@ export function SiteFooter({
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             <li><Link to="/privacy" className="transition hover:text-foreground">سياسة الخصوصية</Link></li>
             <li><Link to="/terms" className="transition hover:text-foreground">الشروط والأحكام</Link></li>
+            <li><Link to="/refund" className="transition hover:text-foreground">سياسة الاسترجاع</Link></li>
+            <li><Link to="/status" className="transition hover:text-foreground">حالة النظام</Link></li>
           </ul>
         </div>
+        {commercial && (
+          <div>
+            <p className="font-display text-xs font-bold tracking-[0.3em] text-primary/80">المنشأة</p>
+            <ul className="mt-4 space-y-2 text-xs leading-relaxed text-muted-foreground">
+              {commercial.entityName && <li className="text-foreground/90">{commercial.entityName}</li>}
+              {commercial.crNumber && <li>سجل تجاري: {commercial.crNumber}</li>}
+              {commercial.vatNumber && <li>رقم ضريبي: {commercial.vatNumber}</li>}
+              {commercial.address && <li>{commercial.address}</li>}
+              {commercial.workHours && <li>{commercial.workHours}</li>}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="border-t border-border/40 py-5 text-center text-xs text-muted-foreground/80">
         © {year} {branding.siteName} · جميع الحقوق محفوظة
