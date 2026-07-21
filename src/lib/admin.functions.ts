@@ -68,6 +68,37 @@ export type SiteWhatsApp = {
   messageSuggestions: { label: string; body: string }[];
 };
 
+export type SiteCommercial = {
+  crNumber: string;
+  vatNumber: string;
+  address: string;
+  workHours: string;
+  entityName: string;
+  supportEmail: string;
+};
+
+export type PricingPlan = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  highlight: boolean;
+  ctaLabel: string;
+  ctaHref: string;
+};
+
+export type SitePricing = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  plans: PricingPlan[];
+  note: string;
+};
+
+export type SiteRefund = SitePage;
+
 export type SiteContent = {
   sections: SiteSection[];
   theme: SiteTheme;
@@ -75,6 +106,9 @@ export type SiteContent = {
   social: SiteSocial;
   pages: SitePages;
   whatsapp: SiteWhatsApp;
+  commercial: SiteCommercial;
+  pricing: SitePricing;
+  refund: SiteRefund;
   updated_at?: string;
 };
 
