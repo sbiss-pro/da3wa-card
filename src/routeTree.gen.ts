@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SaLoginRouteImport } from './routes/sa-login'
 import { Route as RefundRouteImport } from './routes/refund'
@@ -45,6 +46,11 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/refund': typeof RefundRoute
   '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/refund': typeof RefundRoute
   '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/refund': typeof RefundRoute
   '/sa-login': typeof SaLoginRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/sa-login'
     | '/sitemap.xml'
+    | '/status'
     | '/terms'
     | '/admin'
     | '/.mcp/list-tools'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/sa-login'
     | '/sitemap.xml'
+    | '/status'
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/sa-login'
     | '/sitemap.xml'
+    | '/status'
     | '/terms'
     | '/_authenticated/admin'
     | '/.mcp/list-tools'
@@ -424,6 +436,7 @@ export interface RootRouteChildren {
   RefundRoute: typeof RefundRoute
   SaLoginRoute: typeof SaLoginRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StatusRoute: typeof StatusRoute
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -719,6 +739,7 @@ const rootRouteChildren: RootRouteChildren = {
   RefundRoute: RefundRoute,
   SaLoginRoute: SaLoginRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StatusRoute: StatusRoute,
   TermsRoute: TermsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
