@@ -1,79 +1,61 @@
-# خطة: فصل تسجيلات الدخول وأدوار الأحداث + قيود إنشاء الحسابات
 
-## 1) صفحات تسجيل دخول منفصلة (روابط سرية)
+# خطة الإطلاق التجاري — INVITLY
 
-- **المدير الأعلى (Super Admin)** — فقط `saeedbiss@hotmail.com`.
-  - رابط سري جديد فقط: `/owner/9x2k7q4mvp-invitly-2026` يقود إلى صفحة تسجيل دخول مستقلة `/sa-login` (مخفية، `noindex`، لا روابط لها).
-  - عند الدخول: إن كان البريد ≠ حساب المدير الأعلى → رفض فوري ورسالة "غير مصرح".
-  - صفحة `/auth` العامة السابقة تُلغى كواجهة دخول عامة (redirect → الصفحة الرئيسية). فقط الروابط السرية أدناه تصل إلى تسجيل الدخول.
+سأنفّذ ما يمكن بناؤه في الكود مباشرة، وأطلب منك القيم الحقيقية (السجل التجاري، أرقام التواصل، مفاتيح واتساب) لتُدخلها من لوحة الإدارة أو نموذج الأسرار بدل تضمينها في الكود.
 
-- **المنسّق (Coordinator)** — صفحة مستقلة على رابط سري جديد:
-  - `/c-portal/7h3n2r8w-coord` → `/c/login` (نموذج المنسّق الحالي).
-  - إخفاء كامل من الواجهة العامة (لا روابط، `noindex`).
+## دفعات التنفيذ
 
-- **مالك الحدث (Event Owner)** — صفحة مستقلة برابط سري:
-  - `/o-portal/5m9p4t6q-owner` → `/o/login` تسجيل دخول Supabase (email/password) خاص فقط بمالكي الأحداث.
-  - رفض أي حساب لا يمتلك دور `owner`.
+### الدفعة الأولى — صفحات ومحتوى (أنفّذها الآن بدون مدخلات منك)
+1. **صفحة الأسعار `/pricing`**: ثلاث باقات (أساسية / احترافية / VIP) قابلة للتحرير من لوحة الإدارة، مع CTA واتساب للحجز.
+2. **صفحة سياسة الاسترجاع `/refund`**: نص عربي متوافق مع نظام التجارة الإلكترونية السعودي، قابل للتحرير من CMS (مثل privacy/terms).
+3. **صفحة "من نحن التجارية" — تحديث `/about`**: إضافة قسم CR/VAT/العنوان/ساعات العمل.
+4. **تحديث الفوتر**: إضافة أرقام السجل التجاري والرقم الضريبي وعنوان المنشأة (حقول جديدة في CMS، فارغة حتى تعبّئها).
+5. **ربط الصفحات الجديدة**: في القائمة العلوية، الفوتر، وsitemap.xml + JSON-LD.
 
-- سيتم عرض الروابط الثلاثة السرية لك في الشات فقط.
+### الدفعة الثانية — بنية الموثوقية (أنفّذها الآن)
+6. **مراقبة الأخطاء (Sentry-lite)**: `src/lib/error-capture.ts` موجود مسبقاً — سأفعّل تسجيل الأخطاء في جدول `error_logs` مع لوحة عرض في السوبر أدمن (أخطاء آخر 7 أيام).
+7. **صفحة الحالة `/status`**: تعرض حالة قاعدة البيانات + آخر نسخة احتياطية + عدد الأحداث النشطة.
+8. **تحسينات الأداء**: lazy-load للصور الكبيرة في الرئيسية + preconnect للخطوط.
 
-## 2) الأدوار (RBAC)
+### الدفعة الثالثة — تحتاج مدخلات منك
+9. **الدفع (Paddle)**: سأشغّل `recommend_payment_provider` ثم `enable_paddle_payments` — تحتاج تعبئة نموذج ببريدك واسم النشاط.
+10. **WhatsApp Business Cloud API**: يحتاج `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` من Meta. سأطلبها عبر Add Secret وأبني `sendWhatsAppTemplate` server function.
+11. **بيانات النشاط الحقيقية** (تُدخلها من لوحة الإدارة بعد الدفعة الأولى):
+    - رقم السجل التجاري
+    - الرقم الضريبي (VAT)
+    - عنوان المنشأة
+    - البريد والجوال الرسمي
+    - رقم واتساب الأعمال
 
-- توسيع `app_role` بإضافة `owner` (بالإضافة للأدوار الحالية: `admin`, `editor`, `user`, `coordinator`).
-- المدير الأعلى يُحدَّد حصراً بالبريد `saeedbiss@hotmail.com` عبر الدالة الموجودة `is_super_admin()`.
-- إسناد جدول `events` لحقل جديد `owner_user_id uuid` (FK → `auth.users`) بجانب المنسّق الحالي.
-- المنسّق: يعمل فقط على أحداثه (كما هو الآن) — لا تغيير.
-- المالك: يقرأ فقط إحصائيات أحداثه المسندة.
+### النقاط خارج نطاق الكود
+- **ZATCA e-Invoice**: تحتاج التسجيل في فاتورة + مزوّد معتمد (ClickInvoice/Wafeq). سأضيف حقل "رقم فاتورة يدوي" الآن، والتكامل الآلي لاحقاً كمرحلة ثانية.
+- **اختبار الحمل**: أشغّل سكربت k6 محلي على `/i/:token` لمحاكاة 500 مسح متزامن وأعرض النتائج.
+- **نطاق مخصص**: تُربطه من Project Settings → Domains بعد شراء `invitly.sa`.
 
-## 3) لوحة مالك الحدث (قراءة فقط)
+## التفاصيل التقنية
 
-- `/_authenticated/owner` (SSR off) — تُعرض فقط إن كان للمستخدم دور `owner`.
-- هيكل الصفحة جاهز لعرض إحصائيات لكل حدث مسنَد: عدد الدعوات، المؤكدون، الحضور الفعلي (سيُعبَّأ لاحقاً بالبيانات التي ستزوّدنا بها).
-- لا أزرار إنشاء/تعديل/حذف مطلقاً.
+### مخطط الملفات الجديدة
+```text
+src/routes/pricing.tsx          # صفحة الباقات
+src/routes/refund.tsx           # سياسة الاسترجاع
+src/routes/status.tsx           # حالة النظام
+src/routes/_authenticated/admin/errors.tsx  # لوحة الأخطاء
+supabase migration: error_logs, add commercial_info to site_content.branding
+```
 
-## 4) قيود إنشاء الحسابات
+### CMS — حقول جديدة على `SiteContent`
+- `commercial.crNumber` — رقم السجل التجاري
+- `commercial.vatNumber` — الرقم الضريبي
+- `commercial.address` — العنوان
+- `commercial.workHours` — ساعات العمل
+- `pages.pricing` + `pages.refund` — نصوص قابلة للتحرير
+- `pricing.plans[]` — قائمة الباقات (اسم/سعر/مميزات/CTA)
 
-- **Supabase Auth**: تعطيل التسجيل العام (`disable_signup=true`).
-- إزالة تبويب "إنشاء حساب" من كل صفحات الدخول.
-- المدير الأعلى فقط يستطيع من `/admin/users`:
-  - إنشاء حساب (admin/editor/coordinator/owner) عبر `supabaseAdmin.auth.admin.createUser`.
-  - تعديل/تفعيل/تعطيل/حذف الحسابات.
-  - إسناد/سحب الأدوار.
-- كل الدوال المميزة تتحقق من `is_super_admin()` قبل التنفيذ.
+### ترتيب التنفيذ
+1. Migration + توسعة CMS types
+2. صفحات pricing/refund/status
+3. تحديث الفوتر + about + sitemap
+4. لوحة أخطاء السوبر أدمن
+5. سؤالك عن Paddle + WhatsApp keys
 
-## 5) الأمان و RBAC على مستوى المسارات
-
-- `beforeLoad` على كل مسار محمي يستدعي `getMyPermissions` ويوجّه:
-  - `/admin/*` → super admin / admin / editor فقط.
-  - `/owner/*` (Event Owner) → دور `owner` فقط.
-  - `/dashboard`, `/events/*` → المستخدم صاحب الحدث فقط.
-  - المنسّق يبقى على `/c/*` بجلسته الحالية.
-- سياسات RLS جديدة/محدَّثة:
-  - `events`: SELECT للمالك عندما `owner_user_id = auth.uid()`.
-  - `guests`, `scan_logs`: SELECT للمالك عبر ربطها بأحداثه (قراءة فقط، لا INSERT/UPDATE/DELETE).
-- منع تصعيد الصلاحيات: لا يمكن لأي دور غير Super Admin الكتابة على `user_roles`.
-- `robots.txt`: منع فهرسة كل الروابط السرية والصفحات المحمية.
-
-## تفاصيل تقنية
-
-**ملفات جديدة:**
-- `src/routes/sa-login.tsx` — دخول المدير الأعلى (يتحقق من البريد بعد الدخول).
-- `src/routes/o.login.tsx` — دخول المالك.
-- `src/routes/o-portal.$key.tsx`, `src/routes/c-portal.$key.tsx` — بوابات سرية.
-- `src/routes/_authenticated/owner/route.tsx` + `owner/index.tsx` — لوحة المالك (read-only).
-- `src/lib/owner.functions.ts` — قراءة إحصائيات أحداث المالك.
-- توسعة `src/lib/admin.functions.ts` بـ `createUser`, `deleteUser`, `setUserActive`.
-
-**تعديلات:**
-- `src/routes/auth.tsx` → redirect إلى `/`.
-- `src/routes/index.tsx`, `src/components/site-footer.tsx` → إزالة أي روابط دخول.
-- `src/routes/_authenticated/admin/users.tsx` → إضافة إنشاء/حذف/تعطيل + إسناد دور `owner`.
-- migration: إضافة `owner` للـ enum، `events.owner_user_id`، سياسات RLS للمالك، دالة `has_any_role`.
-- `supabase--configure_auth` → `disable_signup=true`.
-
-**الروابط السرية النهائية (سأعرضها لك في الرد بعد التنفيذ):**
-- Super Admin: `/owner/9x2k7q4mvp-invitly-2026` (نفس السري الحالي)
-- Coordinator portal: مفتاح جديد
-- Owner portal: مفتاح جديد
-
-هل أبدأ التنفيذ بهذه الخطة؟
+هل أبدأ بالدفعة الأولى والثانية مباشرة (لا تحتاج منك أي مدخلات)، وبعدها ننتقل للثالثة؟
